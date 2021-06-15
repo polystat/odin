@@ -1,0 +1,9 @@
+# IDE
+.idea/
+.bsp/
+
+# Build
+target/
+
+# File system
+.DS_Store
