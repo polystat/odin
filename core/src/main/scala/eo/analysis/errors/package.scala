@@ -1,4 +1,3 @@
-
 package eo.analysis
 
 /** Analysis errors definitions. Analysis errors are those,
