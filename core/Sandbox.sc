@@ -1,7 +1,9 @@
 import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast._
+import eo.backend.eolang.ToEO.instances._
+import eo.backend.eolang.ToEO.ops._
 
-private val mutualRecursionExample = EOProg(
+val mutualRecursionExample = EOProg(
   EOMetas(
     pack = Some("sandbox"),
     metas = Vector(
@@ -86,6 +88,6 @@ private val mutualRecursionExample = EOProg(
   )
 )
 
-def test(): Unit = {
-
-}
+print(
+  mutualRecursionExample.toEO.value.mkString("\n")
+)
