@@ -24,6 +24,26 @@ sbt sandbox/run
 
 # Project structure
 
+## `core` project
+
+Defines EO AST. All other projects should depend on this one.
+
+## `backends` project
+
+Defines backends for the static analyzer. A backend is something that produces an output from AST.
+
+### `eolang` subproject
+
+Backend that is able to generate EO program (now, roughly, represented as a list of strings) from EO AST.
+
+## `utils` project
+
+Convenient tools that are used by other parts of the analyzer. This project must not depend on any other project.
+
+## `sandbox` project
+
+Enables to interactively run and test source code of the analyzer. Facilitates the development and debug of the source code and enables to see intermediate results of the development. Any other project must not depend on it. 
+
 For more details on the project organization see:
 
 - `build.sbt` - main build configuration file
