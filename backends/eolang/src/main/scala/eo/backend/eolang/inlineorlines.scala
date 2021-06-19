@@ -23,6 +23,8 @@ object inlineorlines {
       def toIterable: Iterable[String] = iol
 
       def toLines: Lines = Lines(iol)
+
+      def allLinesToString: String = iol.mkString("\n")
     }
   }
 }

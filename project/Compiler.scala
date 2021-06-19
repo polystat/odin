@@ -63,9 +63,14 @@ object Compiler {
 
   val settings = Seq(
     scalacOptions ++= options,
+
+    // Remove the errors related to unused entities, when launching scala repl,
+    // so that the code with unused entities can be conveniently tested during
+    // development
     Compile / console / scalacOptions ~= (_.filterNot(consoleOptionsToRemove)),
     Test / console / scalacOptions := (Compile / console / scalacOptions).value,
 
+    // Compiler plugins
     addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
   )
 }

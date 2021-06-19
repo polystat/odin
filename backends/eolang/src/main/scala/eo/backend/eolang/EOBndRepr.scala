@@ -50,11 +50,11 @@ object EOBndRepr {
           (iol: InlineOrLines) => (name: String) => {
             val inlineOpt =
               GenPrism[InlineOrLines, Inline] andThen
-                GenIso[Inline, String]
+              GenIso[Inline, String]
             val linesOpt =
               GenPrism[InlineOrLines, Lines] andThen
-                linesStringVectorIso           andThen
-                firstLineOpt
+              linesStringVectorIso           andThen
+              firstLineOpt
 
             val bindInline = boundExprOpt(name)(inlineOpt)
             val bindLines = boundExprOpt(name)(linesOpt)
