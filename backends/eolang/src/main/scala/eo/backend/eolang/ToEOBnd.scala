@@ -3,7 +3,6 @@ package eo.backend.eolang
 import eo.backend.eolang.inlineorlines._
 
 abstract class ToEOBnd[T, R, NR](implicit toEO: ToEO[T, R], eoRepr: EOBndRepr[R, NR]) {
-//  def withBindToName(f: T => R): T => NR => R = eoRepr.bindToName compose f
   def bndToEO: T => NR => R = eoRepr.bindToName compose toEO.toEO
 }
 

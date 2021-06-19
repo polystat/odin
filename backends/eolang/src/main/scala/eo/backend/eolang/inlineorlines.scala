@@ -21,6 +21,7 @@ object inlineorlines {
       import conversions._
 
       def toIterable: Iterable[String] = iol
+
       def toLines: Lines = Lines(iol)
     }
   }

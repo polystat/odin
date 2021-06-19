@@ -8,7 +8,7 @@ import eo.backend.eolang.ToEOBnd.ops._
 import eo.backend.eolang.inlineorlines._
 import eo.backend.eolang.inlineorlines.ops._
 import eo.core.ast._
-import utils.string.indent
+import eo.utils.text._
 
 trait ToEO[T, R] {
   def toEO(node: T): R
