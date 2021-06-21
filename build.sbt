@@ -4,7 +4,9 @@ ThisBuild / name := "eo-static-analyzer"
 ThisBuild / organization := "sitiritis"
 ThisBuild / version := "0.1"
 
-val commonSettings = Compiler.settings
+val commonSettings = Compiler.settings ++ Seq(
+  resolvers += Opts.resolver.sonatypeSnapshots
+)
 
 lazy val `eo-static-analyzer-app` = project
   .in(file("."))

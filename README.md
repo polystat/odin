@@ -12,7 +12,7 @@ To run the project you will need [sbt](https://www.scala-sbt.org/1.x/docs/Setup.
 
 As of now there is no app to run and interact with, but one can play with the source code of the analyzer in the sandbox project.
 
-The entrypoint is in `snadbox/src/main/scala/eo/sandbox/Sandbox.scala`.
+The entrypoint is in `sandbox/src/main/scala/eo/sandbox/Sandbox.scala`.
 
 The sandbox can be run via:
 
