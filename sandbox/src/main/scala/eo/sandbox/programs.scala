@@ -3,7 +3,7 @@ package eo.sandbox
 import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast._
 import eo.core.ast.astparams.EOExprOnly
-import eo.utils.func.Fix
+import higherkindness.droste.data.Fix
 
 object programs {
   val mutualRecursionExample: EOProg[EOExprOnly] = EOProg(

@@ -1,6 +1,7 @@
 package eo.backend.eolang
 
 import cats.implicits.toBifunctorOps
+import higherkindness.droste.data.Fix
 import eo.backend.eolang.EOBndRepr.instances._
 import eo.backend.eolang.ToEO.ops.ToEOOps
 import eo.backend.eolang.ToEOBnd.instances._
@@ -29,7 +30,8 @@ object ToEO {
   object instances {
     implicit val eoExprOnlyToEO: ToEO[EOExprOnly, InlineOrLines] =
       new ToEO[EOExprOnly, InlineOrLines] {
-        override def toEO(node: EOExprOnly): InlineOrLines = node.unfix.toEO
+        override def toEO(node: EOExprOnly): InlineOrLines =
+          Fix.un(node).toEO
       }
 
     // Program ///////////////////////////////////////////////////////////////////
@@ -182,7 +184,7 @@ object ToEO {
           def dataCases(name: String)(data: EOData[EOExprOnly]): InlineOrLines = dotNotation(name)(data.toEO)
 
           override def toEO(node: EODot[EOExprOnly]): InlineOrLines = {
-            node.src.unfix match {
+            Fix.un(node.src) match {
               case n: EOObj[EOExprOnly]  => objCases(node.name)(n)
               case n: EOApp[EOExprOnly]  => appCases(node.name)(n)
               case n: EOData[EOExprOnly] => dataCases(node.name)(n)

@@ -1,6 +1,6 @@
 package eo.core.ast
 
-import eo.utils.func.Fix
+import higherkindness.droste.data.Fix
 
 object astparams {
   type EOExprOnly = Fix[EOExpr]
