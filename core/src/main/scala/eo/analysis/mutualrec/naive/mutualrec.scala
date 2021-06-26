@@ -7,7 +7,7 @@ object mutualrec {
   import eo.analysis.mutualrec.naive.mutualrec.effects.{ MethodAttribute, TopLevelObjects }
 
   type MethodAttributeRefStateRec[F[_], E <: EOExpr[E], S] = (
-    scala.collection.mutable.Set[MethodAttribute[F, S]],
+    scala.collection.immutable.Set[MethodAttribute[F, S]],
     Vector[EOBnd[E]]
   )
 
@@ -159,21 +159,26 @@ object mutualrec {
     def createMethodAttribute[F[_]: Sync, E <: EOExpr[E]](
       methodName: String,
       methodParams: Vector[String],
-      initialState: MethodAttributeRefState[F, E]
+      methodBody: Vector[EOBnd[E]]
     ): F[MethodAttribute[F, MethodAttributeRefState[F, E]]] = for {
-      stateFixed <- Sync[F].delay(initialState)
-      state = Fix.un(stateFixed)
+      referencedMethodSet <- Sync[F].delay(
+        scala.collection.mutable.Set[MethodAttribute[F, MethodAttributeRefState[F, E]]]()
+      )
     } yield new MethodAttribute[F, MethodAttributeRefState[F, E]] {
       override def name: String = methodName
 
       override def params: Vector[String] = methodParams
 
-      override def getState: F[MethodAttributeRefState[F, E]] = Sync[F].delay(stateFixed)
+      override def getState: F[MethodAttributeRefState[F, E]] =
+        Sync[F].delay(Fix[MethodAttributeRefStateRec[F, E, *]]((
+          referencedMethodSet.toSet,
+          methodBody
+        )))
 
       override def referenceMethod(
         method: MethodAttribute[F, MethodAttributeRefState[F, E]]
       ): F[Unit] = Sync[F].delay {
-        state._1.add(method)
+        referencedMethodSet.add(method)
         ()
       }
 
