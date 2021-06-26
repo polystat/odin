@@ -4,6 +4,19 @@ import eo.core.ast._
 import higherkindness.droste.data.Fix
 
 object mutualrec {
+  import eo.analysis.mutualrec.naive.mutualrec.effects.{ MethodAttribute, TopLevelObjects }
+
+  type MethodAttributeRefStateRec[F[_], E <: EOExpr[E], S] = (
+    scala.collection.mutable.Set[MethodAttribute[F, S]],
+    Vector[EOBnd[E]]
+  )
+
+  type MethodAttributeRefState[F[_], E <: EOExpr[E]] =
+      Fix[MethodAttributeRefStateRec[F, E, *]]
+
+  type TopLevelObjectsWithMethodRefs[F[_], E <: EOExpr[E]] =
+    TopLevelObjects[F, EOObj[E], MethodAttributeRefState[F, E]]
+
   object effects {
     trait MethodAttribute[F[_], S] {
       def name: String
@@ -48,22 +61,6 @@ object mutualrec {
         case _ => implicitly[Monad[F]].pure(())
       }
     } yield ()
-
-//    type MethodAttributeRefState[F[_], E <: EOExpr[E]] = (
-//      Set[MethodAttribute[F, MethodAttributeRefState[F, E]]],
-//      Vector[EOBnd[E]]
-//    )
-
-    type MethodAttributeRefStateHelper[F[_], E <: EOExpr[E], S] = (
-      Set[MethodAttribute[F, S]],
-      Vector[EOBnd[E]]
-    )
-
-    type MethodAttributeRefState[F[_], E <: EOExpr[E]] =
-      MethodAttributeRefStateHelper[F, E, Fix[MethodAttributeRefStateHelper[F, E, *]]]
-
-    type TopLevelObjectsWithMethodRefs[F[_], E <: EOExpr[E]] =
-      TopLevelObjects[F, EOObj[E], MethodAttributeRefState[F, E]]
 
     def resolveMethodsReferences[
       F[_]: Monad,
@@ -129,7 +126,8 @@ object mutualrec {
         result <- methods.foldM(Vector.empty[String]) { (res, method) =>
           val (meth, objName) = method
           for {
-            (_, body) <- meth.getState
+            stateFixed <- meth.getState
+            (_, body) = Fix.un(stateFixed)
             methBodyResult <- body.foldM(Vector.empty[String]) { (methBodyRes, methBodyAttr) =>
               for {
                 methodBodyAttrResult <- methBodyAttr match {
@@ -148,5 +146,44 @@ object mutualrec {
         }
       } yield result
     }
+  }
+
+  object interpreters {
+//    import cats._
+    import cats.implicits._
+    import cats.effect._
+//    import cats.effect.syntax._
+//    import scala.collection._
+    import effects._
+
+    def createMethodAttribute[F[_]: Sync, E <: EOExpr[E]](
+      methodName: String,
+      methodParams: Vector[String],
+      initialState: MethodAttributeRefState[F, E]
+    ): F[MethodAttribute[F, MethodAttributeRefState[F, E]]] = for {
+      stateFixed <- Sync[F].delay(initialState)
+      state = Fix.un(stateFixed)
+    } yield new MethodAttribute[F, MethodAttributeRefState[F, E]] {
+      override def name: String = methodName
+
+      override def params: Vector[String] = methodParams
+
+      override def getState: F[MethodAttributeRefState[F, E]] = Sync[F].delay(stateFixed)
+
+      override def referenceMethod(
+        method: MethodAttribute[F, MethodAttributeRefState[F, E]]
+      ): F[Unit] = Sync[F].delay {
+        state._1.add(method)
+        ()
+      }
+
+      // Override the comparison methods explicitly, so that it is possible to
+      // compare the created object by reference, which will be needed to manipulate
+      // values in sets
+      override def equals(o: Any): Boolean = super.equals(o)
+      override def hashCode: Int = super.hashCode
+    }
+
+
   }
 }
