@@ -1,21 +1,28 @@
 package eo.analysis.mutualrec.naive
-
-//import cats.data.Chain
-import scala.collection.immutable.Map
+import cats.data._
 import eo.core.ast._
+import higherkindness.droste.data.Fix
 
 object mutualrec {
-  type MethodSig[A] = Map[String, MethodAttr[A]]
-  type TopLevelObjects[A] = Map[String, Object[A]]
-
-  case class MethodAttr[A](freeAttrs: Vector[String], body: Vector[EOBndExpr[A]])
-  case class Object[A](attrs: MethodSig[A])
-
-  val assumedSelfName: String = "self"
-
   object effects {
-    trait ObjectsResolver[F[_], A, R] {
-      def resolveObj(objName: String, node: A): F[R]
+    trait MethodAttribute[F[_], S] {
+      def name: String
+      def params: Vector[String]
+      def getState: F[S]
+      def referenceMethod(method: MethodAttribute[F, S]): F[Unit]
+    }
+
+    trait MethodAttributes[F[_], S] {
+      def objName: String
+      def attributes: F[Vector[MethodAttribute[F, S]]]
+      def addMethodAttribute(name: String, params: Iterable[String]): F[Unit]
+      def findAttributeWithName(name: String): OptionT[F, MethodAttribute[F, S]]
+    }
+
+    trait TopLevelObjects[F[_], O, S] {
+      def objects: F[Vector[MethodAttributes[F, S]]]
+      def add(objName: String, obj: O): F[Unit]
+      def findMethodsWithName(methodName: String): F[Vector[MethodAttribute[F, S]]]
     }
   }
 
@@ -25,132 +32,121 @@ object mutualrec {
     import effects._
 
     def resolveTopLevelObjectsAndAttrs[
-      F[_] : Monad, G <: EOExpr[G]
+      F[_]: Monad,
+      E <: EOExpr[E],
+      S,
     ](
-      eoProg: EOProg[EOExpr[G]]
+      eoProg: EOProg[EOExpr[E]]
     )(
-      implicit rslv: ObjectsResolver[F, EOObj[EOExpr[G]], TopLevelObjects[G]],
-    ): F[TopLevelObjects[G]] = eoProg.bnds.foldM(Map.empty[String, Object[G]])((state, bnd) =>
-      bnd match {
-        case EOBndExpr(bndName, expr) => expr match {
-          case o: EOObj[EOExpr[G]] => rslv.resolveObj(bndName.name.name, o)
-          case _ => implicitly[Monad[F]].pure(state)
+      implicit objs: TopLevelObjects[F, EOObj[E], S],
+    ): F[Unit] = for {
+      _ <- eoProg.bnds.traverse {
+        case EOBndExpr(objName, objExpr) => objExpr match {
+          case o: EOObj[E] => objs.add(objName.name.name, o)
+          case _ => implicitly[Monad[F]].pure(())
         }
-        case _ => implicitly[Monad[F]].pure(state)
+        case _ => implicitly[Monad[F]].pure(())
       }
+    } yield ()
+
+//    type MethodAttributeRefState[F[_], E <: EOExpr[E]] = (
+//      Set[MethodAttribute[F, MethodAttributeRefState[F, E]]],
+//      Vector[EOBnd[E]]
+//    )
+
+    type MethodAttributeRefStateHelper[F[_], E <: EOExpr[E], S] = (
+      Set[MethodAttribute[F, S]],
+      Vector[EOBnd[E]]
     )
 
-//    def findMethodRecursionForTopObjects[
-//      F[_], G <: EOExpr[G]
-//    ](
-//      topLevelObjects: TopLevelObjects[G]
-//    )(
-//      implicit ae: MonadError[F, String],
-//    ): F[Vector[String]] = {
-////      def methBodyTraverser(
-////        methExpr: EOExpr[G],
-////        pathChain: Chain[String]
-////      ): F[String] = ???
-////        methExpr match {
-////          case EOSimpleApp(_) => alt.empty
-////          case d: EODot[G] => methBodyTraverser(d, pathChain)
-////          case EOCopy(copyApply, copyArgs) =>
-////            (copyApply, copyArgs.lift(0)) match {
-////              // TODO: we found the pattern, search for the attribute `dotRightName`
-////              // in the `topLevelObjects` attributes and if the body references
-////              // this attribute via the same pattern - we have found a recursion
-////              case (
-////                EODot(EOSimpleApp(dotLeftName), dotRightName),
-////                Some(EOAnonExpr(EOSimpleApp(firstParamName)))
-////              ) if dotLeftName == firstParamName => ???
-////            }
-////          case EOObj(fr, va, bnd) => alt.pure(
-////            s"""Warning: cannot analyze ${pathChain.mkString_(".")},
-////               |because analysis of nested objects is not
-////               |supported.""".stripMargin
-////          )
-////          case _ => alt.empty
-////        }
-//
-////      val res = for {
-////        (objName, obj) <- topLevelObjects.toVector
-////        (methodName, methodAttr) <- obj.attrs.toVector
-////        MethodAttr(methodParams, methodBody) = methodAttr
-////        EOBndExpr(methodAttrName, methodAttrExpr) <- methodBody
-////        pathChain = Chain(objName, methodName, methodAttrName.name.name)
-////      } yield methBodyTraverser(methodAttrExpr, pathChain)
-////
-////      res.sequence(implicitly, alt)
-//      // TODO: rewrite via foldM
-//      ???
-//    }
-//
-//    def findMethodRecursionForTopObjects[
-//      F[_], G <: EOExpr[G]
-//    ](
-//      eoProg: EOProg[EOExpr[G]]
-//    )(
-//      implicit rslv: ObjectsResolver[F, EOObj[EOExpr[G]], TopLevelObjects[G]],
-//      me: MonadError[F, String],
-//    ): F[Vector[String]] = for {
-//      topObjects <- resolveTopLevelObjectsAndAttrs(eoProg)(me, rslv)
-//      res: Vector[String] <- {
-//        val x = findMethodRecursionForTopObjects(topObjects)(me)
-//
-//        // TODO: remove, when implemented
-//        me.raiseError("Not implemented, yet")
-//      }
-//    } yield res
-  }
+    type MethodAttributeRefState[F[_], E <: EOExpr[E]] =
+      MethodAttributeRefStateHelper[F, E, Fix[MethodAttributeRefStateHelper[F, E, *]]]
 
-  object interpreters {
-    import cats.MonadError
-    import cats.implicits._
-    import cats.data.StateT
-    import effects._
+    type TopLevelObjectsWithMethodRefs[F[_], E <: EOExpr[E]] =
+      TopLevelObjects[F, EOObj[E], MethodAttributeRefState[F, E]]
 
-    implicit def objectsResolverEitherImmutableDict[
-      G <: EOExpr[G],
-      M[_]
+    def resolveMethodsReferences[
+      F[_]: Monad,
+      E <: EOExpr[E],
     ](
-      implicit me: MonadError[M, String]
-    )
-    : ObjectsResolver[
-      Lambda[A => StateT[M, A, A]], EOObj[EOExpr[G]], TopLevelObjects[G]
-    ] = new ObjectsResolver[Lambda[A => StateT[M, A, A]], EOObj[EOExpr[G]], TopLevelObjects[G]] {
-      override def resolveObj(
-        objName: String,
-        node: EOObj[EOExpr[G]]
-      ): StateT[M, TopLevelObjects[G], TopLevelObjects[G]] = StateT[M, TopLevelObjects[G], TopLevelObjects[G]] {
-        (s: TopLevelObjects[G]) =>
-          if (s.keySet.contains(objName))
-            me.raiseError(s"The name ${objName} is already defined")
-          else {
-            val result: M[(TopLevelObjects[G], TopLevelObjects[G])] = for {
-              objAttrs <- node.bndAttrs.foldM[M, MethodSig[G]](Map.empty[String, MethodAttr[G]])
-                { (methods, bndExpr) =>
-                  val methAttrName = bndExpr.bndName.name.name
-                  if (methods.contains(methAttrName))
-                    me.raiseError(s"The object ${objName} defines method-attribute ${methAttrName} more than once")
-                  else
-                    bndExpr.expr match {
-                      // Assume all method's free attributes are unique
-                      case EOObj(freeAttrs, _, bndAttrs) => me.pure(
-                        methods + (methAttrName -> MethodAttr(
-                          freeAttrs.map(_.name),
-                          bndAttrs
-                        ))
-                      )
-                      case _ => me.pure(methods)
-                    }
-                }
-              obj = Object(objAttrs)
-              updatedTopLevelObjs = s + (objName -> obj)
-            } yield (updatedTopLevelObjs, updatedTopLevelObjs)
-
-            result
-          }
+      implicit objs: TopLevelObjectsWithMethodRefs[F, E],
+    ): F[Vector[String]] = {
+      def analyzeMethodBodyExpr(
+        expr: EOExpr[E],
+        topLevelObjectName: String,
+        methodName: String,
+        methodBodyAttrName: String
+      )(
+        implicit methAttr: MethodAttribute[F, MethodAttributeRefState[F, E]]
+      ): F[Vector[String]] = expr match {
+        case _: EOObj[E] => implicitly[Monad[F]].pure(Vector(
+          s"""Warning: cannot analyze object
+             |${topLevelObjectName}.${methodName}.${methodBodyAttrName},
+             |because analysis of nested objects is not supported""".stripMargin
+        ))
+        case EOCopy(trg, args) => trg match {
+          // if the pattern is like `self.attrName self`
+          // then it is possible that attrName is recursive for some self
+          // so we try to find it for some self and record this fact in the
+          // method state
+          case EODot(EOSimpleApp(dotLeftName), attrName)
+            if args.headOption.exists(_.expr match {
+              case EOSimpleApp(firstArgName) => firstArgName == dotLeftName
+              case _ => false
+            }) => for {
+              referencedMethods <- objs.findMethodsWithName(attrName)
+              _ <- referencedMethods.traverse_{ refMeth =>
+                methAttr.referenceMethod(refMeth)
+              }
+            } yield Vector.empty
+          case e => analyzeMethodBodyExpr(
+            e,
+            topLevelObjectName,
+            methodName,
+            methodBodyAttrName
+          )
+        }
+        case EOArray(elems) => elems.flatTraverse { elem =>
+          analyzeMethodBodyExpr(
+            elem.expr,
+            topLevelObjectName,
+            methodName,
+            methodBodyAttrName
+          )
+        }
+        // Do not analyze (because they can't cause recursion):
+        // - simple app
+        // - just dot
+        // - simple data (non-array)
+        case _ => implicitly[Monad[F]].pure(Vector.empty)
       }
+
+      for {
+        objects <- objs.objects
+        methods <- objects.flatTraverse { obj =>
+          obj.attributes.map(_.map(ma => (ma, obj.objName)))
+        }
+        result <- methods.foldM(Vector.empty[String]) { (res, method) =>
+          val (meth, objName) = method
+          for {
+            (_, body) <- meth.getState
+            methBodyResult <- body.foldM(Vector.empty[String]) { (methBodyRes, methBodyAttr) =>
+              for {
+                methodBodyAttrResult <- methBodyAttr match {
+                  case EOBndExpr(methAttrAttrName, exprToAnalyze) =>
+                    analyzeMethodBodyExpr(
+                      exprToAnalyze,
+                      objName,
+                      meth.name,
+                      methAttrAttrName.name.name
+                    ) (meth)
+                  case _ => implicitly[Monad[F]].pure(Vector.empty[String])
+                }
+              } yield methodBodyAttrResult ++ methBodyRes
+            }
+          } yield res ++ methBodyResult
+        }
+      } yield result
     }
   }
 }
