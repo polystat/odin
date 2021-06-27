@@ -12,10 +12,10 @@ object mutualrec {
   )
 
   type MethodAttributeRefState[F[_], E <: EOExpr[E]] =
-      Fix[MethodAttributeRefStateRec[F, E, *]]
+    Fix[MethodAttributeRefStateRec[F, E, *]]
 
   type TopLevelObjectsWithMethodRefs[F[_], E <: EOExpr[E]] =
-    TopLevelObjects[F, EOObj[E], MethodAttributeRefState[F, E]]
+    TopLevelObjects[F, EOObj[EOExpr[E]], EOBndExpr[E], MethodAttributeRefState[F, E]]
 
   object effects {
     trait MethodAttribute[F[_], S] {
@@ -25,17 +25,17 @@ object mutualrec {
       def referenceMethod(method: MethodAttribute[F, S]): F[Unit]
     }
 
-    trait MethodAttributes[F[_], S] {
+    trait MethodAttributes[F[_], E, S] {
       def objName: String
       def attributes: F[Vector[MethodAttribute[F, S]]]
-      def addMethodAttribute(name: String, params: Iterable[String]): F[Unit]
+      def addMethodAttribute(expr: E): F[Unit]
       def findAttributeWithName(name: String): OptionT[F, MethodAttribute[F, S]]
     }
 
-    trait TopLevelObjects[F[_], O, S] {
-      def objects: F[Vector[MethodAttributes[F, S]]]
+    trait TopLevelObjects[F[_], O, E, S] {
+      def objects: F[Vector[MethodAttributes[F, E, S]]]
       def add(objName: String, obj: O): F[Unit]
-      def findMethodsWithName(methodName: String): F[Vector[MethodAttribute[F, S]]]
+      def findMethodsWithParamsByName(methodName: String): F[Vector[MethodAttribute[F, S]]]
     }
   }
 
@@ -51,11 +51,11 @@ object mutualrec {
     ](
       eoProg: EOProg[EOExpr[E]]
     )(
-      implicit objs: TopLevelObjects[F, EOObj[E], S],
+      implicit objs: TopLevelObjects[F, EOObj[EOExpr[E]], EOExpr[E], S],
     ): F[Unit] = for {
       _ <- eoProg.bnds.traverse {
         case EOBndExpr(objName, objExpr) => objExpr match {
-          case o: EOObj[E] => objs.add(objName.name.name, o)
+          case o: EOObj[EOExpr[E]] => objs.add(objName.name.name, o)
           case _ => implicitly[Monad[F]].pure(())
         }
         case _ => implicitly[Monad[F]].pure(())
@@ -76,7 +76,7 @@ object mutualrec {
       )(
         implicit methAttr: MethodAttribute[F, MethodAttributeRefState[F, E]]
       ): F[Vector[String]] = expr match {
-        case _: EOObj[E] => implicitly[Monad[F]].pure(Vector(
+        case _: EOObj[EOExpr[E]] => implicitly[Monad[F]].pure(Vector(
           s"""Warning: cannot analyze object
              |${topLevelObjectName}.${methodName}.${methodBodyAttrName},
              |because analysis of nested objects is not supported""".stripMargin
@@ -91,7 +91,7 @@ object mutualrec {
               case EOSimpleApp(firstArgName) => firstArgName == dotLeftName
               case _ => false
             }) => for {
-              referencedMethods <- objs.findMethodsWithName(attrName)
+              referencedMethods <- objs.findMethodsWithParamsByName(attrName)
               _ <- referencedMethods.traverse_{ refMeth =>
                 methAttr.referenceMethod(refMeth)
               }
@@ -148,23 +148,39 @@ object mutualrec {
     }
   }
 
+  object errors {
+    case class DuplicatedMethodAttributes(
+      val objectName: String,
+      val methodAttrName: String
+    ) extends Exception(
+      s"""Object ${objectName} defines ${methodAttrName} multiple times."""
+    )
+  }
+
   object interpreters {
-//    import cats._
     import cats.implicits._
     import cats.effect._
-//    import cats.effect.syntax._
-//    import scala.collection._
     import effects._
+    import errors._
+
+    type MethodAttrWithRefs[F[_], E <: EOExpr[E]] =
+      MethodAttribute[F, MethodAttributeRefState[F, E]]
+
+    type MethodAttributesWithRefs[F[_], E <: EOExpr[E]] =
+      MethodAttributes[F, EOBndExpr[EOExpr[E]], MethodAttributeRefState[F, E]]
+
+    type TopLevelObjectsWithRefs[F[_], E <: EOExpr[E]] =
+      TopLevelObjects[F, EOObj[EOExpr[E]], EOBndExpr[EOExpr[E]], MethodAttributeRefState[F, E]]
 
     def createMethodAttribute[F[_]: Sync, E <: EOExpr[E]](
       methodName: String,
       methodParams: Vector[String],
       methodBody: Vector[EOBnd[E]]
-    ): F[MethodAttribute[F, MethodAttributeRefState[F, E]]] = for {
+    ): F[MethodAttrWithRefs[F, E]] = for {
       referencedMethodSet <- Sync[F].delay(
         scala.collection.mutable.Set[MethodAttribute[F, MethodAttributeRefState[F, E]]]()
       )
-    } yield new MethodAttribute[F, MethodAttributeRefState[F, E]] {
+    } yield new MethodAttrWithRefs[F, E] {
       override def name: String = methodName
 
       override def params: Vector[String] = methodParams
@@ -189,6 +205,98 @@ object mutualrec {
       override def hashCode: Int = super.hashCode
     }
 
+    def createMethodAttributes[
+      F[_]: Sync, E <: EOExpr[E]
+    ](
+      objectName: String
+    ): F[MethodAttributesWithRefs[F, E]] = for {
+      attrsMap <- Sync[F].delay(
+        scala.collection.mutable.Map[
+          String,
+          MethodAttribute[F, MethodAttributeRefState[F, E]]
+        ]()
+      )
+    } yield new MethodAttributesWithRefs[F, E] {
+      override def objName: String = objectName
 
+      override def attributes: F[Vector[MethodAttribute[F, MethodAttributeRefState[F, E]]]] =
+        Sync[F].delay {
+          attrsMap.values.toVector
+        }
+
+      override def addMethodAttribute(
+        expr: EOBndExpr[EOExpr[E]]
+      ): F[Unit] = {
+        val methodName = expr.bndName.name.name
+
+        if (attrsMap.contains(methodName))
+          Sync[F].raiseError(DuplicatedMethodAttributes(objectName, methodName))
+        else {
+          expr.expr match {
+            case EOObj(freeAttrs, varargAttr, methBodyAttrs) =>
+              for {
+                methodAttr <- createMethodAttribute(
+                  methodName,
+                  freeAttrs.map(_.name) ++ varargAttr.map(_.name),
+                  methBodyAttrs,
+                )
+                _ <- Sync[F].delay {
+                  attrsMap += (methodName -> methodAttr)
+                  ()
+                }
+              } yield ()
+            // Do not take in consideration other attributes, since they are
+            // not considered as "method-attributes", which are of pattern:
+            //   [self param1] > methodAttr
+            //     ...
+            case _ => Sync[F].pure(())
+          }
+        }
+      }
+
+      override def findAttributeWithName(
+        name: String
+      ): OptionT[F, MethodAttribute[F, MethodAttributeRefState[F, E]]] =
+        OptionT(Sync[F].delay(attrsMap.get(name)))
+    }
+
+    def createTopLevelObject[
+      F[_]: Sync, E <: EOExpr[E]
+    ]: F[TopLevelObjectsWithRefs[F, E]] =
+      for {
+        objsMap <- Sync[F].delay(
+          scala.collection.mutable.Map[
+            String,
+            MethodAttributes[F, EOBndExpr[EOExpr[E]], MethodAttributeRefState[F, E]]
+          ]()
+        )
+      } yield new TopLevelObjectsWithRefs[F, E] {
+        override def objects: F[Vector[MethodAttributes[F, EOBndExpr[EOExpr[E]], MethodAttributeRefState[F, E]]]] =
+          Sync[F].delay {
+            objsMap.values.toVector
+          }
+
+        override def add(
+          objName: String, obj: EOObj[EOExpr[E]]
+        ): F[Unit] = for {
+          methodAttrs <- createMethodAttributes[F, E](objName)
+          _ <- obj.bndAttrs.traverse_ { objBodyAttr =>
+            methodAttrs.addMethodAttribute(objBodyAttr)
+          }
+          _ <- Sync[F].delay {
+            objsMap += (objName -> methodAttrs)
+          }
+        } yield ()
+
+        override def findMethodsWithParamsByName(
+          methodName: String
+        ): F[Vector[MethodAttribute[F, MethodAttributeRefState[F, E]]]] = for {
+          objects <- Sync[F].delay(objsMap.toVector.map(_._2))
+          methods <- objects.flatTraverse(_.attributes)
+          result = methods
+            .filter(_.name == methodName)
+            .filter(_.params.nonEmpty)
+        } yield result
+      }
   }
 }
