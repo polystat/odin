@@ -1,18 +1,15 @@
 package eo.sandbox
 
 import cats.effect.{ ExitCode, IO, IOApp }
-import cats._
 import cats.implicits._
-//import cats.effect.implicits._
-import higherkindness.droste.data.Fix
-import scala.util.chaining._
-import eo.sandbox.programs.mutualRecursionExample
+import eo.analysis.mutualrec.naive.mutualrec.programs._
 import eo.backend.eolang.ToEO.instances._
 import eo.backend.eolang.ToEO.ops._
 import eo.backend.eolang.inlineorlines.ops._
-import eo.analysis.mutualrec.naive.mutualrec._
-import eo.analysis.mutualrec.naive.mutualrec.programs._
-import eo.analysis.mutualrec.naive.mutualrec.interpreters._
+import eo.sandbox.programs.mutualRecursionExample
+import higherkindness.droste.data.Fix
+
+import scala.util.chaining._
 
 object Sandbox extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = for {
@@ -20,13 +17,7 @@ object Sandbox extends IOApp {
     mutualRecEORepr: String = mutualRecursionExample.toEO.allLinesToString
     _ <- IO(mutualRecEORepr.tap(println))
 
-    // TODO: write function to do these actions
-    topLevelObjects <- createTopLevelObjectsWithRefs[IO]
-    _ <- resolveTopLevelObjectsAndAttrs[IO, MethodAttributeRefState[IO]](mutualRecursionExample)(
-      implicitly,
-      topLevelObjects
-    )
-    _ <- resolveMethodsReferences(implicitly[Monad[IO]], topLevelObjects)
+    topLevelObjects <- resolveMethodsReferencesForEOProgram[IO](mutualRecursionExample)
 
     objects <- topLevelObjects.objects
     methods <- objects.flatTraverse(obj => obj.attributes.map(_.map(meth => (obj.objName, meth))))

@@ -26,7 +26,7 @@ object mutualrec {
       def referenceMethod(method: MethodAttribute[F, S]): F[Unit]
     }
 
-    trait MethodAttributes[F[_], E, S] {
+    trait TopLevelObject[F[_], E, S] {
       def objName: String
       def attributes: F[Vector[MethodAttribute[F, S]]]
       def addMethodAttribute(expr: E): F[Unit]
@@ -34,7 +34,7 @@ object mutualrec {
     }
 
     trait TopLevelObjects[F[_], O, E, S] {
-      def objects: F[Vector[MethodAttributes[F, E, S]]]
+      def objects: F[Vector[TopLevelObject[F, E, S]]]
       def add(objName: String, obj: O): F[Unit]
       def findMethodsWithParamsByName(methodName: String): F[Vector[MethodAttribute[F, S]]]
     }
@@ -43,7 +43,9 @@ object mutualrec {
   object programs {
     import cats._
     import cats.implicits._
+    import cats.effect._
     import effects._
+    import interpreters.createTopLevelObjectsWithRefs
 
     def resolveTopLevelObjectsAndAttrs[
       F[_]: Monad,
@@ -145,6 +147,17 @@ object mutualrec {
         }
       } yield result
     }
+
+    def resolveMethodsReferencesForEOProgram[F[_]: Sync](
+      program: EOProg[EOExprOnly]
+    ): F[TopLevelObjectsWithMethodRefs[F]] = for {
+      topLevelObjects <- createTopLevelObjectsWithRefs[F]
+      _ <- resolveTopLevelObjectsAndAttrs[F, MethodAttributeRefState[F]](program)(
+        implicitly,
+        topLevelObjects
+      )
+      _ <- resolveMethodsReferences(implicitly, topLevelObjects)
+    } yield topLevelObjects
   }
 
   object errors {
@@ -166,7 +179,7 @@ object mutualrec {
       MethodAttribute[F, MethodAttributeRefState[F]]
 
     type MethodAttributesWithRefs[F[_]] =
-      MethodAttributes[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
+      TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
 
     type TopLevelObjectsWithRefs[F[_]] =
       TopLevelObjects[F, EOObj[EOExprOnly], EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
@@ -266,11 +279,11 @@ object mutualrec {
         objsMap <- Sync[F].delay(
           scala.collection.mutable.Map[
             String,
-            MethodAttributes[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
+            TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
           ]()
         )
       } yield new TopLevelObjectsWithRefs[F] {
-        override def objects: F[Vector[MethodAttributes[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]] =
+        override def objects: F[Vector[TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]] =
           Sync[F].delay {
             objsMap.values.toVector
           }
