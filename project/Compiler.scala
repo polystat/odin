@@ -71,6 +71,7 @@ object Compiler {
     Test / console / scalacOptions := (Compile / console / scalacOptions).value,
 
     // Compiler plugins
-    addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
+    addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+    addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.0" cross CrossVersion.full)
   )
 }

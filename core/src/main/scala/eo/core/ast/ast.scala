@@ -5,9 +5,9 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import scala.util.matching.Regex
 
 // Program ///////////////////////////////////////////////////////////////////
-sealed case class EOProg(
+sealed case class EOProg[+A](
   metas: EOMetas,
-  bnds: Vector[EOBnd],
+  bnds: Vector[EOBnd[A]],
 )
 
 // Metas  ////////////////////////////////////////////////////////////////////
@@ -43,18 +43,18 @@ sealed case class ConstBnd(
 ) extends BndName
 
 // Binding ///////////////////////////////////////////////////////////////////
-sealed trait EOBnd {
-  val expr: EOExpr
+sealed trait EOBnd[+A] {
+  val expr: A
 }
 
-sealed case class EOAnonExpr(
-  override val expr: EOExpr,
-) extends EOBnd
+sealed case class EOAnonExpr[+A](
+  override val expr: A,
+) extends EOBnd[A]
 
-sealed case class EOBndExpr(
+sealed case class EOBndExpr[+A](
   val bndName: EONamedBnd,
-  override val expr: EOExpr,
-) extends EOBnd
+  override val expr: A,
+) extends EOBnd[A]
 
 sealed trait EONamedBnd {
   val name: BndName
@@ -69,40 +69,43 @@ sealed case class EODecoration(
 ) extends EONamedBnd
 
 // Expression ////////////////////////////////////////////////////////////////
-sealed trait EOExpr
+sealed trait EOExpr[+A]
 
 // / Object //////////////////////////////////////////////////////////////////
-sealed case class EOObj(
+sealed case class EOObj[+A](
   freeAttrs: Vector[LazyBnd],
   varargAttr: Option[LazyBnd],
-  bndAttrs: Vector[EOBndExpr],
-) extends EOExpr
+  bndAttrs: Vector[EOBndExpr[A]],
+) extends EOExpr[A]
 
 // / Application /////////////////////////////////////////////////////////////
-sealed trait EOApp extends EOExpr
+sealed trait EOApp[+A] extends EOExpr[A]
 
-sealed case class EOSimpleApp(name: String) extends EOApp
+sealed case class EOSimpleApp[+A](name: String) extends EOApp[A]
 
-sealed case class EODot(src: EOExpr, name: String) extends EOApp
+sealed case class EODot[+A](src: A, name: String) extends EOApp[A]
 
-sealed case class EOCopy(trg: EOExpr, args: NonEmpty[EOBnd, Vector[EOBnd]]) extends EOApp
+sealed case class EOCopy[+A](
+  trg: A,
+  args: NonEmpty[EOBnd[A], Vector[EOBnd[A]]]
+) extends EOApp[A]
 
 // / Data ////////////////////////////////////////////////////////////////////
-sealed trait EOData extends EOExpr
+sealed trait EOData[+A] extends EOExpr[A]
 
 sealed case class EOSingleByte(byte: Byte)
-sealed case class EOBytesData(bytes: NonEmpty[EOSingleByte, Vector[EOSingleByte]]) extends EOData
+sealed case class EOBytesData[+A](bytes: NonEmpty[EOSingleByte, Vector[EOSingleByte]]) extends EOData[A]
 
-sealed case class EOStrData(str: String) extends EOData
+sealed case class EOStrData[+A](str: String) extends EOData[A]
 
-sealed case class EORegexData(regex: Regex) extends EOData
+sealed case class EORegexData[+A](regex: Regex) extends EOData[A]
 
-sealed case class EOIntData(int: Int) extends EOData
+sealed case class EOIntData[+A](int: Int) extends EOData[A]
 
-sealed case class EOFloatData(num: Float) extends EOData
+sealed case class EOFloatData[+A](num: Float) extends EOData[A]
 
-sealed case class EOCharData(char: Char) extends EOData
+sealed case class EOCharData[+A](char: Char) extends EOData[A]
 
-sealed case class EOBoolData(bool: Boolean) extends EOData
+sealed case class EOBoolData[+A](bool: Boolean) extends EOData[A]
 
-sealed case class EOArray(elems: Vector[EOBnd]) extends EOData
+sealed case class EOArray[+A](elems: Vector[EOBnd[A]]) extends EOData[A]
