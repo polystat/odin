@@ -46,6 +46,7 @@ object mutualrec {
     import cats._
     import cats.implicits._
     import cats.effect._
+    import cats.data.Chain
     import effects._
     import interpreters.createTopLevelObjectsWithRefs
 
@@ -160,6 +161,71 @@ object mutualrec {
       )
       _ <- resolveMethodsReferences(implicitly, topLevelObjects)
     } yield topLevelObjects
+
+    type MethodCallStack[F[_]] = Chain[MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]
+
+    type MethodRecursiveDependency[F[_]] = Map[
+      MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
+      Chain[MethodCallStack[F]], // list of paths that lead to recursion
+    ]
+
+    def findMethodRecursiveLinks[F[_]: Monad](
+      method: MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
+      callStack: MethodCallStack[F] = Chain.empty
+    ): F[MethodRecursiveDependency[F]] = {
+      if (callStack.headOption.contains(method)) {
+        // if the current method to inspect is the one that we have started
+        // traversal from - then we there is a loop in dependency graph and we
+        // came to where we have started, i. e. there is a recursion, so return
+        implicitly[Monad[F]].pure(Map(method -> Chain(callStack)))
+      } else {
+        // if the current method is different from the one we started from
+        // traverse all dependencies that we didn't encounter before.
+        for {
+          methodData <- method.getState
+          (references, _) = Fix.un(methodData)
+          // If there is a dependency that is already in a call stack - there
+          // is a recursion within the tree, but it does not affect the initial
+          // method we are actually analyzing. (a flag can be introduced to the
+          // function parameters to also include these results)
+
+          // remove the first element from the call stack, so that it is
+          // possible for it to proceed in the recursive calls of
+          // [[findMethodRecursiveLinks]] and get to the base case
+          callStackSet = callStack.toList.drop(1).toSet
+          dependenciesToInspect = references.filterNot(callStackSet)
+          recDeps = for {
+            methodToInspect <- dependenciesToInspect
+            resF = findMethodRecursiveLinks(
+              methodToInspect,
+              callStack.append(method)
+            )
+          } yield resF
+          res <- recDeps.foldLeft(implicitly[Monad[F]].pure(Map.empty[
+            MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
+            Chain[MethodCallStack[F]],
+          ])) { (resMapF, recDepF) =>
+            for {
+              resMap <- resMapF
+              recDep <- recDepF
+            } yield resMap.alignMergeWith(recDep)(_ ++ _)
+          }
+        } yield res
+      }
+    }
+
+    def findMutualRecursionInTopLevelObjects[F[_]: Monad](
+      topLevelObjectsWithRefs: TopLevelObjectsWithMethodRefs[F]
+    ): F[Vector[MethodRecursiveDependency[F]]] = {
+      for {
+        objects <- topLevelObjectsWithRefs.objects
+        methods <- objects.flatTraverse(_.attributes)
+        recDepsForMethods = for {
+          method <- methods
+        } yield findMethodRecursiveLinks(method)
+        recDeps <- recDepsForMethods.sequence
+      } yield recDeps
+    }
   }
 
   object errors {

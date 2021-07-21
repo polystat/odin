@@ -7,7 +7,6 @@ import eo.backend.eolang.ToEO.instances._
 import eo.backend.eolang.ToEO.ops._
 import eo.backend.eolang.inlineorlines.ops._
 import eo.sandbox.programs.mutualRecursionExample
-import higherkindness.droste.data.Fix
 
 import scala.util.chaining._
 
@@ -19,36 +18,26 @@ object Sandbox extends IOApp {
 
     topLevelObjects <- resolveMethodsReferencesForEOProgram[IO](mutualRecursionExample)
 
-    objects <- topLevelObjects.objects
-    methods <- objects.flatTraverse(obj => obj.attributes.map(_.map(meth => (obj.objName, meth))))
-    methodsReferences <- methods.traverse { method =>
-      val (objName, meth) = method
+    mutualRec <- findMutualRecursionInTopLevelObjects(topLevelObjects)
+    mutualRecFiltered = mutualRec.filter(_.nonEmpty)
+
+    _ <- IO.delay(println())
+    _ <- IO.delay(
       for {
-        methRefsFixed <- meth.getState
-        methRefs = Fix.un(methRefsFixed)._1
-        refsOfRefsFixed <- methRefs.toVector.traverse{ refOfRef =>
-          refOfRef.getState
-        }
-        refsOfRefs = refsOfRefsFixed.map(rorf => Fix.un(rorf)._1)
-      } yield (
-        s"${objName}.${meth.name}",
-        methRefs.zip(refsOfRefs).map{ mr =>
-          val (meth, ref) = mr
-          (meth.name, ref.map(_.name))
-        }
-      )
-    }
-    _ <- IO.suspend(
-      methodsReferences.traverse_ { methRefs =>
-        val (methodPath, refMethNames) = methRefs
-        IO(println(
-          s"${methodPath} references methods with names:\n\t" ++
-            refMethNames.map { method =>
-              val (meth, ref) = method
-              s"${meth}, which references:\n\t\t" ++
-              ref.mkString("\n\t")
-            }.mkString("\n\t")
-        ))
+        mutualRecDep <- mutualRecFiltered
+        (method, depChains) <- mutualRecDep.toVector
+        depChain <- depChains.toVector
+      } yield for {
+        mutualRecMeth <- depChain.lastOption
+      } yield {
+        val mutualRecString =
+          s"Method `${method.parentObject.objName}.${method.name}` " ++
+          s"is mutually recursive with method " ++
+          s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
+
+         val dependencyChainString = depChain.append(method).map(m => s"${m.parentObject.objName}.${m.name}").mkString_(" -> ")
+
+        println(mutualRecString ++ " through the following possible code path:\n" ++ dependencyChainString)
       }
     )
   } yield exitCode
