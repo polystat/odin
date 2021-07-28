@@ -37,29 +37,44 @@ object Lexer extends RegexParsers {
     }
   }
 
+  def single_line_comment: Parser[SINGLE_LINE_COMMENT] = {
+      """#.*""".r ^^ {
+      str => SINGLE_LINE_COMMENT(str.tail)
+    }
+  }
+
+  def meta: Parser[META] = {
+    """\+([a-z][a-z0-9_A-Z\-]*)[ ](.*)""".r ^^ {
+      str => {
+        val split = str.split(" ", 2)
+        META(split(0), split(1))
+      }
+    }
+  }
+
   def tokens: Parser[List[Token]] = {
     phrase(
       rep1(
-          lbracket |
-          rbracket |
-          lparen |
-          rparen |
-          single_line_comment |
-          array_delimiter |
+          lbracket
+            | rbracket
+            | lparen
+            | rparen
+            | array_delimiter
 
-          phi |
-          rho |
-          self |
-          exclamation_mark |
-          colon |
-          dot |
-          plus |
-          assign_name |
+            | phi
+            | rho
+            | self
+            | exclamation_mark
+            | colon
+            | dot
+            | assign_name
 
-          identifier |
-          indentation |
-          string |
-          integer
+            | meta
+            | identifier
+            | indentation
+            | string
+            | integer
+            | single_line_comment
       )
     ) ^^ { rawTokens =>
       processIndentations(rawTokens)
@@ -68,10 +83,9 @@ object Lexer extends RegexParsers {
 
   def apply(code: String): Either[LexerError, List[Token]] = {
     parse(tokens, code) match {
-      case NoSuccess(msg, _) => Left(LexerError(msg))
       case Success(result, _) => Right(result)
-      case Error(msg, _) => Left(LexerError(msg))
-      case Failure(msg, _) => Left(LexerError(msg))
+      case Error(msg, _) => Left(LexerError("ERROR: " + msg))
+      case Failure(msg, _) => Left(LexerError("FAILURE: " + msg))
     }
   }
 
@@ -113,64 +127,40 @@ object Lexer extends RegexParsers {
   def exclamation_mark = "!" ^^ (_ => EXCLAMATION_MARK)
   def colon = ":" ^^ (_ => COLON)
   def dot = "." ^^ (_ => DOT)
-  def plus = "+" ^^ (_ => PLUS)
   def assign_name = ">" ^^ (_ => ASSIGN_NAME)
   def lbracket = "[" ^^ (_ => LBRACKET)
   def rbracket = "]" ^^ (_ => RBRACKET)
   def lparen = "(" ^^ (_ => LPAREN)
   def rparen = ")" ^^ (_ => RPAREN)
-  def single_line_comment = "#" ^^ (_ => SINGLE_LINE_COMMENT)
   def array_delimiter = "*" ^^ (_ => ARRAY_DELIMITER)
+  def slash = "/" ^^ (_ => SLASH)
+  def dots = "..." ^^ (_ => DOTS)
 
 }
 
 
 object LexerMain extends App {
   val code =
-    """+package sandbox
+    """
+      |# Some license here
+      |+package sandbox
       |+alias stdout org.eolang.io.stdout
       |+alias sprintf org.eolang.txt.sprintf
-      |
       |[] > base
       |  memory > x
-      |  [v] > n
-      |    seq > @
-      |      stdout
-      |        sprintf "Calling base.n with v = %d\n" v
-      |      x.write v
-      |  [v] > m
-      |    seq > @
-      |      stdout
-      |        sprintf "Calling base.m with v = %d\n" v
-      |      n v
-      |
+      |  [self v] > f
+      |    x.write > @
+      |      v
+      |  [self v] > g
+      |    self.f > @
+      |      self
+      |      v
       |[] > derived
       |  base > @
-      |  [v] > n
-      |    seq > @
-      |      stdout (sprintf "Calling derived.n with v = %d\n" v)
-      |      ^.@.m v
-      |
-      |[args...] > app
-      |  base > b
-      |  derived > d
-      |  seq > @
-      |    b.n 10
-      |    stdout
-      |      sprintf
-      |        "base:\n\tx after n = %d\n"
-      |        b.x
-      |    b.m 12
-      |    stdout
-      |      sprintf
-      |        "\tx after m = %d\n"
-      |        b.x
-      |    d.n 5
-      |    stdout
-      |      sprintf
-      |        "\nderived:\n\tx after n = %d\n"
-      |        d.x
-      |
+      |  [self v] > f
+      |    self.g > @
+      |      self
+      |      v
       """.stripMargin
   println(code)
   println(Lexer(code))
