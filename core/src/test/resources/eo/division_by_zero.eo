@@ -1,0 +1,11 @@
+[] > base
+  2 > a
+  [self x] > f
+    x / self.a > @
+
+[] > derived
+  base > @
+  0 > a
+
+# Division by zero
+# derived.f derived 2
