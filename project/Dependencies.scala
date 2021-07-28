@@ -9,6 +9,7 @@ object Dependencies {
     val scalaCheck = "3.2.9.0"
     val nonEmpty = "0.2.0"
     val monocle = "3.0.0-RC2"
+    val parserCombinators = "2.0.0"
   }
 
   val cats = Seq(
@@ -34,10 +35,14 @@ object Dependencies {
     "dev.optics" %% "monocle-macro" % V.monocle
   )
 
+  val parserCombinators = Seq(
+    "org.scala-lang.modules" %% "scala-parser-combinators" % V.parserCombinators
+  )
+
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
   val common: Seq[ModuleID] = allCats ++ scalaTest ++ nonEmpty ++ monocle
 
-  val core: Seq[ModuleID] = common
+  val core: Seq[ModuleID] = common ++ parserCombinators
   val cli: Seq[ModuleID] = common
 }
