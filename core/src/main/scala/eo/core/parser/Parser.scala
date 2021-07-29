@@ -28,13 +28,13 @@ object Parser extends Parsers {
     }
   }
 
-//  private def identifier: Parser[IDENTIFIER] = {
-//    accept("identifier", { case id: IDENTIFIER => id })
-//  }
-//
-//  private def literal: Parser[LITERAL] = {
-//    accept("literal", { case lit: LITERAL => lit })
-//  }
+  //  private def identifier: Parser[IDENTIFIER] = {
+  //    accept("identifier", { case id: IDENTIFIER => id })
+  //  }
+  //
+  //  private def literal: Parser[LITERAL] = {
+  //    accept("literal", { case lit: LITERAL => lit })
+  //  }
 
   private def single_line_comment: Parser[SINGLE_LINE_COMMENT] = {
     accept("single line comment", { case comment: SINGLE_LINE_COMMENT => comment })
@@ -55,22 +55,23 @@ object Parser extends Parsers {
     rep1(meta) ^^ {
       metas => {
 
-        def processOtherMetas(metas: List[META]): List[EOMeta] = {
-          metas.map {
-            case META(name, text) if name == "+rt" =>
-              val split = text.split(' ').filterNot(_.isEmpty)
-              EORTMeta(split(0), split(1))
-            case META(name, text) if name == "+alias" =>
-              val split = text.split(' ').filterNot(_.isEmpty)
-              EOAliasMeta(split(0), split(1))
-            case META(_, _) => throw new Exception()
-          }
+        def processOtherMetas(other: List[META]): List[EOMeta] = other match {
+          case META(name, text) :: tail if name == "+alias" =>
+            val alias :: value :: _ = text.split(' ').filterNot(_.isEmpty).toList
+            EOAliasMeta(alias, value) :: processOtherMetas(tail)
+          case META(name, text) :: tail if name == "+rt" =>
+            val rt :: value :: _ = text.split(' ').filterNot(_.isEmpty).toList
+            EORTMeta(rt, value) :: processOtherMetas(tail)
+          case META(_, _) :: tail => processOtherMetas(tail)
+          case Nil => Nil
         }
 
-        metas match {
-          case META(name, text) :: tail if name == "+package" => EOMetas(Some(text), processOtherMetas(tail).toVector)
-          case _ => EOMetas(None, processOtherMetas(metas).toVector)
+        val (pkg, otherMetas) = metas.head match {
+          case META(name, text) if name == "+package" => (Some(text), metas.tail)
+          case META(_, _) => (None, metas)
         }
+
+        EOMetas(pkg, processOtherMetas(otherMetas).toVector)
       }
     }
   }
