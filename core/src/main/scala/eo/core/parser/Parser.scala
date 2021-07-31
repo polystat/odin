@@ -101,10 +101,10 @@ object Parser extends Parsers {
   }
 
   def anonAbsObj: Parser[EOAnonExpr[EOExprOnly]] = {
-    args ~ boundAttrs ^^ {
+    args ~ opt(boundAttrs) ^^ {
       case (params, vararg) ~ attrs =>
         EOAnonExpr(
-          Fix(EOObj(params, vararg, attrs))
+          Fix(EOObj(params, vararg, attrs.getOrElse(Vector())))
         )
     }
   }
@@ -159,8 +159,12 @@ object Parser extends Parsers {
         |+package sandbox
         |+rt jvm java8
         |
-        |[] > obj
-        |  [a b] > obj
+        |[]
+        |  [a b] > one
+        |    [ad...] > one2
+        |  [a b] > another
+        |    [a b c d...] > another2
+        |[a d b] # another anon
         |""".stripMargin
     println(code)
     val tokens = Lexer(code) match {
