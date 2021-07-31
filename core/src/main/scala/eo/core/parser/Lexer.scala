@@ -123,20 +123,20 @@ object Lexer extends RegexParsers {
   }
 
 
-  def phi = "@" ^^ (_ => PHI)
-  def rho = "^" ^^ (_ => RHO)
-  def self = "$" ^^ (_ => SELF)
-  def exclamation_mark = "!" ^^ (_ => EXCLAMATION_MARK)
-  def colon = ":" ^^ (_ => COLON)
-  def dot = "." ^^ (_ => DOT)
-  def assign_name = ">" ^^ (_ => ASSIGN_NAME)
-  def lbracket = "[" ^^ (_ => LBRACKET)
-  def rbracket = "]" ^^ (_ => RBRACKET)
-  def lparen = "(" ^^ (_ => LPAREN)
-  def rparen = ")" ^^ (_ => RPAREN)
-  def array_delimiter = "*" ^^ (_ => ARRAY_DELIMITER)
-  def slash = "/" ^^ (_ => SLASH)
-  def dots = "..." ^^ (_ => DOTS)
+  private def phi = "@" ^^ (_ => PHI)
+  private def rho = "^" ^^ (_ => RHO)
+  private def self = "$" ^^ (_ => SELF)
+  private def exclamation_mark = "!" ^^ (_ => EXCLAMATION_MARK)
+  private def colon = ":" ^^ (_ => COLON)
+  private def dot = "." ^^ (_ => DOT)
+  private def assign_name = ">" ^^ (_ => ASSIGN_NAME)
+  private def lbracket = "[" ^^ (_ => LBRACKET)
+  private def rbracket = "]" ^^ (_ => RBRACKET)
+  private def lparen = "(" ^^ (_ => LPAREN)
+  private def rparen = ")" ^^ (_ => RPAREN)
+  private def array_delimiter = "*" ^^ (_ => ARRAY_DELIMITER)
+  private def slash = "/" ^^ (_ => SLASH)
+  private def dots = "..." ^^ (_ => DOTS)
 
 }
 
