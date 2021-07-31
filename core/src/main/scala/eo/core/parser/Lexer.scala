@@ -44,10 +44,10 @@ object Lexer extends RegexParsers {
   }
 
   def meta: Parser[META] = {
-    """\+([a-z][a-z0-9_A-Z\-]*)[ ](.*)""".r ^^ {
+    """\+[a-z][a-z0-9_A-Z\-]*[ ].*""".r ^^ {
       str => {
         val split = str.split(" ", 2)
-        META(split(0), split(1))
+        META(split(0).stripMargin, split(1).stripMargin)
       }
     }
   }
@@ -66,8 +66,10 @@ object Lexer extends RegexParsers {
             | self
             | exclamation_mark
             | colon
+            | dots
             | dot
             | assign_name
+            | slash
 
             | meta
             | identifier
