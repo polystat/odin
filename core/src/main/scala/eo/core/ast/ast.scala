@@ -52,7 +52,7 @@ sealed case class EOAnonExpr[+A](
 ) extends EOBnd[A]
 
 sealed case class EOBndExpr[+A](
-  val bndName: EONamedBnd,
+  bndName: EONamedBnd,
   override val expr: A,
 ) extends EOBnd[A]
 

@@ -23,9 +23,9 @@ case class ParserError(msg: String) extends CompilationError
 object Parser extends Parsers {
   override type Elem = Token
 
-  def apply(tokens: Seq[Token]): Either[ParserError, (Vector[LazyBnd], Option[LazyBnd])] = {
+  def apply(tokens: Seq[Token]): Either[ParserError, EOProg[EOExprOnly]] = {
     val reader = new WorkflowTokenReader(tokens)
-    args(reader) match {
+    program(reader) match {
       case Success(result, _) => Right(result)
       case Error(msg, _) => Left(ParserError(msg))
       case Failure(msg, _) => Left(ParserError(msg))
@@ -110,11 +110,11 @@ object Parser extends Parsers {
   }
 
   def namedAbsObj: Parser[EOBndExpr[EOExprOnly]] = {
-    args ~ name ~ boundAttrs ^^ {
+    args ~ name ~ opt(boundAttrs) ^^ {
       case (params, vararg) ~ name ~ attrs =>
         EOBndExpr(
           name,
-          Fix(EOObj(params, vararg, attrs))
+          Fix(EOObj(params, vararg, attrs.getOrElse(Vector())))
         )
     }
   }
@@ -149,12 +149,8 @@ object Parser extends Parsers {
     }
   }
 
-  def vararg: Parser[LazyBnd] = {
-    identifier <~ DOTS ^^ (id => LazyBnd(id.name))
-  }
-
   def boundAttrs: Parser[Vector[EOBndExpr[EOExprOnly]]] = {
-    INDENT ~> rep(namedAbsObj) <~ DEDENT ^^ (attrs => attrs.toVector)
+    INDENT ~> rep1(namedAbsObj) <~ DEDENT ^^ (attrs => attrs.toVector)
   }
 
   def main(args: Array[String]): Unit = {
@@ -167,7 +163,7 @@ object Parser extends Parsers {
         |  [a b] > obj
         |""".stripMargin
     println(code)
-    val tokens = Lexer("[asd...]") match {
+    val tokens = Lexer(code) match {
       case Right(value) => value
       case Left(value) => throw new Exception(value.msg)
     }
