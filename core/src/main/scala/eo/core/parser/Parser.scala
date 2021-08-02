@@ -122,10 +122,12 @@ object Parser extends Parsers {
   def name: Parser[EONamedBnd] = {
     val lazyName = ASSIGN_NAME ~> identifier ^^
       (id => EOAnyNameBnd(LazyBnd(id.name)))
-    val eagerName = ASSIGN_NAME ~> identifier <~ EXCLAMATION_MARK ^^
+    val lazyPhi = ASSIGN_NAME ~> PHI ^^
+      (_ => EODecoration())
+    val constName = ASSIGN_NAME ~> identifier <~ EXCLAMATION_MARK ^^
       (id => EOAnyNameBnd(ConstBnd(id.name)))
 
-    eagerName | lazyName
+    constName | lazyPhi | lazyName
   }
 
   def args: Parser[(Vector[LazyBnd], Option[LazyBnd])] = {
@@ -165,7 +167,7 @@ object Parser extends Parsers {
         |+rt jvm java8
         |
         |[]
-        |  [a b] > one
+        |  [a b] > @
         |    [ad...] > one2!
         |  [a b] > another
         |    [a b c d...] > another2
