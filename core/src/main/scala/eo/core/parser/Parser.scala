@@ -1,5 +1,6 @@
 package eo.core.parser
 
+import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast._
 import eo.core.ast.astparams.EOExprOnly
 import higherkindness.droste.data.Fix
@@ -92,45 +93,136 @@ object Parser extends Parsers {
   }
 
   def `object`: Parser[EOBnd[EOExprOnly]] = {
-    abstraction
-    //    | application
+    application | abstraction
+  }
+
+  def application: Parser[EOBnd[EOExprOnly]] = {
+    namedApplication | anonApplication
+  }
+
+  def namedApplication: Parser[EONamedBnd[EOExprOnly]] = {
+    val namedSimpleApp = {
+      identifier ~ name ^^ {
+        case id ~ name =>
+          EONamedBnd(
+            name,
+            Fix[EOExpr](EOSimpleApp(id.name))
+          )
+      }
+    }
+
+    val namedAttributeChain: Parser[EONamedBnd[EOExprOnly]] =
+      identifier ~ rep1(DOT ~> identifier) ~ name ^^ {
+        case id ~ lst ~ name => EONamedBnd(
+          name,
+          lst.foldLeft(
+            Fix[EOExpr](EOSimpleApp(id.name))
+          )(
+            (acc, id) => Fix[EOExpr](EODot(acc, id.name)))
+        )
+      }
+
+    val namedCopy: Parser[EONamedBnd[EOExprOnly]] = {
+      val methodCopy = identifier ~ name ~ INDENT ~ rep1(`object`) <~ DEDENT ^^ {
+        case id ~ name ~ _ ~ objs => EONamedBnd(
+          name,
+          Fix[EOExpr](
+            EOCopy(
+              Fix[EOExpr](EOSimpleApp(id.name)),
+              NonEmpty.from(objs.toVector) match {
+                case Some(value) => value
+                case None => throw new Exception("Expected 1 or more arguments, passed 0.")
+              }
+            )
+          )
+        )
+      }
+      methodCopy
+    }
+
+
+    namedCopy | namedAttributeChain | namedSimpleApp
+  }
+
+  def anonApplication: Parser[EOAnonExpr[EOExprOnly]] = {
+    val simpleApp =
+      identifier ^^ {
+        id =>
+          EOAnonExpr(
+            Fix[EOExpr](EOSimpleApp(id.name))
+          )
+      }
+
+    val attributeChain: Parser[EOAnonExpr[EOExprOnly]] =
+      identifier ~ rep1(DOT ~> identifier) ^^ {
+        case id ~ lst => EOAnonExpr(
+          lst.foldLeft(
+            Fix[EOExpr](EOSimpleApp(id.name))
+          )(
+            (acc, id) => Fix[EOExpr](EODot(acc, id.name)))
+        )
+      }
+
+    val copy: Parser[EOAnonExpr[EOExprOnly]] = {
+      val methodCopy = identifier ~ INDENT ~ rep1(`object`) <~ DEDENT ^^ {
+        case id ~ _ ~ objs => EOAnonExpr(
+          Fix[EOExpr](EOCopy(
+            Fix[EOExpr](EOSimpleApp(id.name)),
+            NonEmpty.from(objs.toVector) match {
+              case Some(value) => value
+              case None => throw new Exception("Expected 1 or more arguments, passed 0.")
+            }
+          ))
+        )
+      }
+
+
+      //      val inverseDotCopy = identifier ~ DOT ~ INDENT ~ rep1(`object`) <~ DEDENT ^^ {
+      //        case id ~ _ ~ _ ~ objs => ???
+      //      }
+
+      methodCopy
+    }
+
+    copy | attributeChain | simpleApp
   }
 
   def abstraction: Parser[EOBnd[EOExprOnly]] = {
-    anonAbsObj | namedAbsObj
+    namedAbsObj | anonAbsObj
   }
 
   def anonAbsObj: Parser[EOAnonExpr[EOExprOnly]] = {
     args ~ opt(boundAttrs) ^^ {
       case (params, vararg) ~ attrs =>
         EOAnonExpr(
-          Fix(EOObj(params, vararg, attrs.getOrElse(Vector())))
+          Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
         )
     }
   }
 
-  def namedAbsObj: Parser[EOBndExpr[EOExprOnly]] = {
+  def namedAbsObj: Parser[EONamedBnd[EOExprOnly]] = {
     args ~ name ~ opt(boundAttrs) ^^ {
       case (params, vararg) ~ name ~ attrs =>
-        EOBndExpr(
+        EONamedBnd(
           name,
-          Fix(EOObj(params, vararg, attrs.getOrElse(Vector())))
+          Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
         )
     }
   }
 
-  def name: Parser[EONamedBnd] = {
+  def name: Parser[EOBndName] = {
     val lazyName = ASSIGN_NAME ~> identifier ^^
-      (id => EOAnyNameBnd(LazyBnd(id.name)))
+      (id => EOAnyName(LazyName(id.name)))
     val lazyPhi = ASSIGN_NAME ~> PHI ^^
       (_ => EODecoration())
     val constName = ASSIGN_NAME ~> identifier <~ EXCLAMATION_MARK ^^
-      (id => EOAnyNameBnd(ConstBnd(id.name)))
+      (id => EOAnyName(ConstName(id.name)))
 
     constName | lazyPhi | lazyName
   }
 
-  def args: Parser[(Vector[LazyBnd], Option[LazyBnd])] = {
+  def args: Parser[(Vector[LazyName], Option[LazyName])] = {
+    // TODO: include PHI(`@`) into available args
     val vararg = LBRACKET ~> varargList <~ RBRACKET ^^ { pair =>
       (pair._1, Some(pair._2))
     }
@@ -140,24 +232,24 @@ object Parser extends Parsers {
     vararg | noVararg
   }
 
-  def argList: Parser[Vector[LazyBnd]] = {
+  def argList: Parser[Vector[LazyName]] = {
     rep(identifier) ^^ {
-      params => params.map(id => LazyBnd(id.name)).toVector
+      params => params.map(id => LazyName(id.name)).toVector
     }
   }
 
-  def varargList: Parser[(Vector[LazyBnd], LazyBnd)] = {
+  def varargList: Parser[(Vector[LazyName], LazyName)] = {
     rep(identifier) <~ DOTS ^^ {
       ids =>
         (
-          ids.init.map(id => LazyBnd(id.name)).toVector,
-          LazyBnd(ids.last.name)
+          ids.init.map(id => LazyName(id.name)).toVector,
+          LazyName(ids.last.name)
         )
     }
   }
 
-  def boundAttrs: Parser[Vector[EOBndExpr[EOExprOnly]]] = {
-    INDENT ~> rep1(namedAbsObj) <~ DEDENT ^^ (attrs => attrs.toVector)
+  def boundAttrs: Parser[Vector[EONamedBnd[EOExprOnly]]] = {
+    INDENT ~> rep1(namedAbsObj | namedApplication) <~ DEDENT ^^ (attrs => attrs.toVector)
   }
 
   def main(args: Array[String]): Unit = {
@@ -166,7 +258,15 @@ object Parser extends Parsers {
         |+package sandbox
         |+rt jvm java8
         |
-        |[]
+        |
+        |[] > main
+        |  a > namedA
+        |  a.b.c > namedC
+        |  a > aCopiedWithB
+        |    b
+        |  a > aCopiedWithBCopiedWithC
+        |    b > bCopiedWithC
+        |      c > justC
         |  [a b] > @
         |    [ad...] > one2!
         |  [a b] > another
