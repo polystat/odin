@@ -80,19 +80,19 @@ object ToEO {
     implicit val bndNameToEO: ToEO[BndName, String] =
       new ToEO[BndName, String] {
         override def toEO(node: BndName): String = node match {
-          case l: LazyBnd  => l.toEO
-          case c: ConstBnd => c.toEO
+          case l: LazyName  => l.toEO
+          case c: ConstName => c.toEO
         }
       }
 
-    implicit val lazyBndToEO: ToEO[LazyBnd, String] =
-      new ToEO[LazyBnd, String] {
-        override def toEO(node: LazyBnd): String = node.name
+    implicit val lazyBndToEO: ToEO[LazyName, String] =
+      new ToEO[LazyName, String] {
+        override def toEO(node: LazyName): String = node.name
       }
 
-    implicit val constBndToEO: ToEO[ConstBnd, String] =
-      new ToEO[ConstBnd, String] {
-        override def toEO(node: ConstBnd): String = s"${node.name}${Constants.SYMBS.CONST_MOD}"
+    implicit val constBndToEO: ToEO[ConstName, String] =
+      new ToEO[ConstName, String] {
+        override def toEO(node: ConstName): String = s"${node.name}${Constants.SYMBS.CONST_MOD}"
       }
 
     // Binding /////////////////////////////////////////////////////////////////
@@ -100,7 +100,7 @@ object ToEO {
       new ToEO[EOBnd[EOExprOnly], InlineOrLines] {
         override def toEO(node: EOBnd[EOExprOnly]): InlineOrLines = node match {
           case a: EOAnonExpr[EOExprOnly] => a.toEO
-          case b: EOBndExpr[EOExprOnly]  => b.toEO
+          case b: EONamedBnd[EOExprOnly]  => b.toEO
         }
       }
 
@@ -109,9 +109,9 @@ object ToEO {
         override def toEO(node: EOAnonExpr[EOExprOnly]): InlineOrLines = node.expr.toEO
       }
 
-    implicit val bndExprToEO: ToEO[EOBndExpr[EOExprOnly], InlineOrLines] =
-      new ToEO[EOBndExpr[EOExprOnly], InlineOrLines] {
-        override def toEO(node: EOBndExpr[EOExprOnly]): InlineOrLines =
+    implicit val bndExprToEO: ToEO[EONamedBnd[EOExprOnly], InlineOrLines] =
+      new ToEO[EONamedBnd[EOExprOnly], InlineOrLines] {
+        override def toEO(node: EONamedBnd[EOExprOnly]): InlineOrLines =
           node.expr.bndToEO(node.bndName.name.toEO)
       }
 
