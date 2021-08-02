@@ -1,4 +1,4 @@
-package eo.core.parser
+package eo.parser
 
 sealed trait Token
 

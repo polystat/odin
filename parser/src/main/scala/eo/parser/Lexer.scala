@@ -1,4 +1,4 @@
-package eo.core.parser
+package eo.parser
 
 import scala.util.matching.Regex
 import scala.util.parsing.combinator.RegexParsers

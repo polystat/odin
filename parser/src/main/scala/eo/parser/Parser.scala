@@ -1,9 +1,14 @@
-package eo.core.parser
+package eo.parser
 
 import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast._
 import eo.core.ast.astparams.EOExprOnly
 import higherkindness.droste.data.Fix
+
+
+import eo.backend.eolang.ToEO.instances._
+import eo.backend.eolang.ToEO.ops._
+import eo.backend.eolang.inlineorlines.ops._
 
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
@@ -290,6 +295,18 @@ object Parser extends Parsers {
 
     println("\nAST:")
     println(ast)
+
+    println("\nRESTORED PROGRAM:")
+    println(ast.toEO.allLinesToString)
+
+    println(
+      Fix[EOExpr](EODot(
+        Fix[EOExpr](EODot(
+          Fix[EOExpr](EOSimpleApp("a")),
+          "b")),
+        "c")
+      ).toEO.allLinesToString
+    )
   }
 
 }
