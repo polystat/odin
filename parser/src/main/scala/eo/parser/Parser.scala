@@ -4,8 +4,6 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast._
 import eo.core.ast.astparams.EOExprOnly
 import higherkindness.droste.data.Fix
-
-
 import eo.backend.eolang.ToEO.instances._
 import eo.backend.eolang.ToEO.ops._
 import eo.backend.eolang.inlineorlines.ops._
@@ -41,10 +39,10 @@ object Parser extends Parsers {
   private def identifier: Parser[IDENTIFIER] = {
     accept("identifier", { case id: IDENTIFIER => id })
   }
-  //
-  //  private def literal: Parser[LITERAL] = {
-  //    accept("literal", { case lit: LITERAL => lit })
-  //  }
+
+  private def literal: Parser[LITERAL] = {
+    accept("literal", { case lit: LITERAL => lit })
+  }
 
   //  private def single_line_comment: Parser[SINGLE_LINE_COMMENT] = {
   //    accept("single line comment", { case comment: SINGLE_LINE_COMMENT => comment })
@@ -52,6 +50,37 @@ object Parser extends Parsers {
 
   private def meta: Parser[META] = {
     accept("meta", { case meta: META => meta })
+  }
+
+  private def createNonEmpty(
+                              objs: Seq[EOBnd[EOExprOnly]]
+                            ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
+    NonEmpty.from(objs) match {
+      case Some(value) => value.toVector
+      case None => throw new Exception("1 or more arguments expected, got 0.")
+    }
+  }
+
+  private def extractEOExpr(bnd: EOBnd[EOExprOnly]): EOExprOnly = {
+    bnd match {
+      case EOAnonExpr(expr) => expr
+      case EONamedBnd(_, expr) => expr
+    }
+  }
+
+  private def createInverseDot(
+                                id: IDENTIFIER,
+                                args: Vector[EOBnd[EOExprOnly]]
+                              ): EOExprOnly = {
+    if (args.tail.nonEmpty) {
+      Fix[EOExpr](EOCopy(
+        Fix[EOExpr](EODot(extractEOExpr(args.head), id.name)),
+        createNonEmpty(args.tail)
+      ))
+    }
+    else {
+      Fix[EOExpr](EODot(extractEOExpr(args.head), id.name))
+    }
   }
 
 
@@ -105,92 +134,93 @@ object Parser extends Parsers {
     namedApplication | anonApplication
   }
 
+  def simpleApplicationTarget: Parser[EOExprOnly] = {
+    val id = identifier ^^ {
+      id => Fix[EOExpr](EOSimpleApp(id.name))
+    }
+
+    val data = literal ^^ {
+      case CHAR(value) => Fix[EOExpr](EOCharData(value.charAt(0)))
+      case FLOAT(value) => Fix[EOExpr](EOFloatData(value.toFloat))
+      case STRING(value) => Fix[EOExpr](EOStrData(value))
+      case INTEGER(value) => Fix[EOExpr](EOIntData(value.toInt))
+    }
+
+    val phi = PHI ^^ {
+      _ => Fix[EOExpr](EOSimpleApp("@"))
+    }
+
+    val self = SELF ^^ {
+      _ => Fix[EOExpr](EOSimpleApp("$"))
+    }
+
+    val rho = RHO ^^ {
+      _ => Fix[EOExpr](EOSimpleApp("^"))
+    }
+
+    // TODO: do something about arrays (`*`)
+    id | data | phi | self | rho
+  }
+
+  def applicationTarget: Parser[EOExprOnly] = {
+    val attributeChain: Parser[EOExprOnly] = simpleApplicationTarget ~ rep1(DOT ~> identifier) ^^ {
+      case start ~ attrs =>
+        attrs.foldLeft(start)(
+          (acc, id) => Fix[EOExpr](EODot(acc, id.name))
+        )
+    }
+    attributeChain | simpleApplicationTarget
+  }
+
+  def applicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
+    rep1(`object`) ^^ {
+      argList => createNonEmpty(argList)
+    }
+  }
+
   def namedApplication: Parser[EONamedBnd[EOExprOnly]] = {
-    val namedSimpleApp = {
-      identifier ~ name ^^ {
-        case id ~ name =>
-          EONamedBnd(
-            name,
-            Fix[EOExpr](EOSimpleApp(id.name))
-          )
-      }
+    val noArgs = applicationTarget ~ name ^^ {
+      case target ~ name =>
+        EONamedBnd(name, target)
+    }
+    val inverseDot = identifier ~ DOT ~ name ~ INDENT ~ applicationArgs <~ DEDENT ^^ {
+      case id ~ _ ~ name ~ _ ~ args =>
+        EONamedBnd(
+          name,
+          createInverseDot(id, args)
+        )
+    }
+    val withArgs = applicationTarget ~ name ~ INDENT ~ applicationArgs <~ DEDENT ^^ {
+      case target ~ name ~ _ ~ args =>
+        EONamedBnd(
+          name,
+          Fix[EOExpr](EOCopy(target, args))
+        )
     }
 
-    val namedAttributeChain: Parser[EONamedBnd[EOExprOnly]] =
-      identifier ~ rep1(DOT ~> identifier) ~ name ^^ {
-        case id ~ lst ~ name => EONamedBnd(
-          name,
-          lst.foldLeft(
-            Fix[EOExpr](EOSimpleApp(id.name))
-          )(
-            (acc, id) => Fix[EOExpr](EODot(acc, id.name)))
-        )
-      }
-
-    val namedCopy: Parser[EONamedBnd[EOExprOnly]] = {
-      val methodCopy = identifier ~ name ~ INDENT ~ rep1(`object`) <~ DEDENT ^^ {
-        case id ~ name ~ _ ~ objs => EONamedBnd(
-          name,
-          Fix[EOExpr](
-            EOCopy(
-              Fix[EOExpr](EOSimpleApp(id.name)),
-              NonEmpty.from(objs.toVector) match {
-                case Some(value) => value
-                case None => throw new Exception("Expected 1 or more arguments, passed 0.")
-              }
-            )
-          )
-        )
-      }
-      methodCopy
-    }
-
-
-    namedCopy | namedAttributeChain | namedSimpleApp
+    inverseDot | withArgs | noArgs
   }
 
   def anonApplication: Parser[EOAnonExpr[EOExprOnly]] = {
-    val simpleApp =
-      identifier ^^ {
-        id =>
-          EOAnonExpr(
-            Fix[EOExpr](EOSimpleApp(id.name))
-          )
-      }
-
-    val attributeChain: Parser[EOAnonExpr[EOExprOnly]] =
-      identifier ~ rep1(DOT ~> identifier) ^^ {
-        case id ~ lst => EOAnonExpr(
-          lst.foldLeft(
-            Fix[EOExpr](EOSimpleApp(id.name))
-          )(
-            (acc, id) => Fix[EOExpr](EODot(acc, id.name)))
-        )
-      }
-
-    val copy: Parser[EOAnonExpr[EOExprOnly]] = {
-      val methodCopy = identifier ~ INDENT ~ rep1(`object`) <~ DEDENT ^^ {
-        case id ~ _ ~ objs => EOAnonExpr(
+    val noArgs = applicationTarget ^^ {
+      target => EOAnonExpr(target)
+    }
+    val inverseDot = identifier ~ DOT ~ INDENT ~ applicationArgs <~ DEDENT ^^ {
+      case id ~ _ ~ _ ~ args =>
+        EOAnonExpr(createInverseDot(id, args))
+    }
+    val withArgs = applicationTarget ~ INDENT ~ applicationArgs <~ DEDENT ^^ {
+      case target ~ _ ~ args =>
+        EOAnonExpr(
           Fix[EOExpr](EOCopy(
-            Fix[EOExpr](EOSimpleApp(id.name)),
-            NonEmpty.from(objs.toVector) match {
-              case Some(value) => value
-              case None => throw new Exception("Expected 1 or more arguments, passed 0.")
-            }
+            target,
+            args
           ))
         )
-      }
-
-
-      //      val inverseDotCopy = identifier ~ DOT ~ INDENT ~ rep1(`object`) <~ DEDENT ^^ {
-      //        case id ~ _ ~ _ ~ objs => ???
-      //      }
-
-      methodCopy
     }
-
-    copy | attributeChain | simpleApp
+    inverseDot | withArgs | noArgs
   }
+
 
   def abstraction: Parser[EOBnd[EOExprOnly]] = {
     namedAbsObj | anonAbsObj
@@ -272,6 +302,9 @@ object Parser extends Parsers {
         |  a > aCopiedWithBCopiedWithC
         |    b > bCopiedWithC
         |      c > justC
+        |  c. > inverseDotExample
+        |    b.
+        |      a
         |  [a b] > @
         |    [ad...] > one2!
         |  [a b] > another
@@ -298,15 +331,6 @@ object Parser extends Parsers {
 
     println("\nRESTORED PROGRAM:")
     println(ast.toEO.allLinesToString)
-
-    println(
-      Fix[EOExpr](EODot(
-        Fix[EOExpr](EODot(
-          Fix[EOExpr](EOSimpleApp("a")),
-          "b")),
-        "c")
-      ).toEO.allLinesToString
-    )
   }
 
 }
