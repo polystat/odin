@@ -3,8 +3,6 @@ package eo.parser
 import scala.util.matching.Regex
 import scala.util.parsing.combinator.RegexParsers
 
-trait CompilationError
-case class LexerError(msg: String) extends CompilationError
 
 
 object Lexer extends RegexParsers {
@@ -138,32 +136,4 @@ object Lexer extends RegexParsers {
   private def slash = "/" ^^ (_ => SLASH)
   private def dots = "..." ^^ (_ => DOTS)
 
-}
-
-
-object LexerMain extends App {
-  val code =
-    """
-      |# Some license here
-      |+package sandbox
-      |+alias stdout org.eolang.io.stdout
-      |+alias sprintf org.eolang.txt.sprintf
-      |[] > base
-      |  memory > x
-      |  [self v] > f
-      |    x.write > @
-      |      v
-      |  [self v] > g
-      |    self.f > @
-      |      self
-      |      v
-      |[] > derived
-      |  base > @
-      |  [self v] > f
-      |    self.g > @
-      |      self
-      |      v
-      """.stripMargin
-  println(code)
-  println(Lexer(code))
 }
