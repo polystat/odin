@@ -3,10 +3,12 @@ package eo.parser
 import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast._
 import eo.core.ast.astparams.EOExprOnly
+
 import higherkindness.droste.data.Fix
 import eo.backend.eolang.ToEO.instances._
 import eo.backend.eolang.ToEO.ops._
 import eo.backend.eolang.inlineorlines.ops._
+
 
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
@@ -21,20 +23,34 @@ class WorkflowTokenReader(val tokens: Seq[Token]) extends Reader[Token] {
   override def rest: Reader[Token] = new WorkflowTokenReader(tokens.tail)
 }
 
-case class ParserError(msg: String) extends CompilationError
-
-
 object Parser extends Parsers {
   override type Elem = Token
 
-  def apply(tokens: Seq[Token]): Either[ParserError, EOProg[EOExprOnly]] = {
+  def parse(tokens: Seq[Token]): Either[ParserError, EOProg[EOExprOnly]] = {
     val reader = new WorkflowTokenReader(tokens)
-    program(reader) match {
+    phrase(program)(reader) match {
       case Success(result, _) => Right(result)
       case Error(msg, _) => Left(ParserError(msg))
       case Failure(msg, _) => Left(ParserError(msg))
     }
   }
+
+  def apply(code: String): Either[CompilationError, EOProg[EOExprOnly]] = {
+    for {
+      tokens <- {
+        println(s"\nSOURCE CODE:\n$code")
+        Lexer(code)
+      }
+      ast <- {
+        println(s"\nTOKENS:\n$tokens")
+        parse(tokens)
+      }
+    } yield {
+      println(s"\nAST:\n$ast")
+      ast
+    }
+  }
+
 
   private def identifier: Parser[IDENTIFIER] = {
     accept("identifier", { case id: IDENTIFIER => id })
@@ -98,7 +114,6 @@ object Parser extends Parsers {
   def metas: Parser[EOMetas] = {
     rep1(meta) ^^ {
       metas => {
-
         def processOtherMetas(other: List[META]): List[EOMeta] = other match {
           case META(name, text) :: tail if name == "+alias" =>
             val alias :: value :: _ = text.split(' ').filterNot(_.isEmpty).toList
@@ -138,22 +153,18 @@ object Parser extends Parsers {
     val id = identifier ^^ {
       id => Fix[EOExpr](EOSimpleApp(id.name))
     }
-
     val data = literal ^^ {
       case CHAR(value) => Fix[EOExpr](EOCharData(value.charAt(0)))
       case FLOAT(value) => Fix[EOExpr](EOFloatData(value.toFloat))
       case STRING(value) => Fix[EOExpr](EOStrData(value))
       case INTEGER(value) => Fix[EOExpr](EOIntData(value.toInt))
     }
-
     val phi = PHI ^^ {
       _ => Fix[EOExpr](EOSimpleApp("@"))
     }
-
     val self = SELF ^^ {
       _ => Fix[EOExpr](EOSimpleApp("$"))
     }
-
     val rho = RHO ^^ {
       _ => Fix[EOExpr](EOSimpleApp("^"))
     }
@@ -163,18 +174,19 @@ object Parser extends Parsers {
   }
 
   def applicationTarget: Parser[EOExprOnly] = {
-    val attributeChain: Parser[EOExprOnly] = simpleApplicationTarget ~ rep1(DOT ~> identifier) ^^ {
-      case start ~ attrs =>
-        attrs.foldLeft(start)(
-          (acc, id) => Fix[EOExpr](EODot(acc, id.name))
-        )
-    }
+    val attributeChain: Parser[EOExprOnly] =
+      simpleApplicationTarget ~ rep1(DOT ~> identifier) ^^ {
+        case start ~ attrs =>
+          attrs.foldLeft(start)(
+            (acc, id) => Fix[EOExpr](EODot(acc, id.name))
+          )
+      }
     attributeChain | simpleApplicationTarget
   }
 
   def applicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
-    rep1(`object`) ^^ {
-      argList => createNonEmpty(argList)
+    INDENT ~ rep1(`object`) <~ DEDENT ^^ {
+      case _ ~ argList => createNonEmpty(argList)
     }
   }
 
@@ -183,15 +195,15 @@ object Parser extends Parsers {
       case target ~ name =>
         EONamedBnd(name, target)
     }
-    val inverseDot = identifier ~ DOT ~ name ~ INDENT ~ applicationArgs <~ DEDENT ^^ {
-      case id ~ _ ~ name ~ _ ~ args =>
+    val inverseDot = identifier ~ DOT ~ name ~ applicationArgs ^^ {
+      case id ~ _ ~ name ~ args =>
         EONamedBnd(
           name,
           createInverseDot(id, args)
         )
     }
-    val withArgs = applicationTarget ~ name ~ INDENT ~ applicationArgs <~ DEDENT ^^ {
-      case target ~ name ~ _ ~ args =>
+    val withArgs = applicationTarget ~ name ~ applicationArgs ^^ {
+      case target ~ name ~ args =>
         EONamedBnd(
           name,
           Fix[EOExpr](EOCopy(target, args))
@@ -205,12 +217,12 @@ object Parser extends Parsers {
     val noArgs = applicationTarget ^^ {
       target => EOAnonExpr(target)
     }
-    val inverseDot = identifier ~ DOT ~ INDENT ~ applicationArgs <~ DEDENT ^^ {
-      case id ~ _ ~ _ ~ args =>
+    val inverseDot = identifier ~ DOT ~ applicationArgs ^^ {
+      case id ~ _ ~ args =>
         EOAnonExpr(createInverseDot(id, args))
     }
-    val withArgs = applicationTarget ~ INDENT ~ applicationArgs <~ DEDENT ^^ {
-      case target ~ _ ~ args =>
+    val withArgs = applicationTarget ~ applicationArgs ^^ {
+      case target ~ args =>
         EOAnonExpr(
           Fix[EOExpr](EOCopy(
             target,
@@ -309,28 +321,20 @@ object Parser extends Parsers {
         |    [ad...] > one2!
         |  [a b] > another
         |    [a b c d...] > another2
-        |[a d b] # another anon
         |""".stripMargin
-    println(code)
-    val tokens = Lexer(code) match {
-      case Right(value) => value
-      case Left(value) => throw new Exception(value.msg)
+
+    apply(code) match {
+      case Left(value) =>
+        value match {
+          case ParserError(msg) => println(s"\nPARSER ERROR OCCURRED: $msg")
+          case LexerError(msg) => println(s"\nLEXER ERROR OCCURRED: $msg")
+        }
+      case Right(value) =>
+        println("\nRESTORED PROGRAM:")
+        println(value.toEO.allLinesToString)
     }
 
-    println("\nTOKENS:")
-    println(tokens)
-
-    val ast = apply(tokens) match {
-      case Right(value) => value
-      case Left(value) => throw new Exception(value.msg)
-
-    }
-
-    println("\nAST:")
-    println(ast)
-
-    println("\nRESTORED PROGRAM:")
-    println(ast.toEO.allLinesToString)
   }
+
 
 }
