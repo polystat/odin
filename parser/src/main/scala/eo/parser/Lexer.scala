@@ -104,9 +104,9 @@ object Lexer extends RegexParsers {
         val (dropped, kept) = indents.partition(_ > spaces)
         (dropped map (_ => DEDENT)) ::: processIndentations(tokens.tail, kept)
 
-      // if the indentation level stays unchanged, no tokens are produced
+      // if the indentation level stays unchanged, produce NEWLINE
       case Some(INDENTATION(spaces)) if spaces == indents.head =>
-        processIndentations(tokens.tail, indents)
+        NEWLINE :: processIndentations(tokens.tail, indents)
 
       // other tokens are ignored
       case Some(token) =>

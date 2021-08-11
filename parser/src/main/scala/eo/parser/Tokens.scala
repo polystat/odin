@@ -24,6 +24,7 @@ case object RBRACKET extends Token
 case object LPAREN extends Token
 case object RPAREN extends Token
 case object ARRAY_DELIMITER extends Token
+case object NEWLINE extends Token
 
 // standalone tokens
 case object PHI extends Token
