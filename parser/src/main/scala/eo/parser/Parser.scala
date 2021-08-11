@@ -281,7 +281,6 @@ object Parser extends Parsers {
   }
 
   def args: Parser[(Vector[LazyName], Option[LazyName])] = {
-    // TODO: include PHI(`@`) into available args
     val vararg = LBRACKET ~> varargList <~ RBRACKET ^^ { pair =>
       (pair._1, Some(pair._2))
     }
@@ -292,13 +291,13 @@ object Parser extends Parsers {
   }
 
   def argList: Parser[Vector[LazyName]] = {
-    rep(identifier) ^^ {
+    rep(identifier | phi) ^^ {
       params => params.map(id => LazyName(id.name)).toVector
     }
   }
 
   def varargList: Parser[(Vector[LazyName], LazyName)] = {
-    rep(identifier) <~ DOTS ^^ {
+    rep(identifier | phi) <~ DOTS ^^ {
       ids =>
         (
           ids.init.map(id => LazyName(id.name)).toVector,
@@ -317,77 +316,37 @@ object Parser extends Parsers {
   }
 
   def main(args: Array[String]): Unit = {
-//    val code =
-//      """
-//        |+package sandbox
-//        |+rt jvm java8
-//        |
-//        |
-//        |[] > main
-//        |  a > namedA
-//        |  a.b.c > namedC
-//        |  a > aCopiedWithB
-//        |    b
-//        |  a > aCopiedWithBCopiedWithC
-//        |    b > bCopiedWithC
-//        |      c > justC
-//        |  c. > inverseDotExample
-//        |    b.
-//        |      a
-//        |  [a b] > @
-//        |    [ad...] > one2!
-//        |  [a b] > another
-//        |    [a b c d...] > another2
-//        |  a b c d > aAppliedToBCandD
-//        |  a (b (c d)) > rightAssociative
-//        |  ((a b) c) d > leftAssociative
-//        |  a.x v > axv
-//        |  a > msg
-//        |    1
-//        |    2
-//        |""".stripMargin
+    val code =
+      """
+        |+package sandbox
+        |+rt jvm java8
+        |
+        |
+        |[] > main
+        |  a > namedA
+        |  a.b.c > namedC
+        |  a > aCopiedWithB
+        |    b
+        |  a > aCopiedWithBCopiedWithC
+        |    b > bCopiedWithC
+        |      c > justC
+        |  c. > inverseDotExample
+        |    b.
+        |      a
+        |  [@ b] > @
+        |    [ad...] > one2!
+        |  [a @...] > another
+        |    [a b c d...] > another2
+        |  a b c d > aAppliedToBCandD
+        |  a (b (c d)) > rightAssociative
+        |  ((a b) c) d > leftAssociative
+        |  a.x v > axv
+        |  a > msg
+        |    1
+        |    2
+        |""".stripMargin
 
-    apply("""+package sandbox
-            |+alias stdout org.eolang.io.stdout
-            |+alias sprintf org.eolang.txt.sprintf
-            |[] > base
-            |  memory > x
-            |  [v] > n
-            |    seq > @
-            |      stdout
-            |        sprintf "Calling base.n with v = %d\n" v
-            |      x.write v
-            |  [v] > m
-            |    seq > @
-            |      stdout
-            |        sprintf "Calling base.m with v = %d\n" v
-            |      n v
-            |[] > derived
-            |  base > @
-            |  [v] > n
-            |    seq > @
-            |      stdout (sprintf "Calling derived.n with v = %d\n" v)
-            |      ^.m v
-            |[args...] > app
-            |  base > b
-            |  derived > d
-            |  seq > @
-            |    b.n 10
-            |    stdout
-            |      sprintf
-            |        "base:\n\tx after n = %d\n"
-            |        b.x
-            |    b.m 12
-            |    stdout
-            |      sprintf
-            |        "\tx after m = %d\n"
-            |        b.x
-            |    d.n 5
-            |    stdout
-            |      sprintf
-            |        "\nderived:\n\tx after n = %d\n"
-            |        d.x
-            |""".stripMargin) match {
+    apply(code) match {
       case Left(value) =>
         value match {
           case ParserError(msg) => println(s"\nPARSER ERROR OCCURRED: $msg")
