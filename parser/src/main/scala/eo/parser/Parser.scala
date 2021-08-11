@@ -56,6 +56,13 @@ object Parser extends Parsers {
     accept("identifier", { case id: IDENTIFIER => id })
   }
 
+  private def phi: Parser[PHI] = {
+    accept("phi", {case phi: PHI => phi})
+  }
+
+  private def accessibleAttributeName: Parser[ACCESSIBLE_ATTRIBUTE_NAME] =
+    accept("accessibleAttributeName", {case name: ACCESSIBLE_ATTRIBUTE_NAME => name})
+
   private def literal: Parser[LITERAL] = {
     accept("literal", { case lit: LITERAL => lit })
   }
@@ -149,32 +156,24 @@ object Parser extends Parsers {
   }
 
   def simpleApplicationTarget: Parser[EOExprOnly] = {
-    val id = identifier ^^ {
-      id => Fix[EOExpr](EOSimpleApp(id.name))
-    }
     val data = literal ^^ {
       case CHAR(value) => Fix[EOExpr](EOCharData(value.charAt(0)))
       case FLOAT(value) => Fix[EOExpr](EOFloatData(value.toFloat))
       case STRING(value) => Fix[EOExpr](EOStrData(value))
       case INTEGER(value) => Fix[EOExpr](EOIntData(value.toInt))
     }
-    val phi = PHI ^^ {
-      _ => Fix[EOExpr](EOSimpleApp("@"))
-    }
-    val self = SELF ^^ {
-      _ => Fix[EOExpr](EOSimpleApp("$"))
-    }
-    val rho = RHO ^^ {
-      _ => Fix[EOExpr](EOSimpleApp("^"))
+
+    val attr = accessibleAttributeName ^^ {
+      name => Fix[EOExpr](EOSimpleApp(name.name))
     }
 
+    attr | data
     // TODO: do something about arrays (`*`)
-    id | data | phi | self | rho
   }
 
   def applicationTarget: Parser[EOExprOnly] = {
     val attributeChain: Parser[EOExprOnly] =
-      simpleApplicationTarget ~ rep1(DOT ~> identifier) ^^ {
+      simpleApplicationTarget ~ rep1(DOT ~> accessibleAttributeName) ^^ {
         case start ~ attrs =>
           attrs.foldLeft(start)(
             (acc, id) => Fix[EOExpr](EODot(acc, id.name))
@@ -273,7 +272,7 @@ object Parser extends Parsers {
   def name: Parser[EOBndName] = {
     val lazyName = ASSIGN_NAME ~> identifier ^^
       (id => EOAnyName(LazyName(id.name)))
-    val lazyPhi = ASSIGN_NAME ~> PHI ^^
+    val lazyPhi = ASSIGN_NAME ~> phi ^^
       (_ => EODecoration())
     val constName = ASSIGN_NAME ~> identifier <~ EXCLAMATION_MARK ^^
       (id => EOAnyName(ConstName(id.name)))
