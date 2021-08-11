@@ -4,9 +4,18 @@ sealed trait Token
 
 // complex tokens
 case class SINGLE_LINE_COMMENT(text: String) extends Token
-case class IDENTIFIER(name: String) extends Token
 case class INDENTATION(level: Int) extends Token
 case class META(name: String, text: String) extends Token
+
+sealed trait ACCESSIBLE_ATTRIBUTE_NAME extends Token {
+  val name: String
+}
+
+case class IDENTIFIER(name: String) extends ACCESSIBLE_ATTRIBUTE_NAME
+case class PHI(name: String = "@") extends ACCESSIBLE_ATTRIBUTE_NAME
+case class RHO(name: String = "^") extends ACCESSIBLE_ATTRIBUTE_NAME
+case class SELF(name: String = "$") extends ACCESSIBLE_ATTRIBUTE_NAME
+
 
 sealed trait LITERAL extends Token {
   val value: String
@@ -27,9 +36,6 @@ case object ARRAY_DELIMITER extends Token
 case object NEWLINE extends Token
 
 // standalone tokens
-case object PHI extends Token
-case object RHO extends Token
-case object SELF extends Token
 case object EXCLAMATION_MARK extends Token
 case object COLON extends Token
 case object DOT extends Token

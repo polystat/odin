@@ -121,9 +121,9 @@ object Lexer extends RegexParsers {
   }
 
 
-  private def phi = "@" ^^ (_ => PHI)
-  private def rho = "^" ^^ (_ => RHO)
-  private def self = "$" ^^ (_ => SELF)
+  private def phi: Parser[PHI] = "@" ^^ (_ => PHI())
+  private def rho: Parser[RHO] = "^" ^^ (_ => RHO())
+  private def self: Parser[SELF] = "$" ^^ (_ => SELF())
   private def exclamation_mark = "!" ^^ (_ => EXCLAMATION_MARK)
   private def colon = ":" ^^ (_ => COLON)
   private def dot = "." ^^ (_ => DOT)
