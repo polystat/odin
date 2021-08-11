@@ -101,8 +101,8 @@ object Parser extends Parsers {
 
 
   def program: Parser[EOProg[EOExprOnly]] = {
-    opt(metas) ~ objects ^^ {
-      case metas ~ objs =>
+    rep(NEWLINE) ~> opt(metas) ~ rep(NEWLINE) ~ objects ^^ {
+      case metas ~ _ ~ objs =>
         EOProg(
           metas.getOrElse(EOMetas(None, Vector())),
           objs
@@ -112,7 +112,7 @@ object Parser extends Parsers {
 
 
   def metas: Parser[EOMetas] = {
-    rep1(meta) ^^ {
+    rep1(meta <~ NEWLINE) ^^ {
       metas => {
         def processOtherMetas(other: List[META]): List[EOMeta] = other match {
           case META(name, text) :: tail if name == "+alias" =>
@@ -136,13 +136,12 @@ object Parser extends Parsers {
   }
 
   def objects: Parser[Vector[EOBnd[EOExprOnly]]] = {
-    rep(`object`) ^^ {
-      objs => objs.toVector
-    }
+    rep(`object` <~ rep(NEWLINE)) ^^
+      (objs => objs.toVector)
   }
 
   def `object`: Parser[EOBnd[EOExprOnly]] = {
-    application | abstraction
+    (application | abstraction) <~ rep(NEWLINE)
   }
 
   def application: Parser[EOBnd[EOExprOnly]] = {
@@ -184,25 +183,39 @@ object Parser extends Parsers {
     attributeChain | simpleApplicationTarget
   }
 
-  def applicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
-    INDENT ~ rep1(`object`) <~ DEDENT ^^ {
-      case _ ~ argList => createNonEmpty(argList)
+  def singleLineApplication: Parser[EOExprOnly] = {
+    val justTarget = applicationTarget
+    val parenthesized = LPAREN ~> singleLineApplication <~ RPAREN
+    val horizontalApplicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
+      rep1(justTarget | parenthesized) ^^
+        (args => createNonEmpty(args.map(EOAnonExpr(_))))
     }
+    val justApplication = (parenthesized | justTarget) ~ horizontalApplicationArgs ^^ {
+      case trg ~ args => Fix[EOExpr](EOCopy(trg, args))
+    }
+
+    justApplication | parenthesized | justTarget
   }
 
+  def verticalApplicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
+    INDENT ~> rep1(`object`) <~ DEDENT ^^
+      (argList => createNonEmpty(argList))
+  }
+
+
   def namedApplication: Parser[EONamedBnd[EOExprOnly]] = {
-    val noArgs = applicationTarget ~ name ^^ {
+    val noArgs = singleLineApplication ~ name <~ rep(NEWLINE) ^^ {
       case target ~ name =>
         EONamedBnd(name, target)
     }
-    val inverseDot = identifier ~ DOT ~ name ~ applicationArgs ^^ {
+    val inverseDot = identifier ~ DOT ~ name ~ verticalApplicationArgs ^^ {
       case id ~ _ ~ name ~ args =>
         EONamedBnd(
           name,
           createInverseDot(id, args)
         )
     }
-    val withArgs = applicationTarget ~ name ~ applicationArgs ^^ {
+    val withArgs = singleLineApplication ~ name ~ verticalApplicationArgs ^^ {
       case target ~ name ~ args =>
         EONamedBnd(
           name,
@@ -214,14 +227,14 @@ object Parser extends Parsers {
   }
 
   def anonApplication: Parser[EOAnonExpr[EOExprOnly]] = {
-    val noArgs = applicationTarget ^^ {
+    val noArgs = singleLineApplication ^^ {
       target => EOAnonExpr(target)
     }
-    val inverseDot = identifier ~ DOT ~ applicationArgs ^^ {
+    val inverseDot = identifier ~ DOT ~ verticalApplicationArgs ^^ {
       case id ~ _ ~ args =>
         EOAnonExpr(createInverseDot(id, args))
     }
-    val withArgs = applicationTarget ~ applicationArgs ^^ {
+    val withArgs = singleLineApplication ~ verticalApplicationArgs ^^ {
       case target ~ args =>
         EOAnonExpr(
           Fix[EOExpr](EOCopy(
@@ -296,34 +309,86 @@ object Parser extends Parsers {
   }
 
   def boundAttrs: Parser[Vector[EONamedBnd[EOExprOnly]]] = {
-    INDENT ~> rep1(namedAbsObj | namedApplication) <~ DEDENT ^^ (attrs => attrs.toVector)
+    val attrs = INDENT ~> rep1(namedAbsObj | namedApplication) <~ DEDENT ^^
+      (attrs => attrs.toVector)
+    val noAttrs = rep1(NEWLINE) ^^ {
+      _ => Vector()
+    }
+    attrs | noAttrs
   }
 
   def main(args: Array[String]): Unit = {
-    val code =
-      """
-        |+package sandbox
-        |+rt jvm java8
-        |
-        |
-        |[] > main
-        |  a > namedA
-        |  a.b.c > namedC
-        |  a > aCopiedWithB
-        |    b
-        |  a > aCopiedWithBCopiedWithC
-        |    b > bCopiedWithC
-        |      c > justC
-        |  c. > inverseDotExample
-        |    b.
-        |      a
-        |  [a b] > @
-        |    [ad...] > one2!
-        |  [a b] > another
-        |    [a b c d...] > another2
-        |""".stripMargin
+//    val code =
+//      """
+//        |+package sandbox
+//        |+rt jvm java8
+//        |
+//        |
+//        |[] > main
+//        |  a > namedA
+//        |  a.b.c > namedC
+//        |  a > aCopiedWithB
+//        |    b
+//        |  a > aCopiedWithBCopiedWithC
+//        |    b > bCopiedWithC
+//        |      c > justC
+//        |  c. > inverseDotExample
+//        |    b.
+//        |      a
+//        |  [a b] > @
+//        |    [ad...] > one2!
+//        |  [a b] > another
+//        |    [a b c d...] > another2
+//        |  a b c d > aAppliedToBCandD
+//        |  a (b (c d)) > rightAssociative
+//        |  ((a b) c) d > leftAssociative
+//        |  a.x v > axv
+//        |  a > msg
+//        |    1
+//        |    2
+//        |""".stripMargin
 
-    apply(code) match {
+    apply("""+package sandbox
+            |+alias stdout org.eolang.io.stdout
+            |+alias sprintf org.eolang.txt.sprintf
+            |[] > base
+            |  memory > x
+            |  [v] > n
+            |    seq > @
+            |      stdout
+            |        sprintf "Calling base.n with v = %d\n" v
+            |      x.write v
+            |  [v] > m
+            |    seq > @
+            |      stdout
+            |        sprintf "Calling base.m with v = %d\n" v
+            |      n v
+            |[] > derived
+            |  base > @
+            |  [v] > n
+            |    seq > @
+            |      stdout (sprintf "Calling derived.n with v = %d\n" v)
+            |      ^.m v
+            |[args...] > app
+            |  base > b
+            |  derived > d
+            |  seq > @
+            |    b.n 10
+            |    stdout
+            |      sprintf
+            |        "base:\n\tx after n = %d\n"
+            |        b.x
+            |    b.m 12
+            |    stdout
+            |      sprintf
+            |        "\tx after m = %d\n"
+            |        b.x
+            |    d.n 5
+            |    stdout
+            |      sprintf
+            |        "\nderived:\n\tx after n = %d\n"
+            |        d.x
+            |""".stripMargin) match {
       case Left(value) =>
         value match {
           case ParserError(msg) => println(s"\nPARSER ERROR OCCURRED: $msg")

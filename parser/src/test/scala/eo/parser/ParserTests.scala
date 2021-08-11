@@ -117,8 +117,7 @@ object MutualRecExample {
     )
   )
   val code: String =
-    """
-      |+package sandbox
+    """+package sandbox
       |+alias stdout org.eolang.io.stdout
       |+alias sprintf org.eolang.txt.sprintf
       |[] > base
@@ -136,7 +135,6 @@ object MutualRecExample {
       |    self.g > @
       |      self
       |      v
-      |
       |""".stripMargin
 }
 
@@ -156,7 +154,8 @@ object FailingCode {
 class ParserTests extends AnyFunSpec {
 
   type ParserResult = Either[CompilationError, EOProg[EOExprOnly]]
-  def producesParserError(result: ParserResult): Boolean = {
+
+  private def producesParserError(result: ParserResult): Boolean = {
     result match {
       case Left(error) =>
         error match {
@@ -166,7 +165,8 @@ class ParserTests extends AnyFunSpec {
       case Right(_) => false
     }
   }
-  def producesLexerError(result: ParserResult): Boolean = {
+
+  private def producesLexerError(result: ParserResult): Boolean = {
     result match {
       case Left(error) =>
         error match {
@@ -177,10 +177,156 @@ class ParserTests extends AnyFunSpec {
     }
   }
 
+  private def assertCodeProducesAST(code: String, ast: Vector[EOBnd[EOExprOnly]]) = {
+    assert(Parser(code) == Right(EOProg(EOMetas(None, Vector()), ast)))
+  }
+
   describe("Parser") {
     describe("produces correct AST for correct programs") {
       it("mutual recursion example") {
         assert(Parser(MutualRecExample.code) == Right(MutualRecExample.ast))
+      }
+
+      it("single line application examples") {
+        assertCodeProducesAST(
+          code =
+            """
+              |a
+              |""".stripMargin,
+
+          ast = Vector(
+            EOAnonExpr(Fix[EOExpr](EOSimpleApp("a")))
+          )
+        )
+        assertCodeProducesAST(
+          code =
+            """
+              |a > namedA
+              |""".stripMargin,
+          ast = Vector(
+            EONamedBnd(
+              EOAnyName(LazyName("namedA")),
+              Fix[EOExpr](EOSimpleApp("a"))
+            )
+          )
+        )
+        assertCodeProducesAST(
+          code =
+            """
+              |a b c d > aAppliedToBCandD
+              |""".stripMargin,
+          Vector(
+            EONamedBnd(
+              EOAnyName(LazyName("aAppliedToBCandD")),
+              Fix[EOExpr](EOCopy(
+                Fix[EOExpr](EOSimpleApp("a")),
+                NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                  EOAnonExpr(Fix[EOExpr](EOSimpleApp("b"))),
+                  EOAnonExpr(Fix[EOExpr](EOSimpleApp("c"))),
+                  EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
+                )
+              )
+              )
+            )
+          )
+        )
+        assertCodeProducesAST(
+          code =
+            """
+              |a (b (c d)) > rightAssociative
+              |""".stripMargin,
+          ast =
+            Vector(EONamedBnd(
+              EOAnyName(LazyName("rightAssociative")),
+              Fix[EOExpr](EOCopy(
+                Fix[EOExpr](EOSimpleApp("a")),
+                NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                  EOAnonExpr(Fix[EOExpr](EOCopy(Fix[EOExpr](EOSimpleApp("b")),
+                    NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                      EOAnonExpr(Fix[EOExpr](EOCopy(
+                        Fix[EOExpr](EOSimpleApp("c")),
+                        NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                          EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))))))))))))))
+            )
+        )
+        assertCodeProducesAST(
+          code =
+            """
+              |((a b) c) d > leftAssociative
+              |""".stripMargin,
+          ast = Vector(
+            EONamedBnd(
+              EOAnyName(LazyName("leftAssociative")),
+              Fix[EOExpr](EOCopy(
+                Fix[EOExpr](EOCopy(
+                  Fix[EOExpr](EOCopy(
+                    Fix[EOExpr](EOSimpleApp("a")),
+                    NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("b")))))),
+                    NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("c")))))),
+                  NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("d"))))
+                )
+                )
+            )
+          )
+        )
+      }
+
+      it("parses mutual_rec_non_term.eo (without chained special attributes)") {
+        import eo.backend.eolang.ToEO.instances._
+        import eo.backend.eolang.ToEO.ops._
+        import eo.backend.eolang.inlineorlines.ops._
+        val code =
+          """+package sandbox
+            |+alias stdout org.eolang.io.stdout
+            |+alias sprintf org.eolang.txt.sprintf
+            |[] > base
+            |  memory > x
+            |  [v] > n
+            |    seq > @
+            |      stdout
+            |        sprintf "Calling base.n with v = %d\n" v
+            |      x.write v
+            |  [v] > m
+            |    seq > @
+            |      stdout
+            |        sprintf "Calling base.m with v = %d\n" v
+            |      n v
+            |[] > derived
+            |  base > @
+            |  [v] > n
+            |    seq > @
+            |      stdout (sprintf "Calling derived.n with v = %d\n" v)
+            |      ^.m v
+            |[args...] > app
+            |  base > b
+            |  derived > d
+            |  seq > @
+            |    b.n 10
+            |    stdout
+            |      sprintf
+            |        "base:\n\tx after n = %d\n"
+            |        b.x
+            |    b.m 12
+            |    stdout
+            |      sprintf
+            |        "\tx after m = %d\n"
+            |        b.x
+            |    d.n 5
+            |    stdout
+            |      sprintf
+            |        "\nderived:\n\tx after n = %d\n"
+            |        d.x
+            |""".stripMargin
+            val ast = Parser(code)
+        assert(ast match {
+          case Left(_) => false
+          case Right(_) => true
+        })
+
+        println(ast match {
+          case Left(value) => println(s"ERROR: $value")
+          case Right(value) => println(value.toEO.allLinesToString)
+        })
       }
     }
 
