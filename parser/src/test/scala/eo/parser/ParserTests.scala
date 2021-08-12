@@ -271,23 +271,12 @@ class ParserTests extends AnyFunSpec {
       }
 
       it("parses mutual_rec_non_term.eo (without chained special attributes)") {
-        import eo.backend.eolang.ToEO.instances._
-        import eo.backend.eolang.ToEO.ops._
-        import eo.backend.eolang.inlineorlines.ops._
         val code = {
           val src = io.Source.fromFile("core/src/test/resources/eo/mutual_rec_non_term.eo")
           try src.mkString finally src.close()
         }
         val ast = Parser(code)
-        assert(ast match {
-          case Left(_) => false
-          case Right(_) => true
-        })
-
-        println(ast match {
-          case Left(value) => println(s"ERROR: $value")
-          case Right(value) => println(value.toEO.allLinesToString)
-        })
+        assert(ast.isRight)
       }
     }
 
