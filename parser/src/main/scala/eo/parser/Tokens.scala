@@ -12,9 +12,9 @@ sealed trait ACCESSIBLE_ATTRIBUTE_NAME extends Token {
 }
 
 case class IDENTIFIER(name: String) extends ACCESSIBLE_ATTRIBUTE_NAME
-case class PHI(name: String = "@") extends ACCESSIBLE_ATTRIBUTE_NAME
-case class RHO(name: String = "^") extends ACCESSIBLE_ATTRIBUTE_NAME
-case class SELF(name: String = "$") extends ACCESSIBLE_ATTRIBUTE_NAME
+case class PHI(name: "@" = "@") extends ACCESSIBLE_ATTRIBUTE_NAME
+case class RHO(name: "^" = "^") extends ACCESSIBLE_ATTRIBUTE_NAME
+case class SELF(name: "$" = "$") extends ACCESSIBLE_ATTRIBUTE_NAME
 
 
 sealed trait LITERAL extends Token {
