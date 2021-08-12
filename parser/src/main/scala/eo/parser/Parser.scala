@@ -36,7 +36,7 @@ object Parser extends Parsers {
   }
 
   def apply(code: String): Either[CompilationError, EOProg[EOExprOnly]] = {
-    for {
+    val result = for {
       tokens <- {
         println(s"\nSOURCE CODE:\n$code")
         Lexer(code)
@@ -45,10 +45,20 @@ object Parser extends Parsers {
         println(s"\nTOKENS:\n$tokens")
         parse(tokens)
       }
-    } yield {
-      println(s"\nAST:\n$ast")
-      ast
+    } yield ast
+
+    result match {
+      case Left(value) =>
+        value match {
+          case LexerError(msg) => println(s"LEXER ERROR: $msg")
+          case ParserError(msg) => println(s"PARSER ERROR: $msg")
+        }
+      case Right(value) =>
+        println(s"\nAST:\n$value")
+        println("\nRESTORED PROGRAM:")
+        println(value.toEO.allLinesToString)
     }
+    result
   }
 
 
@@ -346,17 +356,8 @@ object Parser extends Parsers {
         |    2
         |""".stripMargin
 
-    apply(code) match {
-      case Left(value) =>
-        value match {
-          case ParserError(msg) => println(s"\nPARSER ERROR OCCURRED: $msg")
-          case LexerError(msg) => println(s"\nLEXER ERROR OCCURRED: $msg")
-        }
-      case Right(value) =>
-        println("\nRESTORED PROGRAM:")
-        println(value.toEO.allLinesToString)
-    }
-
+    apply(code)
+    ()
   }
 
 
