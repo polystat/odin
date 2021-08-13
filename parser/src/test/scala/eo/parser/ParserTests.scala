@@ -6,6 +6,7 @@ import eo.core.ast.astparams.EOExprOnly
 import eo.core.ast._
 import higherkindness.droste.data.Fix
 import org.scalatest.funspec.AnyFunSpec
+import scala.reflect.ClassTag
 
 object MutualRecExample {
   val ast: EOProg[EOExprOnly] = EOProg(
@@ -155,25 +156,10 @@ class ParserTests extends AnyFunSpec {
 
   type ParserResult = Either[CompilationError, EOProg[EOExprOnly]]
 
-  private def producesParserError(result: ParserResult): Boolean = {
+  private def produces[A <: CompilationError : ClassTag](result: ParserResult): Boolean = {
     result match {
-      case Left(error) =>
-        error match {
-          case LexerError(_) => false
-          case ParserError(_) => true
-        }
-      case Right(_) => false
-    }
-  }
-
-  private def producesLexerError(result: ParserResult): Boolean = {
-    result match {
-      case Left(error) =>
-        error match {
-          case LexerError(_) => true
-          case ParserError(_) => false
-        }
-      case Right(_) => false
+      case Left(_: A) => true
+      case _ => false
     }
   }
 
@@ -284,7 +270,7 @@ class ParserTests extends AnyFunSpec {
 
       it("misplaced exclamation marks") {
         assert(
-          producesParserError(
+          produces[ParserError](
             Parser(FailingCode.misplacedExclamationMark)
           )
         )
@@ -292,11 +278,28 @@ class ParserTests extends AnyFunSpec {
 
       it("invalid tokens") {
         assert(
-          producesLexerError(
+          produces[LexerError](
             Parser(FailingCode.invalidTokens)
           )
         )
       }
+    }
+  }
+
+  describe("produces") {
+    it("should return true if there is an error") {
+      assert(produces[ParserError](Left(ParserError(""))))
+      assert(produces[LexerError](Left(LexerError(""))))
+    }
+
+    it("should return false if the error is different") {
+      assert(!produces[LexerError](Left(ParserError(""))))
+      assert(!produces[ParserError](Left(LexerError(""))))
+    }
+
+    it("should return false if there is no error") {
+      assert(!produces[LexerError](Right(EOProg(EOMetas(None, Vector()), Vector()))))
+      assert(!produces[ParserError](Right(EOProg(EOMetas(None, Vector()), Vector()))))
     }
   }
 
