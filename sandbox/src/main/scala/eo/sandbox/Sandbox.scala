@@ -2,7 +2,7 @@ package eo.sandbox
 
 import cats.effect.{ ExitCode, IO, IOApp }
 import cats.implicits._
-import eo.analysis.mutualrec.naive.mutualrec.programs._
+import eo.analysis.mutualrec.naive.mutualrec.{ findMutualRecursionInTopLevelObjects, resolveMethodsReferencesForEOProgram }
 import eo.backend.eolang.ToEO.instances._
 import eo.backend.eolang.ToEO.ops._
 import eo.backend.eolang.inlineorlines.ops._
