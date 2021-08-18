@@ -14,11 +14,13 @@ lazy val `eo-static-analyzer-app` = project
   .dependsOn(
     utils,
     core,
+    parser,
     backends,
   )
   .aggregate(
     utils,
     core,
+    parser,
     backends,
   )
   .settings(
@@ -38,6 +40,14 @@ lazy val core = project
   .settings(
     name := "core",
     libraryDependencies ++= Dependencies.core,
+  )
+
+lazy val parser = project
+  .settings(commonSettings)
+  .dependsOn(core)
+  .settings(
+    name := "parser",
+    libraryDependencies ++= Dependencies.parser
   )
 
 val backendsBaseDirectory: File = file("backends")
@@ -65,15 +75,6 @@ lazy val sandbox = project
     name := "sandbox",
     libraryDependencies ++= Dependencies.common,
   )
-
-lazy val parser = project
-  .settings(commonSettings)
-  .dependsOn(
-    core, `eolang-backend`
-  ).settings(
-  name := "parser",
-  libraryDependencies ++= Dependencies.core
-)
 
 //lazy val cli = project
 //  .dependsOn(core)

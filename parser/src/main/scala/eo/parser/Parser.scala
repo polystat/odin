@@ -3,15 +3,16 @@ package eo.parser
 import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast._
 import eo.core.ast.astparams.EOExprOnly
+import errors._
 
 import higherkindness.droste.data.Fix
-import eo.backend.eolang.ToEO.instances._
-import eo.backend.eolang.ToEO.ops._
-import eo.backend.eolang.inlineorlines.ops._
+//import eo.backend.eolang.ToEO.instances._
+//import eo.backend.eolang.ToEO.ops._
+//import eo.backend.eolang.inlineorlines.ops._
 
 
 import scala.util.parsing.combinator.Parsers
-import scala.util.parsing.input.{NoPosition, Position, Reader}
+import scala.util.parsing.input.{ NoPosition, Position, Reader }
 
 class WorkflowTokenReader(val tokens: Seq[Token]) extends Reader[Token] {
   override def first: Token = tokens.head
@@ -67,11 +68,11 @@ object Parser extends Parsers {
   }
 
   private def phi: Parser[PHI] = {
-    accept("phi", {case phi: PHI => phi})
+    accept("phi", { case phi: PHI => phi })
   }
 
   private def accessibleAttributeName: Parser[ACCESSIBLE_ATTRIBUTE_NAME] =
-    accept("accessibleAttributeName", {case name: ACCESSIBLE_ATTRIBUTE_NAME => name})
+    accept("accessibleAttributeName", { case name: ACCESSIBLE_ATTRIBUTE_NAME => name })
 
   private def literal: Parser[LITERAL] = {
     accept("literal", { case lit: LITERAL => lit })
@@ -86,8 +87,8 @@ object Parser extends Parsers {
   }
 
   private def createNonEmpty(
-                              objs: Seq[EOBnd[EOExprOnly]]
-                            ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
+    objs: Seq[EOBnd[EOExprOnly]]
+  ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
     NonEmpty.from(objs) match {
       case Some(value) => value.toVector
       case None => throw new Exception("1 or more arguments expected, got 0.")
@@ -102,9 +103,9 @@ object Parser extends Parsers {
   }
 
   private def createInverseDot(
-                                id: IDENTIFIER,
-                                args: Vector[EOBnd[EOExprOnly]]
-                              ): EOExprOnly = {
+    id: IDENTIFIER,
+    args: Vector[EOBnd[EOExprOnly]]
+  ): EOExprOnly = {
     if (args.tail.nonEmpty) {
       Fix[EOExpr](EOCopy(
         Fix[EOExpr](EODot(extractEOExpr(args.head), id.name)),
