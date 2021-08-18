@@ -1,15 +1,21 @@
 package eo.analysis.mutualrec.naive.services
 
+import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
-import eo.analysis.mutualrec.naive.services.TopLevelObject.createTopLevelObjectWithRefs
-import eo.core.ast.EOObj
+import eo.analysis.mutualrec.naive.errors.{ DecorateeNotFound, UnsupportedDecoration }
+import eo.analysis.mutualrec.naive.services.TopLevelObject.createTopLevelObject
 import eo.core.ast.astparams.EOExprOnly
+import eo.core.ast._
+import higherkindness.droste.data.Fix
+
+import scala.annotation.tailrec
 
 trait TopLevelObjects[F[_]] {
   def objects: F[Vector[TopLevelObject[F]]]
   def add(objName: String, obj: EOObj[EOExprOnly]): F[Unit]
-  def findMethodsWithParamsByName(methodName: String): F[Vector[MethodAttribute[F]]]
+  def findObjectByName(objectName: String): OptionT[F, TopLevelObject[F]]
+//  def findMethodsWithParamsByName(methodName: String): F[Vector[MethodAttribute[F]]]
 }
 
 object TopLevelObjects {
@@ -32,23 +38,48 @@ object TopLevelObjects {
       override def add(
         objName: String, obj: EOObj[EOExprOnly]
       ): F[Unit] = for {
-        methodAttrs <- createTopLevelObjectWithRefs[F](objName)
-        _ <- obj.bndAttrs.traverse_ { objBodyAttr =>
-          methodAttrs.addMethodAttribute(objBodyAttr)
+        topLevelObject <- createTopLevelObject[F](objName)
+        _ <- obj.bndAttrs.traverse_ {
+          case EOBndExpr(EODecoration(), Fix(decorateeExpr: EOApp[EOExprOnly])) =>
+            // For simplicity right now consider only trivial object decoration
+            for {
+              decorateeName <- findDecorateeName(decorateeExpr)
+                .map(Sync[F].delay(_))
+                .getOrElse(Sync[F].raiseError(UnsupportedDecoration(objName)))
+              maybeDecoratedObject <- findObjectByName(decorateeName).value
+              decorateeObject <- maybeDecoratedObject
+                .map(Sync[F].delay(_))
+                .getOrElse(Sync[F].raiseError(DecorateeNotFound(objName, decorateeName)))
+              _ <- topLevelObject.inherit(decorateeObject)
+            } yield ()
+          case objBodyAttr => topLevelObject.addMethodAttribute(objBodyAttr)
         }
         _ <- Sync[F].delay {
-          objsMap += (objName -> methodAttrs)
+          objsMap += (objName -> topLevelObject)
         }
       } yield ()
 
-      override def findMethodsWithParamsByName(
-        methodName: String
-      ): F[Vector[MethodAttribute[F]]] = for {
-        objects <- Sync[F].delay(objsMap.toVector.map(_._2))
-        methods <- objects.flatTraverse(_.attributes)
-        result = methods
-          .filter(_.name == methodName)
-          .filter(_.params.nonEmpty)
-      } yield result
+      override def findObjectByName(
+        objectName: String
+      ): OptionT[F, TopLevelObject[F]] = OptionT(Sync[F].delay {
+        objsMap.get(objectName)
+      })
+
+//      override def findMethodsWithParamsByName(
+//        methodName: String
+//      ): F[Vector[MethodAttribute[F]]] = for {
+//        objects <- Sync[F].delay(objsMap.toVector.map(_._2))
+//        methods <- objects.flatTraverse(_.attributes)
+//        result = methods
+//          .filter(_.name == methodName)
+//          .filter(_.params.nonEmpty)
+//      } yield result
     }
+
+  @tailrec
+  private def findDecorateeName(decorateeExpr: EOApp[EOExprOnly]): Option[String] = decorateeExpr match {
+    case EOSimpleApp(name) => Some(name)
+    case EOCopy(Fix(copyTarget: EOApp[EOExprOnly]), _) => findDecorateeName(copyTarget)
+    case _ => None
+  }
 }

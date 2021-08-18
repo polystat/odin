@@ -64,9 +64,9 @@ sealed case class EOAnyNameBnd(
   override val name: BndName
 ) extends EONamedBnd
 
-sealed case class EODecoration(
+sealed case class EODecoration() extends EONamedBnd {
   override val name: BndName = LazyBnd(Constants.ATTRS.DECORATION)
-) extends EONamedBnd
+}
 
 // Expression ////////////////////////////////////////////////////////////////
 sealed trait EOExpr[+A]

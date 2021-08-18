@@ -2,24 +2,25 @@ package eo.analysis.mutualrec.naive.services
 
 import cats.data.OptionT
 import cats.effect.Sync
+import cats.effect.concurrent.Ref
 import cats.implicits._
 import eo.analysis.mutualrec.naive.errors.DuplicatedMethodAttributes
+import eo.analysis.mutualrec.naive.services.MethodAttribute.createMethodAttribute
 import eo.core.ast.astparams.EOExprOnly
 import eo.core.ast.{ EOBndExpr, EOObj }
 import higherkindness.droste.data.Fix
-import MethodAttribute.createMethodAttribute
 
 trait TopLevelObject[F[_]] {
   def objName: String
   def attributes: F[Vector[MethodAttribute[F]]]
+  def baseObject: OptionT[F, TopLevelObject[F]]
+  def inherit(topLevelObject: TopLevelObject[F]): F[Unit]
   def addMethodAttribute(expr: EOBndExpr[EOExprOnly]): F[Unit]
   def findAttributeWithName(name: String): OptionT[F, MethodAttribute[F]]
 }
 
 object TopLevelObject {
-  def createTopLevelObjectWithRefs[
-    F[_]: Sync
-  ](
+  def createTopLevelObject[F[_] : Sync](
     objectName: String
   ): F[TopLevelObject[F]] = for {
     attrsMap <- Sync[F].delay(
@@ -28,6 +29,7 @@ object TopLevelObject {
         MethodAttribute[F]
       ]()
     )
+    baseObjState <- Ref.of[F, Option[TopLevelObject[F]]](None)
   } yield new TopLevelObject[F] {
     override def objName: String = objectName
 
@@ -35,6 +37,12 @@ object TopLevelObject {
       Sync[F].delay {
         attrsMap.values.toVector
       }
+
+    override def baseObject: OptionT[F, TopLevelObject[F]] =
+      OptionT(baseObjState.get)
+
+    override def inherit(topLevelObject: TopLevelObject[F]): F[Unit] =
+      baseObjState.set(Some(topLevelObject))
 
     override def addMethodAttribute(
       expr: EOBndExpr[EOExprOnly]
@@ -69,7 +77,10 @@ object TopLevelObject {
 
     override def findAttributeWithName(
       name: String
-    ): OptionT[F, MethodAttribute[F]] =
-      OptionT(Sync[F].delay(attrsMap.get(name)))
+    ): OptionT[F, MethodAttribute[F]] = {
+      val currentObjectMethod = OptionT.fromOption[F](attrsMap.get(name))
+      val inheritedObjectMethod = baseObject.flatMap(_.findAttributeWithName(name))
+      currentObjectMethod.orElse(inheritedObjectMethod)
+    }
   }
 }
