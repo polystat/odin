@@ -18,25 +18,25 @@ object MutualRecExample {
       )
     ),
     Vector(
-      EONamedBnd(
+      EOBndExpr(
         EOAnyName(LazyName("base")),
         Fix[EOExpr](
           EOObj(
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
-              EONamedBnd(
+              EOBndExpr(
                 EOAnyName(LazyName("x")),
                 Fix[EOExpr](EOSimpleApp("memory"))
               ),
-              EONamedBnd(
+              EOBndExpr(
                 EOAnyName(LazyName("f")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EONamedBnd(
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
                           EOCopy(
@@ -51,14 +51,14 @@ object MutualRecExample {
                   )
                 )
               ),
-              EONamedBnd(
+              EOBndExpr(
                 EOAnyName(LazyName("g")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EONamedBnd(
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
                           EOCopy(
@@ -80,22 +80,22 @@ object MutualRecExample {
       ),
 
 
-      EONamedBnd(
+      EOBndExpr(
         EOAnyName(LazyName("derived")),
         Fix[EOExpr](
           EOObj(
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
-              EONamedBnd(EODecoration(), Fix[EOExpr](EOSimpleApp("base"))),
-              EONamedBnd(
+              EOBndExpr(EODecoration(), Fix[EOExpr](EOSimpleApp("base"))),
+              EOBndExpr(
                 EOAnyName(LazyName("f")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EONamedBnd(
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
                           EOCopy(
@@ -190,7 +190,7 @@ class ParserTests extends AnyFunSpec {
               |a > namedA
               |""".stripMargin,
           ast = Vector(
-            EONamedBnd(
+            EOBndExpr(
               EOAnyName(LazyName("namedA")),
               Fix[EOExpr](EOSimpleApp("a"))
             )
@@ -202,7 +202,7 @@ class ParserTests extends AnyFunSpec {
               |a b c d > aAppliedToBCandD
               |""".stripMargin,
           Vector(
-            EONamedBnd(
+            EOBndExpr(
               EOAnyName(LazyName("aAppliedToBCandD")),
               Fix[EOExpr](EOCopy(
                 Fix[EOExpr](EOSimpleApp("a")),
@@ -222,7 +222,7 @@ class ParserTests extends AnyFunSpec {
               |a (b (c d)) > rightAssociative
               |""".stripMargin,
           ast =
-            Vector(EONamedBnd(
+            Vector(EOBndExpr(
               EOAnyName(LazyName("rightAssociative")),
               Fix[EOExpr](EOCopy(
                 Fix[EOExpr](EOSimpleApp("a")),
@@ -241,7 +241,7 @@ class ParserTests extends AnyFunSpec {
               |((a b) c) d > leftAssociative
               |""".stripMargin,
           ast = Vector(
-            EONamedBnd(
+            EOBndExpr(
               EOAnyName(LazyName("leftAssociative")),
               Fix[EOExpr](EOCopy(
                 Fix[EOExpr](EOCopy(

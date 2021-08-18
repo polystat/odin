@@ -9,7 +9,7 @@ object mutualrec {
   import eo.analysis.mutualrec.naive.mutualrec.effects.{ MethodAttribute, TopLevelObjects }
 
   type MethodAttributeRefStateRec[F[_], S] = (
-    scala.collection.immutable.Set[MethodAttribute[F, EONamedBnd[EOExprOnly], S]],
+    scala.collection.immutable.Set[MethodAttribute[F, EOBndExpr[EOExprOnly], S]],
     Vector[EOBnd[EOExprOnly]]
   )
 
@@ -17,7 +17,7 @@ object mutualrec {
     Fix[MethodAttributeRefStateRec[F, *]]
 
   type TopLevelObjectsWithMethodRefs[F[_]] =
-    TopLevelObjects[F, EOObj[EOExprOnly], EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]
+    TopLevelObjects[F, EOObj[EOExprOnly], EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
 
   object effects {
     trait MethodAttribute[F[_], E, S] {
@@ -56,10 +56,10 @@ object mutualrec {
     ](
       eoProg: EOProg[EOExprOnly]
     )(
-       implicit objs: TopLevelObjects[F, EOObj[EOExprOnly], EONamedBnd[EOExprOnly], S],
+       implicit objs: TopLevelObjects[F, EOObj[EOExprOnly], EOBndExpr[EOExprOnly], S],
     ): F[Unit] = for {
       _ <- eoProg.bnds.traverse {
-        case EONamedBnd(objName, objExpr) => Fix.un(objExpr) match {
+        case EOBndExpr(objName, objExpr) => Fix.un(objExpr) match {
           case o: EOObj[EOExprOnly] => objs.add(objName.name.name, o)
           case _ => implicitly[Monad[F]].pure(())
         }
@@ -78,7 +78,7 @@ object mutualrec {
         methodName: String,
         methodBodyAttrName: String
       )(
-        implicit methAttr: MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]
+        implicit methAttr: MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
       ): F[Vector[String]] = Fix.un(expr) match {
         case _: EOObj[EOExprOnly] => implicitly[Monad[F]].pure(Vector(
           s"""Warning: cannot analyze object
@@ -135,7 +135,7 @@ object mutualrec {
             methBodyResult <- body.foldM(Vector.empty[String]) { (methBodyRes, methBodyAttr) =>
               for {
                 methodBodyAttrResult <- methBodyAttr match {
-                  case EONamedBnd(methAttrAttrName, exprToAnalyze) =>
+                  case EOBndExpr(methAttrAttrName, exprToAnalyze) =>
                     analyzeMethodBodyExpr(
                       exprToAnalyze,
                       objName,
@@ -162,15 +162,15 @@ object mutualrec {
       _ <- resolveMethodsReferences(implicitly, topLevelObjects)
     } yield topLevelObjects
 
-    type MethodCallStack[F[_]] = Chain[MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]]
+    type MethodCallStack[F[_]] = Chain[MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]
 
     type MethodRecursiveDependency[F[_]] = Map[
-      MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]],
+      MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
       Chain[MethodCallStack[F]], // list of paths that lead to recursion
     ]
 
     def findMethodRecursiveLinks[F[_]: Monad](
-                                               method: MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]],
+                                               method: MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
                                                callStack: MethodCallStack[F] = Chain.empty
     ): F[MethodRecursiveDependency[F]] = {
       if (callStack.headOption.contains(method)) {
@@ -202,7 +202,7 @@ object mutualrec {
             )
           } yield resF
           res <- recDeps.foldLeft(implicitly[Monad[F]].pure(Map.empty[
-            MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]],
+            MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
             Chain[MethodCallStack[F]],
           ])) { (resMapF, recDepF) =>
             for {
@@ -244,29 +244,29 @@ object mutualrec {
     import errors._
 
     type MethodAttrWithRefs[F[_]] =
-      MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]
+      MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
 
     type MethodAttributesWithRefs[F[_]] =
-      TopLevelObject[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]
+      TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
 
     type TopLevelObjectsWithRefs[F[_]] =
-      TopLevelObjects[F, EOObj[EOExprOnly], EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]
+      TopLevelObjects[F, EOObj[EOExprOnly], EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
 
     def createMethodAttributeWithRefs[F[_]: Sync](
                                                    methodName: String,
                                                    methodParams: Vector[String],
-                                                   parent: TopLevelObject[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]],
+                                                   parent: TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
                                                    methodBody: Vector[EOBnd[EOExprOnly]]
     ): F[MethodAttrWithRefs[F]] = for {
       referencedMethodSet <- Sync[F].delay(
-        scala.collection.mutable.Set[MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]]()
+        scala.collection.mutable.Set[MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]()
       )
     } yield new MethodAttrWithRefs[F] {
       override def name: String = methodName
 
       override def params: Vector[String] = methodParams
 
-      override def parentObject: TopLevelObject[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]] = parent
+      override def parentObject: TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]] = parent
 
       override def getState: F[MethodAttributeRefState[F]] =
         Sync[F].delay(Fix[MethodAttributeRefStateRec[F, *]]((
@@ -275,7 +275,7 @@ object mutualrec {
         )))
 
       override def referenceMethod(
-        method: MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]
+        method: MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
       ): F[Unit] = Sync[F].delay {
         referencedMethodSet.add(method)
         ()
@@ -296,19 +296,19 @@ object mutualrec {
       attrsMap <- Sync[F].delay(
         scala.collection.mutable.Map[
           String,
-          MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]
+          MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
         ]()
       )
     } yield new MethodAttributesWithRefs[F] {
       override def objName: String = objectName
 
-      override def attributes: F[Vector[MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]]] =
+      override def attributes: F[Vector[MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]] =
         Sync[F].delay {
           attrsMap.values.toVector
         }
 
       override def addMethodAttribute(
-        expr: EONamedBnd[EOExprOnly]
+        expr: EOBndExpr[EOExprOnly]
       ): F[Unit] = {
         val methodName = expr.bndName.name.name
 
@@ -340,7 +340,7 @@ object mutualrec {
 
       override def findAttributeWithName(
         name: String
-      ): OptionT[F, MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]] =
+      ): OptionT[F, MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]] =
         OptionT(Sync[F].delay(attrsMap.get(name)))
     }
 
@@ -351,11 +351,11 @@ object mutualrec {
         objsMap <- Sync[F].delay(
           scala.collection.mutable.Map[
             String,
-            TopLevelObject[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]
+            TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
           ]()
         )
       } yield new TopLevelObjectsWithRefs[F] {
-        override def objects: F[Vector[TopLevelObject[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]]] =
+        override def objects: F[Vector[TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]] =
           Sync[F].delay {
             objsMap.values.toVector
           }
@@ -374,7 +374,7 @@ object mutualrec {
 
         override def findMethodsWithParamsByName(
           methodName: String
-        ): F[Vector[MethodAttribute[F, EONamedBnd[EOExprOnly], MethodAttributeRefState[F]]]] = for {
+        ): F[Vector[MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]] = for {
           objects <- Sync[F].delay(objsMap.toVector.map(_._2))
           methods <- objects.flatTraverse(_.attributes)
           result = methods

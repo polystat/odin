@@ -97,7 +97,7 @@ object Parser extends Parsers {
   private def extractEOExpr(bnd: EOBnd[EOExprOnly]): EOExprOnly = {
     bnd match {
       case EOAnonExpr(expr) => expr
-      case EONamedBnd(_, expr) => expr
+      case EOBndExpr(_, expr) => expr
     }
   }
 
@@ -212,21 +212,21 @@ object Parser extends Parsers {
   }
 
 
-  def namedApplication: Parser[EONamedBnd[EOExprOnly]] = {
+  def namedApplication: Parser[EOBndExpr[EOExprOnly]] = {
     val noArgs = singleLineApplication ~ name <~ rep(NEWLINE) ^^ {
       case target ~ name =>
-        EONamedBnd(name, target)
+        EOBndExpr(name, target)
     }
     val inverseDot = identifier ~ DOT ~ name ~ verticalApplicationArgs ^^ {
       case id ~ _ ~ name ~ args =>
-        EONamedBnd(
+        EOBndExpr(
           name,
           createInverseDot(id, args)
         )
     }
     val withArgs = singleLineApplication ~ name ~ verticalApplicationArgs ^^ {
       case target ~ name ~ args =>
-        EONamedBnd(
+        EOBndExpr(
           name,
           Fix[EOExpr](EOCopy(target, args))
         )
@@ -269,10 +269,10 @@ object Parser extends Parsers {
     }
   }
 
-  def namedAbsObj: Parser[EONamedBnd[EOExprOnly]] = {
+  def namedAbsObj: Parser[EOBndExpr[EOExprOnly]] = {
     args ~ name ~ opt(boundAttrs) ^^ {
       case (params, vararg) ~ name ~ attrs =>
-        EONamedBnd(
+        EOBndExpr(
           name,
           Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
         )
@@ -316,7 +316,7 @@ object Parser extends Parsers {
     }
   }
 
-  def boundAttrs: Parser[Vector[EONamedBnd[EOExprOnly]]] = {
+  def boundAttrs: Parser[Vector[EOBndExpr[EOExprOnly]]] = {
     val attrs = INDENT ~> rep1(namedAbsObj | namedApplication) <~ DEDENT ^^
       (attrs => attrs.toVector)
     val noAttrs = rep1(NEWLINE) ^^ {

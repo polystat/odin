@@ -51,7 +51,7 @@ sealed case class EOAnonExpr[+A](
   override val expr: A,
 ) extends EOBnd[A]
 
-sealed case class EONamedBnd[+A](
+sealed case class EOBndExpr[+A](
   bndName: EOBndName,
   override val expr: A,
 ) extends EOBnd[A]
@@ -75,7 +75,7 @@ sealed trait EOExpr[+A]
 sealed case class EOObj[+A](
   freeAttrs: Vector[LazyName],
   varargAttr: Option[LazyName],
-  bndAttrs: Vector[EONamedBnd[A]],
+  bndAttrs: Vector[EOBndExpr[A]],
 ) extends EOExpr[A]
 
 // / Application /////////////////////////////////////////////////////////////

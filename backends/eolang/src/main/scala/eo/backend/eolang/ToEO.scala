@@ -100,7 +100,7 @@ object ToEO {
       new ToEO[EOBnd[EOExprOnly], InlineOrLines] {
         override def toEO(node: EOBnd[EOExprOnly]): InlineOrLines = node match {
           case a: EOAnonExpr[EOExprOnly] => a.toEO
-          case b: EONamedBnd[EOExprOnly]  => b.toEO
+          case b: EOBndExpr[EOExprOnly]  => b.toEO
         }
       }
 
@@ -109,9 +109,9 @@ object ToEO {
         override def toEO(node: EOAnonExpr[EOExprOnly]): InlineOrLines = node.expr.toEO
       }
 
-    implicit val bndExprToEO: ToEO[EONamedBnd[EOExprOnly], InlineOrLines] =
-      new ToEO[EONamedBnd[EOExprOnly], InlineOrLines] {
-        override def toEO(node: EONamedBnd[EOExprOnly]): InlineOrLines =
+    implicit val bndExprToEO: ToEO[EOBndExpr[EOExprOnly], InlineOrLines] =
+      new ToEO[EOBndExpr[EOExprOnly], InlineOrLines] {
+        override def toEO(node: EOBndExpr[EOExprOnly]): InlineOrLines =
           node.expr.bndToEO(node.bndName.name.toEO)
       }
 

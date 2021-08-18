@@ -15,25 +15,25 @@ object programs {
       )
     ),
     Vector(
-      EONamedBnd(
+      EOBndExpr(
         EOAnyName(LazyName("base")),
         Fix[EOExpr](
           EOObj(
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
-              EONamedBnd(
+              EOBndExpr(
                 EOAnyName(LazyName("x")),
                 Fix[EOExpr](EOSimpleApp("memory"))
               ),
-              EONamedBnd(
+              EOBndExpr(
                 EOAnyName(LazyName("f")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EONamedBnd(
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
                           EOCopy(
@@ -48,14 +48,14 @@ object programs {
                   )
                 )
               ),
-              EONamedBnd(
+              EOBndExpr(
                 EOAnyName(LazyName("g")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EONamedBnd(
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
                           EOCopy(
@@ -77,22 +77,22 @@ object programs {
       ),
 
 
-      EONamedBnd(
+      EOBndExpr(
         EOAnyName(LazyName("derived")),
         Fix[EOExpr](
           EOObj(
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
-              EONamedBnd(EODecoration(), Fix[EOExpr](EOSimpleApp("base"))),
-              EONamedBnd(
+              EOBndExpr(EODecoration(), Fix[EOExpr](EOSimpleApp("base"))),
+              EOBndExpr(
                 EOAnyName(LazyName("f")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EONamedBnd(
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
                           EOCopy(
