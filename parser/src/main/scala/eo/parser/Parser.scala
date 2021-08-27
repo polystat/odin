@@ -67,19 +67,19 @@ object Parser extends Parsers {
   }
 
   private def phi: Parser[PHI] = {
-    accept("phi", {case phi: PHI => phi})
+    accept("phi", { case phi: PHI => phi })
   }
 
   private def accessibleAttributeName: Parser[ACCESSIBLE_ATTRIBUTE_NAME] =
-    accept("accessibleAttributeName", {case name: ACCESSIBLE_ATTRIBUTE_NAME => name})
+    accept("accessibleAttributeName", { case name: ACCESSIBLE_ATTRIBUTE_NAME => name })
 
   private def literal: Parser[LITERAL] = {
     accept("literal", { case lit: LITERAL => lit })
   }
 
-  //  private def single_line_comment: Parser[SINGLE_LINE_COMMENT] = {
-  //    accept("single line comment", { case comment: SINGLE_LINE_COMMENT => comment })
-  //  }
+  private def single_line_comment: Parser[SINGLE_LINE_COMMENT] = {
+    accept("single line comment", { case comment: SINGLE_LINE_COMMENT => comment })
+  }
 
   private def meta: Parser[META] = {
     accept("meta", { case meta: META => meta })
@@ -153,12 +153,14 @@ object Parser extends Parsers {
   }
 
   def objects: Parser[Vector[EOBnd[EOExprOnly]]] = {
-    rep(`object` <~ rep(NEWLINE)) ^^
+    rep(`object`) ^^
       (objs => objs.toVector)
   }
 
+  def commentsOrNewlines: Parser[List[Token]] = rep(NEWLINE | single_line_comment)
+
   def `object`: Parser[EOBnd[EOExprOnly]] = {
-    (application | abstraction) <~ rep(NEWLINE)
+    commentsOrNewlines ~> (application | abstraction) <~ commentsOrNewlines
   }
 
   def application: Parser[EOBnd[EOExprOnly]] = {
@@ -317,7 +319,8 @@ object Parser extends Parsers {
   }
 
   def boundAttrs: Parser[Vector[EOBndExpr[EOExprOnly]]] = {
-    val attrs = INDENT ~> rep1(namedAbsObj | namedApplication) <~ DEDENT ^^
+    val boundAttr = namedAbsObj | namedApplication
+    val attrs = INDENT ~> rep1(commentsOrNewlines ~> boundAttr) <~ DEDENT ^^
       (attrs => attrs.toVector)
     val noAttrs = rep1(NEWLINE) ^^ {
       _ => Vector()
@@ -330,8 +333,7 @@ object Parser extends Parsers {
       """
         |+package sandbox
         |+rt jvm java8
-        |
-        |
+        |# some meaningful text
         |[] > main
         |  a > namedA
         |  a.b.c > namedC
@@ -343,9 +345,11 @@ object Parser extends Parsers {
         |  c. > inverseDotExample
         |    b.
         |      a
+        |  # some more text
         |  [@ b] > @
         |    [ad...] > one2!
         |  [a @...] > another
+        |    # some more text
         |    [a b c d...] > another2
         |  a b c d > aAppliedToBCandD
         |  a (b (c d)) > rightAssociative
