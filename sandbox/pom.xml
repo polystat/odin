@@ -52,24 +52,6 @@
             <version>2.5.1</version>
         </dependency>
         <dependency>
-            <groupId>org.scalactic</groupId>
-            <artifactId>scalactic_2.13</artifactId>
-            <version>3.2.9</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.13</artifactId>
-            <version>3.2.9</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatestplus</groupId>
-            <artifactId>scalacheck-1-15_2.13</artifactId>
-            <version>3.2.9.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>com.github.tarao</groupId>
             <artifactId>nonempty_2.13</artifactId>
             <version>0.2.0</version>
