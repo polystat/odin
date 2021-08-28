@@ -1,9 +1,14 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>sitiritis</groupId>
     <artifactId>sandbox_2.13</artifactId>
     <packaging>jar</packaging>
+    <parent>
+        <groupId>sitiritis</groupId>
+        <artifactId>eo-static-analyzer-app_2.13</artifactId>
+        <version>0.1</version>
+    </parent>
     <description>sandbox</description>
     <version>0.1</version>
     <name>sandbox</name>
@@ -12,13 +17,23 @@
     </organization>
     <dependencies>
         <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>2.13.6</version>
+            <groupId>sitiritis</groupId>
+            <artifactId>core_2.13</artifactId>
+            <version>0.1</version>
         </dependency>
         <dependency>
             <groupId>sitiritis</groupId>
-            <artifactId>eo-static-analyzer-app_2.13</artifactId>
+            <artifactId>eolang-backend_2.13</artifactId>
+            <version>0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>sitiritis</groupId>
+            <artifactId>parser_2.13</artifactId>
+            <version>0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>sitiritis</groupId>
+            <artifactId>utils_2.13</artifactId>
             <version>0.1</version>
         </dependency>
         <dependency>
