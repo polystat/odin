@@ -50,6 +50,7 @@ object Dependencies {
 
   val common: Seq[ModuleID] = allCats ++ scalaTest ++ nonEmpty ++ monocle
 
-  val core: Seq[ModuleID] = common ++ droste ++ parserCombinators
+  val core: Seq[ModuleID] = common ++ droste
+  val parser: Seq[ModuleID] = core ++ parserCombinators
   val cli: Seq[ModuleID] = common
 }

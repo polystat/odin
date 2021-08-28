@@ -15,11 +15,13 @@ lazy val `eo-static-analyzer-app` = project
     utils,
     core,
     backends,
+    parser,
   )
   .aggregate(
     utils,
     core,
     backends,
+    parser,
   )
   .settings(
     name := "eo-static-analyzer-app",
@@ -69,10 +71,11 @@ lazy val sandbox = project
 lazy val parser = project
   .settings(commonSettings)
   .dependsOn(
-    core, `eolang-backend`
+    core,
+    `eolang-backend`
   ).settings(
   name := "parser",
-  libraryDependencies ++= Dependencies.core
+  libraryDependencies ++= Dependencies.parser
 )
 
 //lazy val cli = project
