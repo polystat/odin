@@ -56,7 +56,7 @@ object mutualrec {
     ](
       eoProg: EOProg[EOExprOnly]
     )(
-      implicit objs: TopLevelObjects[F, EOObj[EOExprOnly], EOBndExpr[EOExprOnly], S],
+       implicit objs: TopLevelObjects[F, EOObj[EOExprOnly], EOBndExpr[EOExprOnly], S],
     ): F[Unit] = for {
       _ <- eoProg.bnds.traverse {
         case EOBndExpr(objName, objExpr) => Fix.un(objExpr) match {
@@ -170,8 +170,8 @@ object mutualrec {
     ]
 
     def findMethodRecursiveLinks[F[_]: Monad](
-      method: MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
-      callStack: MethodCallStack[F] = Chain.empty
+                                               method: MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
+                                               callStack: MethodCallStack[F] = Chain.empty
     ): F[MethodRecursiveDependency[F]] = {
       if (callStack.headOption.contains(method)) {
         // if the current method to inspect is the one that we have started
@@ -253,10 +253,10 @@ object mutualrec {
       TopLevelObjects[F, EOObj[EOExprOnly], EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]
 
     def createMethodAttributeWithRefs[F[_]: Sync](
-      methodName: String,
-      methodParams: Vector[String],
-      parent: TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
-      methodBody: Vector[EOBnd[EOExprOnly]]
+                                                   methodName: String,
+                                                   methodParams: Vector[String],
+                                                   parent: TopLevelObject[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]],
+                                                   methodBody: Vector[EOBnd[EOExprOnly]]
     ): F[MethodAttrWithRefs[F]] = for {
       referencedMethodSet <- Sync[F].delay(
         scala.collection.mutable.Set[MethodAttribute[F, EOBndExpr[EOExprOnly], MethodAttributeRefState[F]]]()

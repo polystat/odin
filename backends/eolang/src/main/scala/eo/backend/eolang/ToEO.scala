@@ -80,19 +80,19 @@ object ToEO {
     implicit val bndNameToEO: ToEO[BndName, String] =
       new ToEO[BndName, String] {
         override def toEO(node: BndName): String = node match {
-          case l: LazyBnd  => l.toEO
-          case c: ConstBnd => c.toEO
+          case l: LazyName  => l.toEO
+          case c: ConstName => c.toEO
         }
       }
 
-    implicit val lazyBndToEO: ToEO[LazyBnd, String] =
-      new ToEO[LazyBnd, String] {
-        override def toEO(node: LazyBnd): String = node.name
+    implicit val lazyBndToEO: ToEO[LazyName, String] =
+      new ToEO[LazyName, String] {
+        override def toEO(node: LazyName): String = node.name
       }
 
-    implicit val constBndToEO: ToEO[ConstBnd, String] =
-      new ToEO[ConstBnd, String] {
-        override def toEO(node: ConstBnd): String = s"${node.name}${Constants.SYMBS.CONST_MOD}"
+    implicit val constBndToEO: ToEO[ConstName, String] =
+      new ToEO[ConstName, String] {
+        override def toEO(node: ConstName): String = s"${node.name}${Constants.SYMBS.CONST_MOD}"
       }
 
     // Binding /////////////////////////////////////////////////////////////////

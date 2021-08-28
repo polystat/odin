@@ -66,6 +66,15 @@ lazy val sandbox = project
     libraryDependencies ++= Dependencies.common,
   )
 
+lazy val parser = project
+  .settings(commonSettings)
+  .dependsOn(
+    core, `eolang-backend`
+  ).settings(
+  name := "parser",
+  libraryDependencies ++= Dependencies.core
+)
+
 //lazy val cli = project
 //  .dependsOn(core)
 //  .settings(
