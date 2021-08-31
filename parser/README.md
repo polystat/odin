@@ -11,7 +11,7 @@ the [`core`](https://github.com/Sitiritis/eo-static-analyzer/tree/master/core/sr
 A part of the syntax features defined in the paper is missing in the implementation of this parser, namely:
  - array literals: `* a b c`
  - parameter aliases `obj a:paramA b:paramB`
- - not all literals (regexes, identifiers, floating point numbers, etc) are defined according to the specifications
+ - not all literals (regexes, identifiers, floating point numbers, etc) are defined according to the specifications (if at all)
 
 This parser was supposed to be implemented ASAP, so, naturally, some part of the functionality was considered insignificant and omitted for the time being.
 The missing functionality will be implemented upon request (submit an issue and/or PR).
