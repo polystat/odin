@@ -56,6 +56,7 @@ lazy val `eolang-backend` = project
   .in(backendsBaseDirectory / "eolang")
   .settings(commonSettings)
   .dependsOn(core)
+  .dependsOn(utils)
   .settings(
     name := "eolang-backend",
   )
