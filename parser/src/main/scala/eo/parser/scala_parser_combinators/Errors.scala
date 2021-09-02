@@ -1,4 +1,4 @@
-package eo.parser
+package eo.parser.scala_parser_combinators
 
 sealed trait CompilationError
 sealed case class LexerError(msg: String) extends CompilationError

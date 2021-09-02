@@ -1,4 +1,4 @@
-package eo.parser
+package eo.parser.scala_parser_combinators
 
 sealed trait Token
 

@@ -1,14 +1,12 @@
-package eo.parser
+package eo.parser.scala_parser_combinators
 
 import com.github.tarao.nonempty.collection.NonEmpty
-import eo.core.ast._
-import eo.core.ast.astparams.EOExprOnly
-
-import higherkindness.droste.data.Fix
 import eo.backend.eolang.ToEO.instances._
 import eo.backend.eolang.ToEO.ops._
 import eo.backend.eolang.inlineorlines.ops._
-
+import eo.core.ast._
+import eo.core.ast.astparams.EOExprOnly
+import higherkindness.droste.data.Fix
 
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
@@ -327,6 +325,7 @@ object Parser extends Parsers {
         |  a > namedA
         |  a.b.c > namedC
         |  a > aCopiedWithB
+        |    # gogogo
         |    b
         |  a > aCopiedWithBCopiedWithC
         |    b > bCopiedWithC

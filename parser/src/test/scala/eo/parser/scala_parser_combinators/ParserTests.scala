@@ -1,15 +1,14 @@
-package eo.parser
-
+package eo.parser.scala_parser_combinators
 
 import com.github.tarao.nonempty.collection.NonEmpty
-import eo.core.ast.astparams.EOExprOnly
 import eo.core.ast._
+import eo.core.ast.astparams.EOExprOnly
 import higherkindness.droste.data.Fix
 import org.scalatest.Inspectors.forAll
 import org.scalatest.funspec.AnyFunSpec
 
-import scala.reflect.ClassTag
 import java.io.File
+import scala.reflect.ClassTag
 
 
 object MutualRecExample {

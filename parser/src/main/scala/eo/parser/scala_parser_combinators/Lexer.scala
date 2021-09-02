@@ -1,9 +1,7 @@
-package eo.parser
+package eo.parser.scala_parser_combinators
 
 import scala.util.matching.Regex
 import scala.util.parsing.combinator.RegexParsers
-
-
 
 object Lexer extends RegexParsers {
   override def skipWhitespace = true
@@ -36,7 +34,7 @@ object Lexer extends RegexParsers {
   }
 
   def single_line_comment: Parser[SINGLE_LINE_COMMENT] = {
-      """#.*""".r ^^ {
+    """#.*""".r ^^ {
       str => SINGLE_LINE_COMMENT(str.tail)
     }
   }
@@ -53,28 +51,28 @@ object Lexer extends RegexParsers {
   def tokens: Parser[List[Token]] = {
     phrase(
       rep1(
-          lbracket
-            | rbracket
-            | lparen
-            | rparen
-            | array_delimiter
+        lbracket
+          | rbracket
+          | lparen
+          | rparen
+          | array_delimiter
 
-            | phi
-            | rho
-            | self
-            | exclamation_mark
-            | colon
-            | dots
-            | dot
-            | assign_name
-            | slash
+          | phi
+          | rho
+          | self
+          | exclamation_mark
+          | colon
+          | dots
+          | dot
+          | assign_name
+          | slash
 
-            | meta
-            | identifier
-            | indentation
-            | string
-            | integer
-            | single_line_comment
+          | meta
+          | identifier
+          | indentation
+          | string
+          | integer
+          | single_line_comment
       )
     ) ^^ { rawTokens =>
       processIndentations(rawTokens)
@@ -122,18 +120,31 @@ object Lexer extends RegexParsers {
 
 
   private def phi: Parser[PHI] = "@" ^^ (_ => PHI())
+
   private def rho: Parser[RHO] = "^" ^^ (_ => RHO())
+
   private def self: Parser[SELF] = "$" ^^ (_ => SELF())
+
   private def exclamation_mark = "!" ^^ (_ => EXCLAMATION_MARK)
+
   private def colon = ":" ^^ (_ => COLON)
+
   private def dot = "." ^^ (_ => DOT)
+
   private def assign_name = ">" ^^ (_ => ASSIGN_NAME)
+
   private def lbracket = "[" ^^ (_ => LBRACKET)
+
   private def rbracket = "]" ^^ (_ => RBRACKET)
+
   private def lparen = "(" ^^ (_ => LPAREN)
+
   private def rparen = ")" ^^ (_ => RPAREN)
+
   private def array_delimiter = "*" ^^ (_ => ARRAY_DELIMITER)
+
   private def slash = "/" ^^ (_ => SLASH)
+
   private def dots = "..." ^^ (_ => DOTS)
 
 }
