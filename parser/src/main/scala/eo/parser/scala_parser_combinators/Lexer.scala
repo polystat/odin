@@ -2,6 +2,7 @@ package eo.parser.scala_parser_combinators
 
 import scala.util.matching.Regex
 import scala.util.parsing.combinator.RegexParsers
+import errors._
 
 object Lexer extends RegexParsers {
   override def skipWhitespace = true
@@ -87,8 +88,10 @@ object Lexer extends RegexParsers {
     }
   }
 
-  private def processIndentations(tokens: List[Token],
-                                  indents: List[Int] = List(0)): List[Token] = {
+  private def processIndentations(
+    tokens: List[Token],
+    indents: List[Int] = List(0)
+  ): List[Token] = {
     tokens.headOption match {
 
       // if there is an increase in indentation level, we push this new level into the stack

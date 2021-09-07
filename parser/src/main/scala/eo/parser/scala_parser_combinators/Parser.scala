@@ -1,27 +1,26 @@
 package eo.parser.scala_parser_combinators
 
 import com.github.tarao.nonempty.collection.NonEmpty
-import eo.backend.eolang.ToEO.instances._
-import eo.backend.eolang.ToEO.ops._
-import eo.backend.eolang.inlineorlines.ops._
 import eo.core.ast._
 import eo.core.ast.astparams.EOExprOnly
+import errors._
+
 import higherkindness.droste.data.Fix
 
 import scala.util.parsing.combinator.Parsers
-import scala.util.parsing.input.{NoPosition, Position, Reader}
-
-class WorkflowTokenReader(val tokens: Seq[Token]) extends Reader[Token] {
-  override def first: Token = tokens.head
-
-  override def atEnd: Boolean = tokens.isEmpty
-
-  override def pos: Position = NoPosition
-
-  override def rest: Reader[Token] = new WorkflowTokenReader(tokens.tail)
-}
+import scala.util.parsing.input.{ NoPosition, Position, Reader }
 
 object Parser extends Parsers {
+  class WorkflowTokenReader(val tokens: Seq[Token]) extends Reader[Token] {
+    override def first: Token = tokens.head
+
+    override def atEnd: Boolean = tokens.isEmpty
+
+    override def pos: Position = NoPosition
+
+    override def rest: Reader[Token] = new WorkflowTokenReader(tokens.tail)
+  }
+
   override type Elem = Token
 
   def parse(tokens: Seq[Token]): Either[ParserError, EOProg[EOExprOnly]] = {
@@ -33,31 +32,11 @@ object Parser extends Parsers {
     }
   }
 
-  def apply(code: String): Either[CompilationError, EOProg[EOExprOnly]] = {
-    val result = for {
-      tokens <- {
-        println(s"\nSOURCE CODE:\n$code")
-        Lexer(code)
-      }
-      ast <- {
-        println(s"\nTOKENS:\n$tokens")
-        parse(tokens)
-      }
+  def apply(code: String): Either[ParsingError, EOProg[EOExprOnly]] =
+    for {
+      tokens <- Lexer(code)
+      ast <- parse(tokens)
     } yield ast
-
-    result match {
-      case Left(value) =>
-        value match {
-          case LexerError(msg) => println(s"LEXER ERROR: $msg")
-          case ParserError(msg) => println(s"PARSER ERROR: $msg")
-        }
-      case Right(value) =>
-        println(s"\nAST:\n$value")
-        println("\nRESTORED PROGRAM:")
-        println(value.toEO.allLinesToString)
-    }
-    result
-  }
 
   private def identifier: Parser[IDENTIFIER] = {
     accept("identifier", { case id: IDENTIFIER => id })
@@ -87,8 +66,8 @@ object Parser extends Parsers {
   }
 
   private def createNonEmpty(
-                              objs: Seq[EOBnd[EOExprOnly]]
-                            ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
+    objs: Seq[EOBnd[EOExprOnly]]
+  ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
     NonEmpty.from(objs) match {
       case Some(value) => value.toVector
       case None => throw new Exception("1 or more arguments expected, got 0.")
@@ -102,8 +81,10 @@ object Parser extends Parsers {
     }
   }
 
-  private def createInverseDot(id: IDENTIFIER,
-                               args: Vector[EOBnd[EOExprOnly]]): EOExprOnly = {
+  private def createInverseDot(
+    id: IDENTIFIER,
+    args: Vector[EOBnd[EOExprOnly]]
+  ): EOExprOnly = {
     if (args.tail.nonEmpty) {
       Fix[EOExpr](
         EOCopy(
@@ -266,13 +247,13 @@ object Parser extends Parsers {
     }
   }
 
-  def name: Parser[EOBndName] = {
+  def name: Parser[EONamedBnd] = {
     val lazyName = ASSIGN_NAME ~> identifier ^^
-      (id => EOAnyName(LazyName(id.name)))
+      (id => EOAnyNameBnd(LazyName(id.name)))
     val lazyPhi = ASSIGN_NAME ~> phi ^^
-      (_ => EODecoration())
+      (_ => EODecoration)
     val constName = ASSIGN_NAME ~> identifier <~ EXCLAMATION_MARK ^^
-      (id => EOAnyName(ConstName(id.name)))
+      (id => EOAnyNameBnd(ConstName(id.name)))
 
     constName | lazyPhi | lazyName
   }
@@ -310,47 +291,4 @@ object Parser extends Parsers {
     }
     attrs | noAttrs
   }
-
-  def main(args: Array[String]): Unit = {
-    val code =
-      """
-        |# 123
-        |+package sandbox
-        |
-        |# ooo
-        |+rt jvm java8
-        |# 000
-        |# some meaningful text
-        |[] > main
-        |  a > namedA
-        |  a.b.c > namedC
-        |  a > aCopiedWithB
-        |    # gogogo
-        |    b
-        |  a > aCopiedWithBCopiedWithC
-        |    b > bCopiedWithC
-        |      c > justC
-        |  c. > inverseDotExample
-        |    b.
-        |      a
-        |  # some more text
-        |  [@ b] > @
-        |    [ad...] > one2!
-        |  [a @...] > another
-        |    # some more text
-        |    [a b c d...] > another2
-        |  # some unrelated comment
-        |  a b c d > aAppliedToBCandD
-        |  a (b (c d)) > rightAssociative
-        |  ((a b) c) d > leftAssociative
-        |  a.x v > axv
-        |  a > msg
-        |    1
-        |    2
-        |""".stripMargin
-
-    apply(code)
-    ()
-  }
-
 }
