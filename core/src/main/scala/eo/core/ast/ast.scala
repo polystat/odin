@@ -34,11 +34,11 @@ sealed trait BndName {
   val name: String
 }
 
-sealed case class LazyBnd(
+sealed case class LazyName(
   override val name: String,
 ) extends BndName
 
-sealed case class ConstBnd(
+sealed case class ConstName(
   override val name: String,
 ) extends BndName
 
@@ -52,7 +52,7 @@ sealed case class EOAnonExpr[+A](
 ) extends EOBnd[A]
 
 sealed case class EOBndExpr[+A](
-  val bndName: EONamedBnd,
+  bndName: EONamedBnd,
   override val expr: A,
 ) extends EOBnd[A]
 
@@ -65,7 +65,7 @@ sealed case class EOAnyNameBnd(
 ) extends EONamedBnd
 
 sealed case class EODecoration() extends EONamedBnd {
-  override val name: BndName = LazyBnd(Constants.ATTRS.DECORATION)
+  override val name: BndName = LazyName(Constants.ATTRS.DECORATION)
 }
 
 // Expression ////////////////////////////////////////////////////////////////
@@ -73,8 +73,8 @@ sealed trait EOExpr[+A]
 
 // / Object //////////////////////////////////////////////////////////////////
 sealed case class EOObj[+A](
-  freeAttrs: Vector[LazyBnd],
-  varargAttr: Option[LazyBnd],
+  freeAttrs: Vector[LazyName],
+  varargAttr: Option[LazyName],
   bndAttrs: Vector[EOBndExpr[A]],
 ) extends EOExpr[A]
 

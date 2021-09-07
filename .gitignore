@@ -1,6 +1,7 @@
 # IDE
 .idea/
 .bsp/
+*.iml
 
 # Build
 target/

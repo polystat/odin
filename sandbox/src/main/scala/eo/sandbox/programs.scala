@@ -15,31 +15,31 @@ object programs {
       )
     ),
     Vector(
-      EOBndExpr[EOExprOnly](
-        EOAnyNameBnd(LazyBnd("base")),
+      EOBndExpr(
+        EOAnyNameBnd(LazyName("base")),
         Fix[EOExpr](
           EOObj(
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
-              EOBndExpr[EOExprOnly](
-                EOAnyNameBnd(LazyBnd("x")),
+              EOBndExpr(
+                EOAnyNameBnd(LazyName("x")),
                 Fix[EOExpr](EOSimpleApp("memory"))
               ),
-              EOBndExpr[EOExprOnly](
-                EOAnyNameBnd(LazyBnd("f")),
+              EOBndExpr(
+                EOAnyNameBnd(LazyName("f")),
                 Fix[EOExpr](
                   EOObj(
-                    freeAttrs = Vector(LazyBnd("self"), LazyBnd("v")),
+                    freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EOBndExpr[EOExprOnly](
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot[EOExprOnly](Fix[EOExpr](EOSimpleApp("x")), "write")),
+                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("x")), "write")),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                              EOAnonExpr[EOExprOnly](Fix[EOExpr](EOSimpleApp("v")))
+                              EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )
                           )
                         )
@@ -48,21 +48,21 @@ object programs {
                   )
                 )
               ),
-              EOBndExpr[EOExprOnly](
-                EOAnyNameBnd(LazyBnd("g")),
+              EOBndExpr(
+                EOAnyNameBnd(LazyName("g")),
                 Fix[EOExpr](
                   EOObj(
-                    freeAttrs = Vector(LazyBnd("self"), LazyBnd("v")),
+                    freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EOBndExpr[EOExprOnly](
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot[EOExprOnly](Fix[EOExpr](EOSimpleApp("self")), "f")),
+                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "f")),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                              EOAnonExpr[EOExprOnly](Fix[EOExpr](EOSimpleApp("self"))),
-                              EOAnonExpr[EOExprOnly](Fix[EOExpr](EOSimpleApp("v")))
+                              EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
+                              EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )
                           )
                         )
@@ -78,7 +78,7 @@ object programs {
 
 
       EOBndExpr(
-        EOAnyNameBnd(LazyBnd("derived")),
+        EOAnyNameBnd(LazyName("derived")),
         Fix[EOExpr](
           EOObj(
             freeAttrs = Vector(),
@@ -86,20 +86,20 @@ object programs {
             bndAttrs = Vector(
               EOBndExpr(EODecoration(), Fix[EOExpr](EOSimpleApp("base"))),
               EOBndExpr(
-                EOAnyNameBnd(LazyBnd("f")),
+                EOAnyNameBnd(LazyName("f")),
                 Fix[EOExpr](
                   EOObj(
-                    freeAttrs = Vector(LazyBnd("self"), LazyBnd("v")),
+                    freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
-                      EOBndExpr[EOExprOnly](
+                      EOBndExpr(
                         EODecoration(),
                         Fix[EOExpr](
-                          EOCopy[EOExprOnly](
+                          EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "g")),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                              EOAnonExpr[EOExprOnly](Fix[EOExpr](EOSimpleApp("self"))),
-                              EOAnonExpr[EOExprOnly](Fix[EOExpr](EOSimpleApp("v")))
+                              EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
+                              EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )
                           )
                         )
