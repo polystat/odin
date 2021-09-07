@@ -1,7 +1,9 @@
 [] > base
   2 > a
   [self x] > f
-    x / self.a > @
+    div. > @
+      x
+      self.a
 
 [] > derived
   base > @

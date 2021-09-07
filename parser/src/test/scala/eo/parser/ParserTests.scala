@@ -5,8 +5,12 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast.astparams.EOExprOnly
 import eo.core.ast._
 import higherkindness.droste.data.Fix
+import org.scalatest.Inspectors.forAll
 import org.scalatest.funspec.AnyFunSpec
+
 import scala.reflect.ClassTag
+import java.io.File
+
 
 object MutualRecExample {
   val ast: EOProg[EOExprOnly] = EOProg(
@@ -167,6 +171,18 @@ class ParserTests extends AnyFunSpec {
     assert(Parser(code) == Right(EOProg(EOMetas(None, Vector()), ast)))
   }
 
+
+  private def readCodeFrom(fileName: String): String = {
+    val code = io.Source.fromFile(fileName)
+    try code.mkString finally code.close()
+  }
+
+  private def getListOfFiles(dir: String): List[String] = {
+    val file = new File(dir)
+    file.listFiles().map(_.getPath).toList
+  }
+
+
   describe("Parser") {
     describe("produces correct AST for correct programs") {
       it("mutual recursion example") {
@@ -256,15 +272,15 @@ class ParserTests extends AnyFunSpec {
         )
       }
 
-      it("parses mutual_rec_non_term.eo (without chained special attributes)") {
-        val code = {
-          val src = io.Source.fromFile("core/src/test/resources/eo/mutual_rec_non_term.eo")
-          try src.mkString finally src.close()
-        }
-        val ast = Parser(code)
-        assert(ast.isRight)
+      forAll(getListOfFiles("core/src/test/resources/eo")) {
+        (src: String) =>
+          it(s"$src") {
+            val ast = Parser(readCodeFrom(src))
+            assert(ast.isRight)
+          }
       }
     }
+
 
     describe("produces errors for incorrect programs") {
 
@@ -302,6 +318,5 @@ class ParserTests extends AnyFunSpec {
       assert(!produces[ParserError](Right(EOProg(EOMetas(None, Vector()), Vector()))))
     }
   }
-
 
 }
