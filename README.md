@@ -1,7 +1,8 @@
+[![Scala CI](https://github.com/Sitiritis/eo-static-analyzer/actions/workflows/scala.yml/badge.svg)](https://github.com/Sitiritis/eo-static-analyzer/actions/workflows/scala.yml)
+
 Static analyzer for [EO programming language](https://github.com/cqfn/eo).
 
-[![Scala CI](https://github.com/Sitiritis/eo-static-analyzer/actions/workflows/scala.yml/badge.svg)](https://github.com/Sitiritis/eo-static-analyzer/actions/workflows/scala.yml)
-# ⚠️🚧 Work in progress 🚧⚠️ 
+# ⚠️🚧 Work in progress 🚧⚠️
 
 > The project is still in active development stage and might not be usable or fully documented yet.
 

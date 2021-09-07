@@ -34,7 +34,7 @@ object programs {
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("x")), "write")),
@@ -56,7 +56,7 @@ object programs {
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "f")),
@@ -84,7 +84,7 @@ object programs {
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
-              EOBndExpr(EODecoration(), Fix[EOExpr](EOSimpleApp("base"))),
+              EOBndExpr(EODecoration, Fix[EOExpr](EOSimpleApp("base"))),
               EOBndExpr(
                 EOAnyNameBnd(LazyName("f")),
                 Fix[EOExpr](
@@ -93,7 +93,7 @@ object programs {
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "g")),

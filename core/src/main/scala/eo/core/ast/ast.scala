@@ -64,7 +64,7 @@ sealed case class EOAnyNameBnd(
   override val name: BndName
 ) extends EONamedBnd
 
-sealed case class EODecoration() extends EONamedBnd {
+case object EODecoration extends EONamedBnd {
   override val name: BndName = LazyName(Constants.ATTRS.DECORATION)
 }
 

@@ -38,7 +38,7 @@ object TopLevelObjects {
       ): F[Unit] = for {
         topLevelObject <- createTopLevelObject[F](objName)
         _ <- obj.bndAttrs.traverse_ {
-          case EOBndExpr(EODecoration(), Fix(decorateeExpr: EOApp[EOExprOnly])) =>
+          case EOBndExpr(EODecoration, Fix(decorateeExpr: EOApp[EOExprOnly])) =>
             // For simplicity right now consider only trivial object decoration
             for {
               decorateeName <- findDecorateeName(decorateeExpr)

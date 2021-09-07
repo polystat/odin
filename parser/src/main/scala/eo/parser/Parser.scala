@@ -10,17 +10,17 @@ import higherkindness.droste.data.Fix
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{ NoPosition, Position, Reader }
 
-class WorkflowTokenReader(val tokens: Seq[Token]) extends Reader[Token] {
-  override def first: Token = tokens.head
-
-  override def atEnd: Boolean = tokens.isEmpty
-
-  override def pos: Position = NoPosition
-
-  override def rest: Reader[Token] = new WorkflowTokenReader(tokens.tail)
-}
-
 object Parser extends Parsers {
+  class WorkflowTokenReader(val tokens: Seq[Token]) extends Reader[Token] {
+    override def first: Token = tokens.head
+
+    override def atEnd: Boolean = tokens.isEmpty
+
+    override def pos: Position = NoPosition
+
+    override def rest: Reader[Token] = new WorkflowTokenReader(tokens.tail)
+  }
+
   override type Elem = Token
 
   def parse(tokens: Seq[Token]): Either[ParserError, EOProg[EOExprOnly]] = {
@@ -32,16 +32,10 @@ object Parser extends Parsers {
     }
   }
 
-  def apply(code: String): Either[CompilationError, EOProg[EOExprOnly]] =
+  def apply(code: String): Either[ParsingError, EOProg[EOExprOnly]] =
     for {
-      tokens <- {
-        println(s"\nSOURCE CODE:\n$code")
-        Lexer(code)
-      }
-      ast <- {
-        println(s"\nTOKENS:\n$tokens")
-        parse(tokens)
-      }
+      tokens <- Lexer(code)
+      ast <- parse(tokens)
     } yield ast
 
   private def identifier: Parser[IDENTIFIER] = {
@@ -257,7 +251,7 @@ object Parser extends Parsers {
     val lazyName = ASSIGN_NAME ~> identifier ^^
       (id => EOAnyNameBnd(LazyName(id.name)))
     val lazyPhi = ASSIGN_NAME ~> phi ^^
-      (_ => EODecoration())
+      (_ => EODecoration)
     val constName = ASSIGN_NAME ~> identifier <~ EXCLAMATION_MARK ^^
       (id => EOAnyNameBnd(ConstName(id.name)))
 

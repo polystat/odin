@@ -4,7 +4,7 @@ package eo.parser
 import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast.astparams.EOExprOnly
 import eo.core.ast._
-import eo.parser.errors.{ CompilationError, LexerError, ParserError }
+import eo.parser.errors.{ ParsingError, LexerError, ParserError }
 import higherkindness.droste.data.Fix
 import org.scalatest.Inspectors.forAll
 import org.scalatest.funspec.AnyFunSpec
@@ -42,7 +42,7 @@ object MutualRecExample {
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("x")), "write")),
@@ -64,7 +64,7 @@ object MutualRecExample {
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "f")),
@@ -92,7 +92,7 @@ object MutualRecExample {
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
-              EOBndExpr(EODecoration(), Fix[EOExpr](EOSimpleApp("base"))),
+              EOBndExpr(EODecoration, Fix[EOExpr](EOSimpleApp("base"))),
               EOBndExpr(
                 EOAnyNameBnd(LazyName("f")),
                 Fix[EOExpr](
@@ -101,7 +101,7 @@ object MutualRecExample {
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "g")),
@@ -159,9 +159,9 @@ object FailingCode {
 
 class ParserTests extends AnyFunSpec {
 
-  type ParserResult = Either[CompilationError, EOProg[EOExprOnly]]
+  type ParserResult = Either[ParsingError, EOProg[EOExprOnly]]
 
-  private def produces[A <: CompilationError : ClassTag](result: ParserResult): Boolean = {
+  private def produces[A <: ParsingError : ClassTag](result: ParserResult): Boolean = {
     result match {
       case Left(_: A) => true
       case _ => false
