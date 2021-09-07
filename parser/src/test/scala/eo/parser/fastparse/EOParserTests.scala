@@ -12,17 +12,22 @@ class EOParserTests extends AnyWordSpec {
 
   def parseEntireInput[_: P, T](p: => P[T]): P[T] = P(Start ~ p ~ End)
 
-
-  def shouldParse[T](parser: P[_] => P[T], input: String): Assertion = {
+  def checkParser[T](
+                      parser: P[_] => P[T],
+                      input: String,
+                      check: Parsed[T] => Boolean
+                    ): Assertion = {
     val parsed = parse(input, parser)
     println(parsed)
-    assert(parsed.isSuccess)
+    assert(check(parsed))
+  }
+
+  def shouldParse[T](parser: P[_] => P[T], input: String): Assertion = {
+    checkParser(parser, input, (result: Parsed[T]) => result.isSuccess)
   }
 
   def shouldFailParsing[T](parser: P[_] => P[T], input: String): Assertion = {
-    val parsed = parse(input, parser)
-    println(parsed)
-    assert(!parsed.isSuccess)
+    checkParser(parser, input, (result: Parsed[T]) => !result.isSuccess)
   }
 
 
@@ -32,6 +37,9 @@ class EOParserTests extends AnyWordSpec {
       shouldParse(Tokens.comment(_), "#   oo 121 _= `12 e3\n")
       shouldParse(Tokens.identifier(_), "a-COOL-identifier")
       shouldParse(Tokens.string(_), "\" asd aa dd -= -21 123\"")
+      shouldParse(Tokens.integer(_), "12345013")
+      shouldParse(Tokens.integer(_), "-12345013")
+      shouldParse(Tokens.char(_), "\'a\'")
     }
   }
 
@@ -62,7 +70,7 @@ class EOParserTests extends AnyWordSpec {
 
   "args" should {
 
-    def argsAllInput[_ : P] =
+    def argsAllInput[_: P] =
       parseEntireInput(new Objects().args)
 
     val correctArgsExamples = List(
@@ -81,22 +89,67 @@ class EOParserTests extends AnyWordSpec {
     }
   }
 
-  "anonymous abstraction" should {
-    def anonymousAbstractionAllInput[_ : P] =
+  "abstraction" should {
+    def anonymousAbstractionAllInput[_: P] =
       parseEntireInput(new Objects().anonymousAbstraction)
 
-    "be recognized correctly" in {
-      shouldParse(anonymousAbstractionAllInput(_), "[]")
-      shouldParse(anonymousAbstractionAllInput(_),
-        """[]
-          |  [a b c] > a
-          |  [@...] > freeDecoratee
-          |    [] > stuff
-          |      [] > mmm
-          |      [] > asd
-          |    [] > noArgs
-          |    [someArgs] > someArg""".stripMargin)
+    val correctExamples = List(
+      "simplest possible object" ->
+        "[]",
+
+      "many nested objects, formatted correctly" ->
+      """[]
+        |  [a b c] > a
+        |  [@...] > freeDecoratee
+        |    [] > stuff
+        |      [] > mmm
+        |      [] > asd
+        |    [] > noArgs
+        |    [someArgs] > someArg""".stripMargin,
+
+      "shows the flexibility of whitespace" ->
+      """[]
+        |  # This is a
+        |  [] > a
+        |
+        |  # This is b
+        |
+        |  [] > b
+        |
+        |
+        |  # This is c.
+        | # This line is here
+        |    # to show that the comments can be
+        |# multiline and don't have to be properly indented
+        |  [] > c""".stripMargin
+    )
+
+    val incorrectExamples = List(
+      "simplest malformed object" ->
+        "[",
+
+       "object with inconsisten indentation" ->
+       """[]
+         |  [] > objects
+         |  [] > however
+         |   [] > haveTo
+         |   [] > beProperlyIndented
+         |
+         |""".stripMargin
+    )
+
+    forAll(correctExamples) {
+      case (label, example) =>
+        label in {
+        shouldParse(anonymousAbstractionAllInput(_), example)
+      }
+    }
+
+    forAll(incorrectExamples) {
+      case (label, example) =>
+        label in {
+          shouldFailParsing(anonymousAbstractionAllInput(_), example)
+        }
     }
   }
-
 }
