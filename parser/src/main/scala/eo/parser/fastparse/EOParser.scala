@@ -2,7 +2,9 @@ package eo.parser.fastparse
 
 import fastparse._
 import NoWhitespace._
-import eo.core.ast.{EOAliasMeta, EOMetas, EORTMeta}
+import eo.core.ast.astparams.EOExprOnly
+import eo.core.ast._
+import higherkindness.droste.data.Fix
 
 
 object Metas {
@@ -23,13 +25,10 @@ object Metas {
   }
 
   // TODO: refine rule
-  private def aliasName[_ : P] = P(
-    Tokens.identifier
-  )
+  private def aliasName[_ : P] = P(Tokens.identifier)
 
   // TODO: refine rule
-  private def artifactName[_:P] =
-    P(Tokens.identifier)
+  private def artifactName[_:P] = P(Tokens.identifier)
 
   // TODO: refine rule
   private def artifactVersion[_:P] =
@@ -57,7 +56,7 @@ object Metas {
 object Tokens {
 
   def comment[_: P]: P[Unit] = P(
-    "#" ~ CharsWhile(_ != '\n', 0) ~ "\n"
+    whitespaceChars ~ "#" ~ CharsWhile(_ != '\n', 0) ~ "\n"
   )
 
   def identifier[_: P]: P[String] =
@@ -77,13 +76,71 @@ object Tokens {
     CharsWhile(c => c == '\t' || c == ' ' || c == '\r', 0)
   )
 
-  def emptyLine[_: P]: P[Unit] = P(
-    whitespaceChars ~ "\n"
-  )
+  def emptyLine[_: P]: P[Unit] = P(whitespaceChars ~ "\n")
 
   def emptyLinesOrComments[_ : P]: P[Unit] = P(
-    (emptyLine | comment)./.rep
-  )
+    (emptyLine | comment).rep
+  ).log
+}
+
+class Objects(
+               val indent: Int = 0,
+               val indentationStep: Int = 2
+             ) {
+  def singleLineWhitespace[_:P]: P[Unit] = CharsWhile(c => c == ' ' || c == '\t')
+  def args[_ : P]: P[(Vector[LazyName], Option[LazyName])] = P(
+    "[" ~
+      (Tokens.identifier | "@").!.rep(sep = singleLineWhitespace) ~ "...".!.? ~
+      "]"
+  ).map {
+    case (args, None) =>
+      (args.map(LazyName).toVector, None)
+    case (args, Some(_)) =>
+      (args.map(LazyName).toVector.init, Some(LazyName(args.last)))
+  }
+
+  def name[_ : P]: P[EOBndName] = P(
+    singleLineWhitespace ~ ">" ~ singleLineWhitespace ~/
+      (Tokens.identifier | "@").! ~ "!".!.?
+  ).map {
+    case ("@", None) => EODecoration()
+    case (name, Some(_)) => EOAnyName(ConstName(name))
+    case (name, None) => EOAnyName(LazyName(name))
+  }
+
+  def `object`[_ : P]: P[EOBnd[EOExprOnly]] = P(namedObject | anonymousObject)
+
+  def namedObject[_ : P]: P[EOBndExpr[EOExprOnly]] = namedAbstraction
+
+  def anonymousObject[_ : P]: P[EOAnonExpr[EOExprOnly]] = anonymousAbstraction
+
+  def anonymousAbstraction[_ : P]: P[EOAnonExpr[EOExprOnly]] = P(
+    args ~ boundAttributes.?
+  ).map {
+    case (params, vararg, attrs) => EOAnonExpr(
+      Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
+    )
+  }
+
+  def namedAbstraction[_ : P]: P[EOBndExpr[EOExprOnly]] = P(
+    args ~ name ~ boundAttributes.?
+  ).map {
+    case (params, vararg, name, attrs) => EOBndExpr(
+      name,
+      Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
+    )
+  }
+
+  def deeper[_: P]: P[Int] = P(
+    (" " * (indent + indentationStep)).!
+  ).map(_.length)
+
+  def boundAttributes[_ : P]: P[Vector[EOBndExpr[EOExprOnly]]] = P(
+    ("\n" ~ Tokens.emptyLinesOrComments ~ deeper)./.flatMap(
+      i => new Objects(indent = i).namedObject
+        .rep(sep = ("\n" ~ Tokens.emptyLinesOrComments ~ (" " * i))./)
+    )
+  ).map(_.toVector)
 }
 
 class EOParser {
