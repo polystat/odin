@@ -15,13 +15,11 @@ trait TopLevelObjects[F[_]] {
   def objects: F[Vector[TopLevelObject[F]]]
   def add(objName: String, obj: EOObj[EOExprOnly]): F[Unit]
   def findObjectByName(objectName: String): OptionT[F, TopLevelObject[F]]
-//  def findMethodsWithParamsByName(methodName: String): F[Vector[MethodAttribute[F]]]
+  def findMethodsWithParamsByName(methodName: String): F[Vector[MethodAttribute[F]]]
 }
 
 object TopLevelObjects {
-  def createTopLevelObjectsWithRefs[
-    F[_]: Sync
-  ]: F[TopLevelObjects[F]] =
+  def createTopLevelObjectsWithRefs[F[_]: Sync]: F[TopLevelObjects[F]] =
     for {
       objsMap <- Sync[F].delay(
         scala.collection.mutable.Map[
@@ -65,15 +63,15 @@ object TopLevelObjects {
         objsMap.get(objectName)
       })
 
-//      override def findMethodsWithParamsByName(
-//        methodName: String
-//      ): F[Vector[MethodAttribute[F]]] = for {
-//        objects <- Sync[F].delay(objsMap.toVector.map(_._2))
-//        methods <- objects.flatTraverse(_.attributes)
-//        result = methods
-//          .filter(_.name == methodName)
-//          .filter(_.params.nonEmpty)
-//      } yield result
+      override def findMethodsWithParamsByName(
+        methodName: String
+      ): F[Vector[MethodAttribute[F]]] = for {
+        objects <- Sync[F].delay(objsMap.toVector.map(_._2))
+        methods <- objects.flatTraverse(_.attributes)
+        result = methods
+          .filter(_.name == methodName)
+          .filter(_.params.nonEmpty)
+      } yield result
     }
 
   @tailrec
