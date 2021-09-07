@@ -32,10 +32,10 @@ object Sandbox extends IOApp {
       } yield {
         val mutualRecString =
           s"Method `${method.parentObject.objName}.${method.name}` " ++
-          s"is mutually recursive with method " ++
-          s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
+            s"is mutually recursive with method " ++
+            s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
 
-         val dependencyChainString = depChain.append(method).map(m => s"${m.parentObject.objName}.${m.name}").mkString_(" -> ")
+        val dependencyChainString = depChain.append(method).map(m => s"${m.parentObject.objName}.${m.name}").mkString_(" -> ")
 
         println(mutualRecString ++ " through the following possible code path:\n" ++ dependencyChainString)
       }

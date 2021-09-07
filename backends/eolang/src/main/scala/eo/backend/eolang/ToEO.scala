@@ -23,15 +23,14 @@ object ToEO {
     def toEO[T, R](node: T)(implicit toEO: ToEO[T, R]): R = ToEO[T, R].toEO(node)
 
     implicit class ToEOOps[T, R](val node: T) extends AnyVal {
-      def toEO(implicit toEO: ToEO[T, R]): R = ToEO[T, R] toEO (node)
+      def toEO(implicit toEO: ToEO[T, R]): R = ToEO[T, R].toEO(node)
     }
   }
 
   object instances {
     implicit val eoExprOnlyToEO: ToEO[EOExprOnly, InlineOrLines] =
       new ToEO[EOExprOnly, InlineOrLines] {
-        override def toEO(node: EOExprOnly): InlineOrLines =
-          Fix.un(node).toEO
+        override def toEO(node: EOExprOnly): InlineOrLines = Fix.un(node).toEO
       }
 
     // Program ///////////////////////////////////////////////////////////////////

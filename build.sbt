@@ -70,6 +70,8 @@ lazy val `eolang-backend` = project
 
 lazy val sandbox = project
   .settings(commonSettings)
+  // Remove strict checks, so that it is easy to modify sandbox when developing
+  .settings(scalacOptions ~= (_.filterNot(Compiler.consoleOptionsToRemove)))
   .dependsOn(`eo-static-analyzer-app`)
   .settings(
     name := "sandbox",
