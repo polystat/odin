@@ -32,10 +32,12 @@
 [] > derived
   base > @
   [self v] > n
-    # TODO: introduce if that is always true
-    seq > @
-      stdout (sprintf "Calling derived.n with v = %d\n" v)
-      self.m self v
+    if. > @
+      (1.eq 0)
+      seq
+        stdout (sprintf "Calling derived.n with v = %d\n" v)
+        self.m self v
+      self.x.write v
 
 [args...] > app
   base > b

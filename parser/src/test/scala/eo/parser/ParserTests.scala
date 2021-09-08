@@ -4,6 +4,7 @@ package eo.parser
 import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast.astparams.EOExprOnly
 import eo.core.ast._
+import eo.parser.errors.{ ParsingError, LexerError, ParserError }
 import higherkindness.droste.data.Fix
 import org.scalatest.Inspectors.forAll
 import org.scalatest.funspec.AnyFunSpec
@@ -23,25 +24,25 @@ object MutualRecExample {
     ),
     Vector(
       EOBndExpr(
-        EOAnyName(LazyName("base")),
+        EOAnyNameBnd(LazyName("base")),
         Fix[EOExpr](
           EOObj(
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
               EOBndExpr(
-                EOAnyName(LazyName("x")),
+                EOAnyNameBnd(LazyName("x")),
                 Fix[EOExpr](EOSimpleApp("memory"))
               ),
               EOBndExpr(
-                EOAnyName(LazyName("f")),
+                EOAnyNameBnd(LazyName("f")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("x")), "write")),
@@ -56,14 +57,14 @@ object MutualRecExample {
                 )
               ),
               EOBndExpr(
-                EOAnyName(LazyName("g")),
+                EOAnyNameBnd(LazyName("g")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "f")),
@@ -85,22 +86,22 @@ object MutualRecExample {
 
 
       EOBndExpr(
-        EOAnyName(LazyName("derived")),
+        EOAnyNameBnd(LazyName("derived")),
         Fix[EOExpr](
           EOObj(
             freeAttrs = Vector(),
             varargAttr = None,
             bndAttrs = Vector(
-              EOBndExpr(EODecoration(), Fix[EOExpr](EOSimpleApp("base"))),
+              EOBndExpr(EODecoration, Fix[EOExpr](EOSimpleApp("base"))),
               EOBndExpr(
-                EOAnyName(LazyName("f")),
+                EOAnyNameBnd(LazyName("f")),
                 Fix[EOExpr](
                   EOObj(
                     freeAttrs = Vector(LazyName("self"), LazyName("v")),
                     varargAttr = None,
                     bndAttrs = Vector(
                       EOBndExpr(
-                        EODecoration(),
+                        EODecoration,
                         Fix[EOExpr](
                           EOCopy(
                             Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "g")),
@@ -158,9 +159,9 @@ object FailingCode {
 
 class ParserTests extends AnyFunSpec {
 
-  type ParserResult = Either[CompilationError, EOProg[EOExprOnly]]
+  type ParserResult = Either[ParsingError, EOProg[EOExprOnly]]
 
-  private def produces[A <: CompilationError : ClassTag](result: ParserResult): Boolean = {
+  private def produces[A <: ParsingError : ClassTag](result: ParserResult): Boolean = {
     result match {
       case Left(_: A) => true
       case _ => false
@@ -207,7 +208,7 @@ class ParserTests extends AnyFunSpec {
               |""".stripMargin,
           ast = Vector(
             EOBndExpr(
-              EOAnyName(LazyName("namedA")),
+              EOAnyNameBnd(LazyName("namedA")),
               Fix[EOExpr](EOSimpleApp("a"))
             )
           )
@@ -219,7 +220,7 @@ class ParserTests extends AnyFunSpec {
               |""".stripMargin,
           Vector(
             EOBndExpr(
-              EOAnyName(LazyName("aAppliedToBCandD")),
+              EOAnyNameBnd(LazyName("aAppliedToBCandD")),
               Fix[EOExpr](EOCopy(
                 Fix[EOExpr](EOSimpleApp("a")),
                 NonEmpty[Vector[EOBnd[EOExprOnly]]](
@@ -239,7 +240,7 @@ class ParserTests extends AnyFunSpec {
               |""".stripMargin,
           ast =
             Vector(EOBndExpr(
-              EOAnyName(LazyName("rightAssociative")),
+              EOAnyNameBnd(LazyName("rightAssociative")),
               Fix[EOExpr](EOCopy(
                 Fix[EOExpr](EOSimpleApp("a")),
                 NonEmpty[Vector[EOBnd[EOExprOnly]]](
@@ -258,7 +259,7 @@ class ParserTests extends AnyFunSpec {
               |""".stripMargin,
           ast = Vector(
             EOBndExpr(
-              EOAnyName(LazyName("leftAssociative")),
+              EOAnyNameBnd(LazyName("leftAssociative")),
               Fix[EOExpr](EOCopy(
                 Fix[EOExpr](EOCopy(
                   Fix[EOExpr](EOCopy(
