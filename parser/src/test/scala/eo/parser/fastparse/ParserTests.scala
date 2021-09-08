@@ -3,7 +3,9 @@ package eo.parser.fastparse
 import org.scalatest.wordspec.AnyWordSpec
 import fastparse._
 import NoWhitespace._
-import eo.core.ast.EOMetas
+import eo.core.ast.astparams.EOExprOnly
+import eo.core.ast._
+import eo.parser.{MutualRecExample, SingleLineExamples}
 import org.scalatest.Assertion
 import org.scalatest.Inspectors.forAll
 
@@ -11,7 +13,7 @@ import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters._
 
 
-class EOParserTests extends AnyWordSpec {
+class ParserTests extends AnyWordSpec {
 
   private def readCodeFrom(fileName: String): String = {
     val code = io.Source.fromFile(fileName)
@@ -45,6 +47,21 @@ class EOParserTests extends AnyWordSpec {
 
   def shouldFailParsing[T](parser: P[_] => P[T], input: String): Assertion = {
     checkParser(parser, input, (result: Parsed[T]) => !result.isSuccess)
+  }
+
+  def shouldProduceAST[AST](
+                           parser: P[_] => P[AST],
+                           input: String,
+                           expectedAST: AST
+                         ): Assertion = {
+    checkParser(parser, input,
+      check = (res: Parsed[AST]) => {
+        res match {
+          case Parsed.Success(value, _) => value == expectedAST
+          case _: Parsed.Failure => false
+        }
+      }
+    )
   }
 
 
@@ -115,51 +132,51 @@ class EOParserTests extends AnyWordSpec {
         "[]",
 
       "many nested objects, formatted correctly" ->
-      """[]
-        |  [a b c] > a
-        |  [@...] > freeDecoratee
-        |    [] > stuff
-        |      [] > mmm
-        |      [] > asd
-        |    [] > noArgs
-        |    [someArgs] > someArg""".stripMargin,
+        """[]
+          |  [a b c] > a
+          |  [@...] > freeDecoratee
+          |    [] > stuff
+          |      [] > mmm
+          |      [] > asd
+          |    [] > noArgs
+          |    [someArgs] > someArg""".stripMargin,
 
       "shows the flexibility of whitespace" ->
-      """[]
-        |  # This is a
-        |  [] > a
-        |
-        |  # This is b
-        |
-        |  [] > b
-        |
-        |
-        |  # This is c.
-        | # This line is here
-        |    # to show that the comments can be
-        |# multiline and don't have to be properly indented
-        |  [] > c""".stripMargin
+        """[]
+          |  # This is a
+          |  [] > a
+          |
+          |  # This is b
+          |
+          |  [] > b
+          |
+          |
+          |  # This is c.
+          | # This line is here
+          |    # to show that the comments can be
+          |# multiline and don't have to be properly indented
+          |  [] > c""".stripMargin
     )
 
     val incorrectExamples = List(
       "simplest malformed object" ->
         "[",
 
-       "object with inconsistent indentation" ->
-       """[]
-         |  [] > objects
-         |  [] > however
-         |   [] > haveTo
-         |   [] > beProperlyIndented
-         |
-         |""".stripMargin
+      "object with inconsistent indentation" ->
+        """[]
+          |  [] > objects
+          |  [] > however
+          |   [] > haveTo
+          |   [] > beProperlyIndented
+          |
+          |""".stripMargin
     )
 
     forAll(correctExamples) {
       case (label, example) =>
         label in {
-        shouldParse(anonymousAbstractionAllInput(_), example)
-      }
+          shouldParse(anonymousAbstractionAllInput(_), example)
+        }
     }
 
     forAll(incorrectExamples) {
@@ -171,7 +188,7 @@ class EOParserTests extends AnyWordSpec {
   }
 
   "application" should {
-    def namedApplicationAllInput[_ : P] =
+    def namedApplicationAllInput[_: P] =
       parseEntireInput(new Objects().namedApplication)
 
     val correctExamples = List(
@@ -194,39 +211,39 @@ class EOParserTests extends AnyWordSpec {
           |  "a huge long long long string"
           |  a""".stripMargin,
       "some attribute chains" ->
-      """a.b.c.d > namedA
-        |  $.^.@.a > some-obj-from-outer-scope
-        |  1.neg""".stripMargin,
+        """a.b.c.d > namedA
+          |  $.^.@.a > some-obj-from-outer-scope
+          |  1.neg""".stripMargin,
 
       "some single line applications" ->
-      """(a) > named-a-with-redundant-parentheses
-        |
-        |  # a applied to b, c and
-        |  a b c d > normalApplication
-        |
-        |  # a applied to (b applied to (c applied to d))
-        |  a (b (c d)) > cascadingApplication
-        |
-        |  # this a reverse application:
-        |  # ((a applied to b) applied to c)
-        |  ((a b) c) d > reverseApplication""".stripMargin,
+        """(a) > named-a-with-redundant-parentheses
+          |
+          |  # a applied to b, c and
+          |  a b c d > normalApplication
+          |
+          |  # a applied to (b applied to (c applied to d))
+          |  a (b (c d)) > cascadingApplication
+          |
+          |  # this a reverse application:
+          |  # ((a applied to b) applied to c)
+          |  ((a b) c) d > reverseApplication""".stripMargin,
 
       "anonymous inverse dot applications" ->
-      """a > namedA
-        |  # testing anonymous
-        |  # inverse-dot applications
-        |  a.
-        |    b.
-        |      c.
-        |        d""".stripMargin,
+        """a > namedA
+          |  # testing anonymous
+          |  # inverse-dot applications
+          |  a.
+          |    b.
+          |      c.
+          |        d""".stripMargin,
 
       // TODO: here the information about inner names is lost
       "named inverse-dot applications" ->
-    """a > main
-      |  a. > d-c-b-a
-      |    b. > d-c-b
-      |      c. > d-c
-      |        d > d-""".stripMargin
+        """a > main
+          |  a. > d-c-b-a
+          |    b. > d-c-b
+          |      c. > d-c
+          |        d > d-""".stripMargin
     )
 
     forAll(correctExamples) {
@@ -237,13 +254,30 @@ class EOParserTests extends AnyWordSpec {
     }
   }
 
-  val EOsources: List[String] = getListOfFiles("/eo_sources")
-
   "existing programs" should {
-    forAll(EOsources) {
-       source =>
-      Paths.get(source).getFileName.toString in {
+    forAll(getListOfFiles("/eo_sources")) {
+      source =>
+        Paths.get(source).getFileName.toString in {
           shouldParse(new Objects().program(_), readCodeFrom(source))
+        }
+    }
+
+    "mutual recursion example" in {
+      shouldProduceAST[EOProg[EOExprOnly]](
+        new Objects().program(_),
+        MutualRecExample.code,
+        MutualRecExample.ast
+      )
+    }
+
+    forAll(SingleLineExamples.correct){
+      case (label, (code, ast)) =>
+        label in {
+          shouldProduceAST[EOExprOnly](
+            SingleLineApplication.singleLineApplication(_),
+            code,
+            ast
+          )
         }
     }
   }
