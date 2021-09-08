@@ -7,8 +7,22 @@ import eo.core.ast.EOMetas
 import org.scalatest.Assertion
 import org.scalatest.Inspectors.forAll
 
+import java.nio.file.{Files, Paths}
+import scala.jdk.CollectionConverters._
+
 
 class EOParserTests extends AnyWordSpec {
+
+  private def readCodeFrom(fileName: String): String = {
+    val code = io.Source.fromFile(fileName)
+    try code.mkString finally code.close()
+  }
+
+  private def getListOfFiles(dir: String): List[String] = {
+    val path = getClass.getResource(dir).toURI
+    Files.list(Paths.get(path)).iterator().asScala.map(_.toString).toList
+  }
+
 
   def parseEntireInput[_: P, T](p: => P[T]): P[T] = P(Start ~ p ~ End)
 
@@ -18,7 +32,10 @@ class EOParserTests extends AnyWordSpec {
                       check: Parsed[T] => Boolean
                     ): Assertion = {
     val parsed = parse(input, parser)
-    println(parsed)
+    parsed match {
+      case Parsed.Success(value, _) => println(value)
+      case failure: Parsed.Failure => println(failure.trace())
+    }
     assert(check(parsed))
   }
 
@@ -128,7 +145,7 @@ class EOParserTests extends AnyWordSpec {
       "simplest malformed object" ->
         "[",
 
-       "object with inconsisten indentation" ->
+       "object with inconsistent indentation" ->
        """[]
          |  [] > objects
          |  [] > however
@@ -149,6 +166,84 @@ class EOParserTests extends AnyWordSpec {
       case (label, example) =>
         label in {
           shouldFailParsing(anonymousAbstractionAllInput(_), example)
+        }
+    }
+  }
+
+  "application" should {
+    def namedApplicationAllInput[_ : P] =
+      parseEntireInput(new Objects().namedApplication)
+
+    val correctExamples = List(
+      "some simple objects" ->
+        """a > namedA
+          |  b > namedB
+          |    b2
+          |  c > namedC
+          |    c2
+          |      c3 > namedC3
+          |  []
+          |    # some anonymous object
+          |    [] > someArg
+          |  d""".stripMargin,
+
+      "some data objects" ->
+        """a > namedA
+          |  123
+          |  'a'
+          |  "a huge long long long string"
+          |  a""".stripMargin,
+      "some attribute chains" ->
+      """a.b.c.d > namedA
+        |  $.^.@.a > some-obj-from-outer-scope
+        |  1.neg""".stripMargin,
+
+      "some single line applications" ->
+      """(a) > named-a-with-redundant-parentheses
+        |
+        |  # a applied to b, c and
+        |  a b c d > normalApplication
+        |
+        |  # a applied to (b applied to (c applied to d))
+        |  a (b (c d)) > cascadingApplication
+        |
+        |  # this a reverse application:
+        |  # ((a applied to b) applied to c)
+        |  ((a b) c) d > reverseApplication""".stripMargin,
+
+      "anonymous inverse dot applications" ->
+      """a > namedA
+        |  # testing anonymous
+        |  # inverse-dot applications
+        |  a.
+        |    b.
+        |      c.
+        |        d""".stripMargin,
+
+      // TODO: here the information about inner names is lost
+      "named inverse-dot applications" ->
+    """a > main
+      |  a. > d-c-b-a
+      |    b. > d-c-b
+      |      c. > d-c
+      |        d > d-""".stripMargin
+    )
+
+    forAll(correctExamples) {
+      case (label, example) =>
+        label in {
+          shouldParse(namedApplicationAllInput(_), example)
+        }
+    }
+  }
+
+  val EOsources: List[String] = getListOfFiles("/eo_sources")
+
+  "existing programs" should {
+    forAll(EOsources) {
+       source =>
+      Paths.get(source).getFileName.toString in {
+          shouldParse(new Objects().program(_), readCodeFrom(source))
         }
     }
   }

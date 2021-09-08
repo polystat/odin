@@ -38,7 +38,7 @@ object Metas {
 
   // TODO: refine rule
   private def artifactId[_: P] = P(
-    packageName ~/ ":" ~ artifactName ~/ ":" ~ artifactVersion
+    packageName ~ ":" ~ artifactName ~ ":" ~ artifactVersion
   ).map(_.productIterator.mkString(":"))
 
   // TODO: refine rule
@@ -48,7 +48,7 @@ object Metas {
 
   def metas[_: P]: P[EOMetas] = P(
     Tokens.emptyLinesOrComments ~ packageMeta.? ~
-      (Tokens.emptyLinesOrComments ~ (rtMeta | aliasMeta))./.rep
+      (Tokens.emptyLinesOrComments ~ (rtMeta | aliasMeta)).rep
   ).map {
     case (pkg, metas) => EOMetas(pkg, metas.toVector)
   }
@@ -61,7 +61,7 @@ object Tokens {
   )
 
   def identifier[_: P]: P[String] =
-    P(lowercase ~ (letter | digit | "-").rep).!
+    P(lowercase ~ (letter | digit | "-" | "_").rep).!
 
   private def letter[_: P] = P(lowercase | uppercase)
 
@@ -104,26 +104,28 @@ class Objects(
     }
   }
 
-  //  private def extractEOExpr(bnd: EOBnd[EOExprOnly]): EOExprOnly = {
-  //    bnd match {
-  //      case EOAnonExpr(expr) => expr
-  //      case EOBndExpr(_, expr) => expr
-  //    }
-  //  }
+    private def extractEOExpr(bnd: EOBnd[EOExprOnly]): EOExprOnly = {
+      bnd match {
+        case EOAnonExpr(expr) => expr
+        case EOBndExpr(_, expr) => expr
+      }
+    }
 
-  //  private def createInverseDot(id: String,
-  //                               args: Vector[EOBnd[EOExprOnly]]): EOExprOnly = {
-  //    if (args.tail.nonEmpty) {
-  //      Fix[EOExpr](
-  //        EOCopy(
-  //          Fix[EOExpr](EODot(extractEOExpr(args.head), id)),
-  //          createNonEmpty(args.tail)
-  //        )
-  //      )
-  //    } else {
-  //      Fix[EOExpr](EODot(extractEOExpr(args.head), id))
-  //    }
-  //  }
+  // TODO: rewrite so that the information
+  //  about names of bindings is not lost
+    private def createInverseDot(id: String,
+                                 args: Vector[EOBnd[EOExprOnly]]): EOExprOnly = {
+      if (args.tail.nonEmpty) {
+        Fix[EOExpr](
+          EOCopy(
+            Fix[EOExpr](EODot(extractEOExpr(args.head), id)),
+            createNonEmpty(args.tail)
+          )
+        )
+      } else {
+        Fix[EOExpr](EODot(extractEOExpr(args.head), id))
+      }
+    }
 
 
   def singleLineWhitespace[_: P]: P[Unit] = CharsWhileIn(" \t", 1)
@@ -140,7 +142,7 @@ class Objects(
   }
 
   def name[_: P]: P[EONamedBnd] = P(
-    singleLineWhitespace ~ ">" ~ singleLineWhitespace ~/
+    singleLineWhitespace ~ ">" ~ singleLineWhitespace ~
       (Tokens.identifier | "@").! ~ "!".!.?
   ).map {
     case ("@", None) => EODecoration
@@ -148,36 +150,67 @@ class Objects(
     case (name, None) => EOAnyNameBnd(LazyName(name))
   }
 
+  def program[_ : P]: P[EOProg[EOExprOnly]] = P(
+    Start ~
+      Metas.metas ~
+      Tokens.emptyLinesOrComments ~
+      `object`.rep(sep = Tokens.emptyLinesOrComments) ~
+      Tokens.emptyLinesOrComments ~
+    End
+  ).map {
+    case (metas, objs) => EOProg(
+      metas = metas,
+      bnds = objs.toVector
+    )
+  }
+
   def `object`[_: P]: P[EOBnd[EOExprOnly]] = P(namedObject | anonymousObject)
 
-  def namedObject[_: P]: P[EOBndExpr[EOExprOnly]] = namedAbstraction
+  def namedObject[_: P]: P[EOBndExpr[EOExprOnly]] =
+    namedAbstraction | namedApplication
 
   def anonymousObject[_: P]: P[EOAnonExpr[EOExprOnly]] =
     anonymousAbstraction | anonymousApplication
 
-  def anonymousApplication[_: P]: P[EOAnonExpr[EOExprOnly]] = ???
+  def anonymousApplication[_ : P]: P[EOAnonExpr[EOExprOnly]] = P(
+    anonymousInverseDotApplication | anonymousRegularApplication
+  )
 
-  def namedApplication[_: P]: P[EOBndExpr[EOExprOnly]] = ???
+  def anonymousRegularApplication[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
+    singleLineApplication ~ verticalApplicationArgs.?
+  ).map {
+    case (trg, Some(args)) => EOAnonExpr(Fix[EOExpr](EOCopy(trg, args)))
+    case (trg, None) => EOAnonExpr(trg)
+  }
 
+  def namedApplication[_ : P]: P[EOBndExpr[EOExprOnly]] = P(
+    namedInverseDotApplication | namedRegularApplication
+  )
+
+  def namedRegularApplication[_: P]: P[EOBndExpr[EOExprOnly]] = P(
+    singleLineApplication ~ name ~ verticalApplicationArgs.?
+  ).map {
+    case (trg, name, Some(args)) => EOBndExpr(name, Fix[EOExpr](EOCopy(trg, args)))
+    case (trg, name, None) => EOBndExpr(name, trg)
+  }
 
   def attributeName[_: P]: P[String] = (Tokens.identifier | "$" | "@" | "^").!
 
   def data[_: P]: P[EOExprOnly] = P(Tokens.integer | Tokens.string | Tokens.char)
 
-  def simpleApplicatitonTarget[_: P]: P[EOExprOnly] = P(
+  def simpleApplicationTarget[_: P]: P[EOExprOnly] = P(
     data | attributeName.map(name => Fix[EOExpr](EOSimpleApp(name)))
   )
 
-
   def attributeChain[_: P]: P[EOExprOnly] = P(
-    simpleApplicatitonTarget ~ "." ~ attributeName.rep(1, sep = ".")
+    simpleApplicationTarget ~ "." ~ attributeName.rep(1, sep = ".")
   ).map {
     case (start, attrs) =>
       attrs.foldLeft(start)((acc, id) => Fix[EOExpr](EODot(acc, id)))
   }
 
   def applicationTarget[_: P]: P[EOExprOnly] = {
-    attributeChain | simpleApplicatitonTarget
+    attributeChain | simpleApplicationTarget
   }
 
   def parenthesized[_: P]: P[EOExprOnly] = P("(" ~ singleLineApplication ~ ")")
@@ -188,21 +221,32 @@ class Objects(
   ).map(args => createNonEmpty(args.map(EOAnonExpr(_))))
 
   def justApplication[_: P]: P[EOExprOnly] = P(
-    (parenthesized | applicationTarget) ~ horizontalApplicationArgs
+    (parenthesized | applicationTarget) ~ singleLineWhitespace ~ horizontalApplicationArgs
   ).map {
     case (trg, args) => Fix[EOExpr](EOCopy(trg, args))
   }
 
+  def singleLineApplication[_: P]: P[EOExprOnly] = P(
+    justApplication | parenthesized | applicationTarget
+  )
 
-  def singleLineApplication[_: P]: P[EOExprOnly] = {
-    P(justApplication | parenthesized | applicationTarget)
+  def anonymousInverseDotApplication[_ : P]: P[EOAnonExpr[EOExprOnly]] = P(
+    Tokens.identifier ~ "." ~ verticalApplicationArgs
+  ).map {
+    case (id, args) =>  EOAnonExpr(createInverseDot(id, args))
+  }
+
+  def namedInverseDotApplication[_ : P]: P[EOBndExpr[EOExprOnly]] = P(
+    Tokens.identifier ~ "." ~ name ~ verticalApplicationArgs
+  ).map {
+    case (id, name, args) =>  EOBndExpr(name, createInverseDot(id, args))
   }
 
   def verticalApplicationArgs[_: P]
   : P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = P(
-    ("\n" ~ Tokens.emptyLinesOrComments ~ deeper)./.flatMap(
+    ("\n" ~ Tokens.emptyLinesOrComments ~ deeper).flatMap(
       i => new Objects(indent = i).`object`
-        .rep(1, sep = ("\n" ~ Tokens.emptyLinesOrComments ~ (" " * i))./)
+        .rep(1, sep = "\n" ~ Tokens.emptyLinesOrComments ~ (" " * i))
     )
   ).map(createNonEmpty)
 
@@ -229,9 +273,9 @@ class Objects(
   ).map(_.length)
 
   def boundAttributes[_: P]: P[Vector[EOBndExpr[EOExprOnly]]] = P(
-    ("\n" ~ Tokens.emptyLinesOrComments ~ deeper)./.flatMap(
+    ("\n" ~ Tokens.emptyLinesOrComments ~ deeper).flatMap(
       i => new Objects(indent = i).namedObject
-        .rep(sep = ("\n" ~ Tokens.emptyLinesOrComments ~ (" " * i))./)
+        .rep(sep = "\n" ~ Tokens.emptyLinesOrComments ~ (" " * i))
     )
   ).map(_.toVector)
 }
