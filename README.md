@@ -1,6 +1,4 @@
-[![Scala CI](https://github.com/Sitiritis/eo-static-analyzer/actions/workflows/scala.yml/badge.svg)](https://github.com/Sitiritis/eo-static-analyzer/actions/workflows/scala.yml)
-
-Static analyzer for [EO programming language](https://github.com/cqfn/eo).
+Odin (object dependency inspector) — a static analyzer for [EO programming language](https://github.com/cqfn/eo).
 
 # ⚠️🚧 Work in progress 🚧⚠️
 
@@ -22,7 +20,15 @@ The sandbox can be run via:
 sbt sandbox/run
 ```
 
-> Currently, the sandbox contains a program, that represents AST of mutually recursive EO program, transforms the AST to EO and prints it.
+## Scala REPL
+
+The source code can be ran in scala REPL via:
+
+```shell
+sbt console
+```
+
+This might be helpful for development.
 
 # Project structure
 
@@ -51,3 +57,16 @@ For more details on the project organization see:
 - `build.sbt` - main build configuration file
 - `project/Dependendencies.scala` - lists dependencies and versions for the projects
 - `project/Compiler.scala` - lists compiler flags used to compile the project and compiler plugins
+
+# Development
+
+`master` branch has the latest changes and must always be buildable. All the code changes are done through sending pull requests to the repositories. After [CI](#ci) has successfully finished and a reviewer has approved changes, the code can be merged to the `master` branch. 
+
+## CI
+
+When a pull request is sent to `master` or a branch with a pull request to `master` is pushed, the following checks will run via GitHub Actions:
+
+- Build — all projects in the repository are built to check that the code compiles
+- Test — all tests are ran to check that new changes have not broken the existing functionality
+
+For more information, see `.github/workflows/ci.yml`.
