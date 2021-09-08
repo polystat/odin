@@ -2,7 +2,7 @@ package eo.analysis.mutualrec.naive.services
 
 import cats.data.OptionT
 import cats.effect.Sync
-import cats.effect.concurrent.Ref
+import cats.effect.Ref
 import cats.implicits._
 import eo.analysis.mutualrec.naive.errors.DuplicatedMethodAttributes
 import eo.analysis.mutualrec.naive.services.MethodAttribute.createMethodAttribute
