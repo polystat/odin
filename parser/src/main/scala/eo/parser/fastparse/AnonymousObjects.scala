@@ -4,7 +4,7 @@ import eo.core.ast.{EOAnonExpr, EOCopy, EOExpr, EOObj}
 import eo.core.ast.astparams.EOExprOnly
 import eo.parser.fastparse.SingleLineApplication.singleLineApplication
 import eo.parser.fastparse.Utils.createInverseDot
-import fastparse._, NoWhitespace._
+import fastparse._, SingleLineWhitespace._
 import higherkindness.droste.data.Fix
 
 class AnonymousObjects(
@@ -34,7 +34,6 @@ class AnonymousObjects(
   ).map {
     case (id, args) => EOAnonExpr(createInverseDot(id, args))
   }
-
 
   def anonymousAbstraction[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
     args ~ boundAttributes.?

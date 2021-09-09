@@ -1,9 +1,10 @@
 package eo.parser.fastparse
 
 import fastparse._
-import NoWhitespace._
 import eo.core.ast.astparams.EOExprOnly
 import eo.core.ast._
+import IgnoreEmptyLinesOrComments._
+
 
 
 /**
@@ -16,12 +17,11 @@ class Parser(
               override val indentationStep: Int = 2
             ) extends RespectsIndentation {
 
+
   def program[_: P]: P[EOProg[EOExprOnly]] = P(
     Start ~
       Metas.metas ~
-      Tokens.emptyLinesOrComments ~
-      `object`.rep(sep = Tokens.emptyLinesOrComments) ~
-      Tokens.emptyLinesOrComments ~
+      `object`.rep ~
       End
   ).map {
     case (metas, objs) => EOProg(

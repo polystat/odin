@@ -3,9 +3,8 @@ package eo.parser.fastparse
 import eo.core.ast.{ConstName, EOAnyNameBnd, EOBndExpr, EOCopy, EODecoration, EOExpr, EONamedBnd, EOObj, LazyName}
 import eo.core.ast.astparams.EOExprOnly
 import eo.parser.fastparse.SingleLineApplication.singleLineApplication
-import eo.parser.fastparse.Tokens.singleLineWhitespace
 import eo.parser.fastparse.Utils.createInverseDot
-import fastparse._, NoWhitespace._
+import fastparse._, SingleLineWhitespace._
 import higherkindness.droste.data.Fix
 
 class NamedObjects(
@@ -13,8 +12,7 @@ class NamedObjects(
                     override val indentationStep: Int = 2
                   ) extends RespectsIndentation {
 
-  def name[_: P]: P[EONamedBnd] = P(
-    singleLineWhitespace ~ ">" ~ singleLineWhitespace ~
+  def name[_: P]: P[EONamedBnd] = P(Pass ~ ">" ~
       (Tokens.identifier | "@").! ~ "!".!.?
   ).map {
     case ("@", None) => EODecoration

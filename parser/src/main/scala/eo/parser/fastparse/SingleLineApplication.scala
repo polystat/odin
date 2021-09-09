@@ -3,9 +3,8 @@ package eo.parser.fastparse
 import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast.{EOAnonExpr, EOBnd, EOCopy, EODot, EOExpr, EOSimpleApp}
 import eo.core.ast.astparams.EOExprOnly
-import eo.parser.fastparse.Tokens.singleLineWhitespace
 import eo.parser.fastparse.Utils.createNonEmpty
-import fastparse._, NoWhitespace._
+import fastparse._, SingleLineWhitespace._
 import higherkindness.droste.data.Fix
 
 object SingleLineApplication {
@@ -33,11 +32,11 @@ object SingleLineApplication {
 
   def horizontalApplicationArgs[_: P]
   : P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = P(
-    (applicationTarget | parenthesized).rep(1, sep = singleLineWhitespace)
+    (applicationTarget | parenthesized).rep(1)
   ).map(args => createNonEmpty(args.map(EOAnonExpr(_))))
 
   def justApplication[_: P]: P[EOExprOnly] = P(
-    (parenthesized | applicationTarget) ~ singleLineWhitespace ~ horizontalApplicationArgs
+    (parenthesized | applicationTarget) ~ horizontalApplicationArgs
   ).map {
     case (trg, args) => Fix[EOExpr](EOCopy(trg, args))
   }

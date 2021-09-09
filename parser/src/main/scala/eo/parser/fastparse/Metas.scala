@@ -1,21 +1,21 @@
 package eo.parser.fastparse
 
 import eo.core.ast.{EOAliasMeta, EOMetas, EORTMeta}
-import fastparse._, NoWhitespace._
+import fastparse._, SingleLineWhitespace._
 
 object Metas {
   private def packageMeta[_: P] = P(
-    "+package" ~ " " ~ packageName.! ~ "\n"
+    "+package" ~ packageName.! ~ "\n"
   )
 
   private def aliasMeta[_: P] = P(
-    "+alias" ~ " " ~ aliasName.! ~ " " ~ packageName.! ~ "\n"
+    "+alias" ~ aliasName.! ~ packageName.! ~ "\n"
   ).map {
     case (alias, src) => EOAliasMeta(alias, src)
   }
 
   private def rtMeta[_: P] = P(
-    "+rt" ~ " " ~ aliasName.! ~ " " ~ artifactId.! ~ "\n"
+    "+rt" ~ aliasName.! ~ artifactId.! ~ "\n"
   ).map {
     case (rtName, src) => EORTMeta(rtName, src)
   }
