@@ -1,0 +1,48 @@
+package eo.parser.fastparse
+
+import fastparse._
+import NoWhitespace._
+import eo.core.ast.astparams.EOExprOnly
+import eo.core.ast._
+
+
+/**
+ * Contains the entrypoint for the parser
+ * @param indent          the spaces before the statements in the outermost block
+ * @param indentationStep InnerBlockIndentation minus OuterBlockIndentation
+ */
+class Parser(
+              override val indent: Int = 0,
+              override val indentationStep: Int = 2
+            ) extends RespectsIndentation {
+
+  def program[_: P]: P[EOProg[EOExprOnly]] = P(
+    Start ~
+      Metas.metas ~
+      Tokens.emptyLinesOrComments ~
+      `object`.rep(sep = Tokens.emptyLinesOrComments) ~
+      Tokens.emptyLinesOrComments ~
+      End
+  ).map {
+    case (metas, objs) => EOProg(
+      metas = metas,
+      bnds = objs.toVector
+    )
+  }
+
+  def `object`[_: P]: P[EOBnd[EOExprOnly]] = P(
+    new NamedObjects(indent = indent, indentationStep = indentationStep).namedObject |
+      new AnonymousObjects(indent = indent, indentationStep = indentationStep).anonymousObject
+  )
+
+}
+
+
+object Parser {
+  def parse(
+             code: String,
+             indentationStep: Int = 0
+           ): Parsed[EOProg[EOExprOnly]] = {
+    fastparse.parse(code, new Parser(indentationStep = indentationStep).program(_))
+  }
+}

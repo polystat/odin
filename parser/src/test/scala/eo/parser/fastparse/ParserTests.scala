@@ -105,7 +105,7 @@ class ParserTests extends AnyWordSpec {
   "args" should {
 
     def argsAllInput[_: P] =
-      parseEntireInput(new Objects().args)
+      parseEntireInput(new AnonymousObjects().args)
 
     val correctArgsExamples = List(
       "[a b  c    d...]",
@@ -125,7 +125,7 @@ class ParserTests extends AnyWordSpec {
 
   "abstraction" should {
     def anonymousAbstractionAllInput[_: P] =
-      parseEntireInput(new Objects().anonymousAbstraction)
+      parseEntireInput(new AnonymousObjects().anonymousAbstraction)
 
     val correctExamples = List(
       "simplest possible object" ->
@@ -189,7 +189,7 @@ class ParserTests extends AnyWordSpec {
 
   "application" should {
     def namedApplicationAllInput[_: P] =
-      parseEntireInput(new Objects().namedApplication)
+      parseEntireInput(new NamedObjects().namedApplication)
 
     val correctExamples = List(
       "some simple objects" ->
@@ -258,13 +258,13 @@ class ParserTests extends AnyWordSpec {
     forAll(getListOfFiles("/eo_sources")) {
       source =>
         Paths.get(source).getFileName.toString in {
-          shouldParse(new Objects().program(_), readCodeFrom(source))
+          shouldParse(new Parser().program(_), readCodeFrom(source))
         }
     }
 
     "mutual recursion example" in {
       shouldProduceAST[EOProg[EOExprOnly]](
-        new Objects().program(_),
+        new Parser().program(_),
         MutualRecExample.code,
         MutualRecExample.ast
       )
