@@ -16,7 +16,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '16'
-          cache: 'maven'
       - name: Build the project
         run: sbt compile
 
@@ -31,6 +30,5 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '16'
-          cache: 'maven'
       - name: Build the project
         run: sbt test
