@@ -7,8 +7,4 @@ object text {
 
   def indent: String => String = indentWith(' ')(2)
 
-  def main(args: Array[String]): Unit = {
-    println(indent("hello"))
-  }
-
 }
