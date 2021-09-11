@@ -12,7 +12,8 @@ object Dependencies {
     val monocle = "3.0.0-RC2"
     val parserCombinators = "2.0.0"
     val droste = "0.8.0"
-    val fastparse = "2.3.2"
+    val fastparse = "2.3.3"
+    val pprint = "0.6.6"
   }
 
   val cats = Seq(
@@ -51,12 +52,16 @@ object Dependencies {
     "com.lihaoyi" %% "fastparse" % V.fastparse
   )
 
+  val pprint = Seq(
+    "com.lihaoyi" %% "pprint" % V.pprint
+  )
+
 
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
   val common: Seq[ModuleID] = allCats ++ scalaTest ++ nonEmpty ++ monocle
 
   val core: Seq[ModuleID] = common ++ droste
-  val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse
+  val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse ++ pprint
   val cli: Seq[ModuleID] = common
 }

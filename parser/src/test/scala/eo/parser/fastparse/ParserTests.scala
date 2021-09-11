@@ -3,11 +3,13 @@ package eo.parser.fastparse
 import org.scalatest.wordspec.AnyWordSpec
 import fastparse._
 import NoWhitespace._
+import com.github.tarao.nonempty.collection.NonEmpty
 import eo.core.ast.astparams.EOExprOnly
 import eo.core.ast._
 import eo.parser.{MutualRecExample, SingleLineExamples}
 import org.scalatest.Assertion
 import org.scalatest.Inspectors.forAll
+import pprint.PPrinter
 
 import java.nio.file.{Files, Paths}
 import scala.jdk.CollectionConverters._
@@ -19,6 +21,12 @@ class ParserTests extends AnyWordSpec {
     val code = io.Source.fromFile(fileName)
     try code.mkString finally code.close()
   }
+
+  val astPrinter: PPrinter = pprint.copy(
+    additionalHandlers = {
+      case nonEmpty: NonEmpty[_, _] => pprint.treeify(nonEmpty.value)
+    }
+  )
 
   private def getListOfFiles(dir: String): List[String] = {
     val path = getClass.getResource(dir).toURI
@@ -35,8 +43,8 @@ class ParserTests extends AnyWordSpec {
                     ): Assertion = {
     val parsed = parse(input, parser)
     parsed match {
-      case Parsed.Success(value, _) => println(value)
-      case failure: Parsed.Failure => println(failure.trace())
+      case Parsed.Success(value, _) => astPrinter.pprintln(value)
+      case failure: Parsed.Failure => astPrinter.pprintln(failure.trace())
     }
     assert(check(parsed))
   }
