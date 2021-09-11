@@ -3,13 +3,13 @@ import sbt.Keys._
 
 object Dependencies {
   object V {
-    val cats = "2.6.1"
-    val catsMtl = "1.2.1"
+    val cats = "2.3.0"
+    val catsMtl = "1.2.0"
     val catsEffect = "3.2.5"
     val scalaTest = "3.2.9"
     val scalaCheck = "3.2.9.0"
     val nonEmpty = "0.2.0"
-    val monocle = "3.0.0-RC2"
+    val monocle = "3.1.0"
     val parserCombinators = "2.0.0"
     val droste = "0.8.0"
     val fastparse = "2.3.3"
@@ -36,7 +36,7 @@ object Dependencies {
   )
 
   val monocle = Seq(
-    "dev.optics" %% "monocle-core" % V.monocle,
+    "dev.optics" %% "monocle-core"  % V.monocle,
     "dev.optics" %% "monocle-macro" % V.monocle
   )
 
@@ -63,5 +63,4 @@ object Dependencies {
 
   val core: Seq[ModuleID] = common ++ droste
   val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse ++ pprint
-  val cli: Seq[ModuleID] = common
 }

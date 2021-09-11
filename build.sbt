@@ -2,9 +2,8 @@ ThisBuild / scalaVersion := "2.13.6"
 
 ThisBuild / name := "eo-static-analyzer"
 ThisBuild / organization := "sitiritis"
-ThisBuild / version := "0.1"
 
-val commonSettings = Compiler.settings ++ Seq(
+lazy val commonSettings = Compiler.settings ++ Seq(
   resolvers += Opts.resolver.sonatypeSnapshots
 )
 
