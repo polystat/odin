@@ -3,7 +3,7 @@ package org.polystat.odin.parser.fastparse
 import com.github.tarao.nonempty.collection.NonEmpty
 import org.polystat.odin.core.ast.{EOAnonExpr, EOBnd, EOCopy, EODot, EOExpr, EOSimpleApp}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.fastparse.Utils.createNonEmpty
+import org.polystat.odin.parser.Utils.createNonEmpty
 import fastparse._, SingleLineWhitespace._
 import higherkindness.droste.data.Fix
 

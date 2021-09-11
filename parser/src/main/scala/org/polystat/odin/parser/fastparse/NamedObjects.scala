@@ -3,7 +3,7 @@ package org.polystat.odin.parser.fastparse
 import org.polystat.odin.core.ast.{ConstName, EOAnyNameBnd, EOBndExpr, EOCopy, EODecoration, EOExpr, EONamedBnd, EOObj, LazyName}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.fastparse.SingleLineApplication.singleLineApplication
-import org.polystat.odin.parser.fastparse.Utils.createInverseDot
+import org.polystat.odin.parser.Utils.createInverseDot
 import fastparse._, SingleLineWhitespace._
 import higherkindness.droste.data.Fix
 

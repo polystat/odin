@@ -4,7 +4,7 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import org.polystat.odin.core.ast.{EOBnd, EOBndExpr, LazyName}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.fastparse.Tokens.singleLineWhitespace
-import org.polystat.odin.parser.fastparse.Utils.createNonEmpty
+import org.polystat.odin.parser.Utils.createNonEmpty
 import fastparse._, NoWhitespace._
 
 /**
