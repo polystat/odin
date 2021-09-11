@@ -3,7 +3,7 @@ package org.polystat.odin.analysis.mutualrec.naive.services
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
-import org.polystat.odin.analysis.mutualrec.naive.errors.{ DecorateeNotFound, UnsupportedDecoration }
+import org.polystat.odin.analysis.mutualrec.naive.exceptions.{ DecorateeNotFound, UnsupportedDecoration }
 import TopLevelObject.createTopLevelObject
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
