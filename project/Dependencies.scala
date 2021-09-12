@@ -52,6 +52,10 @@ object Dependencies {
     "co.fs2" %% "fs2-core" % V.fs2
   )
 
+  val `fs2-reactive-streams` = Seq(
+    "co.fs2" %% "fs2-reactive-streams" % V.fs2
+  )
+
   val newTypes = Seq(
     "io.monix" %% "newtypes-core" % V.newTypes
   )
@@ -63,4 +67,5 @@ object Dependencies {
 
   val core: Seq[ModuleID] = common ++ droste ++ fs2
   val parser: Seq[ModuleID] = common ++ parserCombinators
+  val interop: Seq[ModuleID] = common ++ `fs2-reactive-streams`
 }

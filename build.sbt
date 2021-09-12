@@ -8,6 +8,8 @@ ThisBuild / homepage := Some(url("https://github.com/polystat/odin"))
 ThisBuild / description :=
   """Odin (object dependency inspector) — static analyzer for EO source code
     |that detects OOP-related bugs.""".stripMargin
+ThisBuild / sonatypeProfileName := "org.polystat",
+ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 
 lazy val noPublishSettings = Seq(
   publish := {},
@@ -136,9 +138,12 @@ lazy val `eolang-backend` = project
 lazy val interop = project
   .settings(commonSettings)
   .settings(publishSettings)
-  .dependsOn()
+  .dependsOn(
+    analysis
+  )
   .settings(
-    name := "interop"
+    name := "interop",
+    libraryDependencies ++= Dependencies.interop
   )
 
 lazy val sandbox = project
