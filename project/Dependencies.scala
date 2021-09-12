@@ -6,6 +6,7 @@ object Dependencies {
     val cats = "2.3.0"
     val catsMtl = "1.2.0"
     val catsEffect = "3.2.5"
+    val catsParse = "0.3.4"
     val scalaTest = "3.2.9"
     val scalaCheck = "3.2.9.0"
     val nonEmpty = "0.2.0"
@@ -56,11 +57,15 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % V.pprint
   )
 
+  val catsParse = Seq(
+    "org.typelevel" %% "cats-parse" % V.catsParse
+  )
+
 
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
   val common: Seq[ModuleID] = allCats ++ scalaTest ++ nonEmpty ++ monocle
 
   val core: Seq[ModuleID] = common ++ droste
-  val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse ++ pprint
+  val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse ++ pprint ++ catsParse
 }
