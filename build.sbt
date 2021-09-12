@@ -8,7 +8,7 @@ ThisBuild / homepage := Some(url("https://github.com/polystat/odin"))
 ThisBuild / description :=
   """Odin (object dependency inspector) — static analyzer for EO source code
     |that detects OOP-related bugs.""".stripMargin
-ThisBuild / sonatypeProfileName := "org.polystat",
+ThisBuild / sonatypeProfileName := "org.polystat"
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 
 lazy val noPublishSettings = Seq(
