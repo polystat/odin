@@ -1,15 +1,18 @@
 package org.polystat.odin.parser.cats_parse
 
 import org.scalatest.wordspec.AnyWordSpec
-import cats.parse.Parser0
+import cats.parse.{Parser, Parser0}
 import org.polystat.odin.parser.TestUtils.astPrinter
 import org.scalatest.Assertion
 
 
 class ParserTests extends AnyWordSpec {
 
-  def shouldParse[A](parser: Parser0[A], input: String): Assertion = {
-    val parsed = parser.parseAll(input)
+  def shouldParse[A](parser: Either[Parser0[A], Parser[A]], input: String): Assertion = {
+    val parsed = parser match {
+      case Left(value) => value.parseAll(input)
+      case Right(value) => value.parseAll(input)
+    }
     parsed match {
       case Left(value) => println(value)
       case Right(value) => astPrinter.pprintln(value)
@@ -20,7 +23,7 @@ class ParserTests extends AnyWordSpec {
   "tokens" should {
 
     "comments or empty lines" in {
-      shouldParse(Tokens.emptyLinesOrComments,
+      shouldParse(Left(Tokens.emptyLinesOrComments),
         """
           |
           |
@@ -35,22 +38,22 @@ class ParserTests extends AnyWordSpec {
 
   "metas" should {
     "package meta" in {
-      shouldParse(Metas.packageMeta, "+package sandbox")
-      shouldParse(Metas.packageMeta, "+package sandbox")
+      shouldParse(Right(Metas.packageMeta), "+package sandbox")
+      shouldParse(Right(Metas.packageMeta), "+package sandbox")
     }
 
     "alias meta" in {
-      shouldParse(Metas.aliasMeta, "+alias biba boba")
-      shouldParse(Metas.aliasMeta, "+alias stdout org.eolang.io.stdout")
+      shouldParse(Right(Metas.aliasMeta), "+alias biba boba")
+      shouldParse(Right(Metas.aliasMeta), "+alias stdout org.eolang.io.stdout")
     }
 
     "rt meta" in {
-      shouldParse(Metas.rtMeta, "+rt jvm org.eolang:eo-runtime:0.1.24")
-      shouldParse(Metas.rtMeta, "+rt   jvm\t  org.eolang:eo-runtime:0.1.24")
+      shouldParse(Right(Metas.rtMeta), "+rt jvm org.eolang:eo-runtime:0.1.24")
+      shouldParse(Right(Metas.rtMeta), "+rt   jvm\t  org.eolang:eo-runtime:0.1.24")
     }
 
     "all metas (with package)" in {
-      shouldParse(Metas.metas,
+      shouldParse(Left(Metas.metas),
         """
           |
           |+package sandbox
@@ -71,7 +74,7 @@ class ParserTests extends AnyWordSpec {
     }
 
     "all metas (no package)" in {
-      shouldParse(Metas.metas,
+      shouldParse(Left(Metas.metas),
         """+rt jvm org.eolang:eo-runtime:0.1.24
           |# alias meta
           |  # used to rename imported artifacts
@@ -84,7 +87,7 @@ class ParserTests extends AnyWordSpec {
     }
 
     "just package" in {
-      shouldParse(Metas.metas,
+      shouldParse(Left(Metas.metas),
       """
           |# package meta
           |+package sandbox
@@ -93,11 +96,15 @@ class ParserTests extends AnyWordSpec {
     }
 
     "no metas" in {
-      shouldParse(Metas.metas,
+      shouldParse(Left(Metas.metas),
       """
           |
           | # no metas here
           |""".stripMargin)
+    }
+
+    "nothing" in {
+      shouldParse(Left(Metas.metas), "")
     }
   }
 
