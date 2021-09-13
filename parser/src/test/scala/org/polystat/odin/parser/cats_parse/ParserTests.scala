@@ -82,6 +82,23 @@ class ParserTests extends AnyWordSpec {
           |""".stripMargin
       )
     }
+
+    "just package" in {
+      shouldParse(Metas.metas,
+      """
+          |# package meta
+          |+package sandbox
+          |""".stripMargin
+      )
+    }
+
+    "no metas" in {
+      shouldParse(Metas.metas,
+      """
+          |
+          | # no metas here
+          |""".stripMargin)
+    }
   }
 
 
