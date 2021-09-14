@@ -1,11 +1,11 @@
 package org.polystat.odin.parser.fastparse
 
 import com.github.tarao.nonempty.collection.NonEmpty
-import org.polystat.odin.core.ast.{EOBnd, EOBndExpr, LazyName}
+import fastparse.NoWhitespace._
+import fastparse._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.fastparse.Tokens.singleLineWhitespace
+import org.polystat.odin.core.ast.{EOBnd, EOBndExpr}
 import org.polystat.odin.parser.Utils.createNonEmpty
-import fastparse._, NoWhitespace._
 
 /**
  * The base class for both types of objects.
@@ -23,17 +23,6 @@ abstract class RespectsIndentation(
   def deeper[_: P]: P[Int] = P(
     (" " * (indent + indentationStep)).!
   ).map(_.length)
-
-  def args[_: P]: P[(Vector[LazyName], Option[LazyName])] = P(
-    "[" ~
-      (Tokens.identifier | "@").!.rep(sep = singleLineWhitespace) ~ "...".!.? ~
-      "]"
-  ).map {
-    case (args, None) =>
-      (args.map(LazyName).toVector, None)
-    case (args, Some(_)) =>
-      (args.map(LazyName).toVector.init, Some(LazyName(args.last)))
-  }
 
   def boundAttributes[_: P]: P[Vector[EOBndExpr[EOExprOnly]]] = P(
     ("\n" ~ Tokens.emptyLinesOrComments ~ deeper).flatMap(

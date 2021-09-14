@@ -26,7 +26,7 @@ class ParserTests extends AnyWordSpec {
     val parsed = parse(input, parser)
     parsed match {
       case Parsed.Success(value, _) => astPrinter.pprintln(value)
-      case failure: Parsed.Failure => astPrinter.pprintln(failure.trace())
+      case failure: Parsed.Failure => println(failure.trace())
     }
     assert(check(parsed))
   }
@@ -95,7 +95,7 @@ class ParserTests extends AnyWordSpec {
   "args" should {
 
     def argsAllInput[_: P] =
-      parseEntireInput(new AnonymousObjects().args)
+      parseEntireInput(SingleLineApplication.args)
 
     val correctArgsExamples = List(
       "[a b  c    d...]",
@@ -105,10 +105,22 @@ class ParserTests extends AnyWordSpec {
       "[]"
     )
 
+    val incorrectArgsExamples = List(
+      "[",
+      "[...]"
+    )
+
     forAll(correctArgsExamples) {
       example =>
         example in {
           shouldParse(argsAllInput(_), example)
+        }
+    }
+
+    forAll(incorrectArgsExamples) {
+      example =>
+        example in {
+          shouldFailParsing(argsAllInput(_), example)
         }
     }
   }
