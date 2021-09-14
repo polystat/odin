@@ -41,7 +41,7 @@ class Parser(
 object Parser {
   def parse(
              code: String,
-             indentationStep: Int = 0
+             indentationStep: Int = 2
            ): Parsed[EOProg[EOExprOnly]] = {
     fastparse.parse(code, new Parser(indentationStep = indentationStep).program(_))
   }
