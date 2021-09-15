@@ -41,6 +41,4 @@ object Tokens {
     (emptyLine | comment).rep
   )
 
-  def singleLineWhitespace[_: P]: P[Unit] =
-    CharsWhileIn(" \t", 1)
 }

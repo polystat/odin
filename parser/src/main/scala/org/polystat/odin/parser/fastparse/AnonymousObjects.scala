@@ -2,7 +2,7 @@ package org.polystat.odin.parser.fastparse
 
 import org.polystat.odin.core.ast.{EOAnonExpr, EOCopy, EOExpr, EOObj}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.fastparse.SingleLineApplication.singleLineApplication
+import org.polystat.odin.parser.fastparse.SingleLineApplication.{singleLineApplication, args}
 import org.polystat.odin.parser.Utils.createInverseDot
 import fastparse._, SingleLineWhitespace._
 import higherkindness.droste.data.Fix
@@ -36,7 +36,7 @@ class AnonymousObjects(
   }
 
   def anonymousAbstraction[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
-    args ~ boundAttributes.?
+    args ~/ boundAttributes.?
   ).map {
     case (params, vararg, attrs) => EOAnonExpr(
       Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))

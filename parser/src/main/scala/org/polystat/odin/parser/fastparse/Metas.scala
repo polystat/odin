@@ -1,21 +1,22 @@
 package org.polystat.odin.parser.fastparse
 
-import org.polystat.odin.core.ast.{EOAliasMeta, EOMetas, EORTMeta}
-import fastparse._, SingleLineWhitespace._
+import fastparse.SingleLineWhitespace._
+import fastparse._
+import org.polystat.odin.core.ast.{EOAliasMeta, EORTMeta}
 
 object Metas {
-  private def packageMeta[_: P] = P(
-    "+package" ~ packageName.! ~ "\n"
+  def packageMeta[_: P]: P[String] = P(
+    "+package" ~/ packageName.! ~/ "\n"
   )
 
-  private def aliasMeta[_: P] = P(
-    "+alias" ~ aliasName.! ~ packageName.! ~ "\n"
+  def aliasMeta[_: P]: P[EOAliasMeta] = P(
+    "+alias" ~/ aliasName.! ~/ packageName.! ~/ "\n"
   ).map {
     case (alias, src) => EOAliasMeta(alias, src)
   }
 
-  private def rtMeta[_: P] = P(
-    "+rt" ~ aliasName.! ~ artifactId.! ~ "\n"
+  def rtMeta[_: P]: P[EORTMeta] = P(
+    "+rt" ~/ aliasName.! ~/ artifactId.! ~/ "\n"
   ).map {
     case (rtName, src) => EORTMeta(rtName, src)
   }
@@ -28,23 +29,17 @@ object Metas {
 
   // TODO: refine rule
   private def artifactVersion[_: P] =
-    P(Tokens.digit.rep(1).rep(3, sep = "."))
+    P(Tokens.digit.rep(1).rep(3, sep = "."./))
       .map(_.mkString(sep = "."))
 
   // TODO: refine rule
   private def artifactId[_: P] = P(
-    packageName ~ ":" ~ artifactName ~ ":" ~ artifactVersion
+    packageName ~ ":" ~/ artifactName ~ ":" ~/ artifactVersion
   ).map(_.productIterator.mkString(":"))
 
   // TODO: refine rule
   private def packageName[_: P] = P(
-    Tokens.identifier.rep(sep = ".", min = 1)
+    Tokens.identifier.rep(sep = "."./, min = 1)
   ).map(_.mkString(sep = "."))
 
-  def metas[_: P]: P[EOMetas] = P(
-    Tokens.emptyLinesOrComments ~ packageMeta.? ~
-      (Tokens.emptyLinesOrComments ~ (rtMeta | aliasMeta)).rep
-  ).map {
-    case (pkg, metas) => EOMetas(pkg, metas.toVector)
-  }
 }

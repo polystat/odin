@@ -1,12 +1,11 @@
 package org.polystat.odin.parser.fastparse
 
 import com.github.tarao.nonempty.collection.NonEmpty
-import org.polystat.odin.core.ast.{EOBnd, EOBndExpr, LazyName}
+import fastparse._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.fastparse.Tokens.singleLineWhitespace
+import org.polystat.odin.core.ast.{EOBnd, EOBndExpr}
 import org.polystat.odin.parser.Utils.createNonEmpty
-import fastparse._, NoWhitespace._
-
+import org.polystat.odin.parser.fastparse.IgnoreEmptyLinesOrComments._
 /**
  * The base class for both types of objects.
  * It contains some indentation handling parsers (like deeper) and
@@ -24,29 +23,18 @@ abstract class RespectsIndentation(
     (" " * (indent + indentationStep)).!
   ).map(_.length)
 
-  def args[_: P]: P[(Vector[LazyName], Option[LazyName])] = P(
-    "[" ~
-      (Tokens.identifier | "@").!.rep(sep = singleLineWhitespace) ~ "...".!.? ~
-      "]"
-  ).map {
-    case (args, None) =>
-      (args.map(LazyName).toVector, None)
-    case (args, Some(_)) =>
-      (args.map(LazyName).toVector.init, Some(LazyName(args.last)))
-  }
-
   def boundAttributes[_: P]: P[Vector[EOBndExpr[EOExprOnly]]] = P(
-    ("\n" ~ Tokens.emptyLinesOrComments ~ deeper).flatMap(
+    ("\n" ~ deeper)./.flatMapX(
       i => new NamedObjects(indent = i).namedObject
-        .rep(sep = "\n" ~ Tokens.emptyLinesOrComments ~ (" " * i))
+        .repX(sep = ("\n" ~ (" " * i))./)
     )
   ).map(_.toVector)
 
   def verticalApplicationArgs[_: P]
   : P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = P(
-    ("\n" ~ Tokens.emptyLinesOrComments ~ deeper).flatMap(
+    ("\n" ~ deeper)./.flatMapX(
       i => new Parser(indent = i).`object`
-        .rep(1, sep = "\n" ~ Tokens.emptyLinesOrComments ~ (" " * i))
+        .repX(1, sep = ("\n" ~ (" " * i))./)
     )
   ).map(createNonEmpty)
 

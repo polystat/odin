@@ -2,7 +2,7 @@ package org.polystat.odin.parser.fastparse
 
 import org.scalatest.wordspec.AnyWordSpec
 import fastparse._
-import NoWhitespace._
+import IgnoreEmptyLinesOrComments._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.TestUtils.{astPrinter, fileNameOf, getListOfFiles, readCodeFrom}
@@ -26,7 +26,7 @@ class ParserTests extends AnyWordSpec {
     val parsed = parse(input, parser)
     parsed match {
       case Parsed.Success(value, _) => astPrinter.pprintln(value)
-      case failure: Parsed.Failure => astPrinter.pprintln(failure.trace())
+      case failure: Parsed.Failure => println(failure.trace())
     }
     assert(check(parsed))
   }
@@ -68,15 +68,22 @@ class ParserTests extends AnyWordSpec {
   }
 
   "metas" should {
-    def metasAllInput[_: P]: P[EOMetas] = parseEntireInput(Metas.metas)
+    def metasAllInput[_: P]: P[EOMetas] = parseEntireInput(new Parser().metas)
 
     "be recognized correctly" in {
       shouldParse(metasAllInput(_),
         """
           |
+          |# start
+          |
           |+package sandbox
           |
+          |# meta specifying the current runtime for eo
           |+rt jvm org.eolang:eo-runtime:0.1.24
+          |
+          |# meta used to rename imported packages
+          |  # can be used to resolve name conflicts or
+          |  # to make the names more succinct
           |+alias stdout org.eolang.io.stdout
           |
           |
@@ -95,7 +102,7 @@ class ParserTests extends AnyWordSpec {
   "args" should {
 
     def argsAllInput[_: P] =
-      parseEntireInput(new AnonymousObjects().args)
+      parseEntireInput(SingleLineApplication.args)
 
     val correctArgsExamples = List(
       "[a b  c    d...]",
@@ -105,10 +112,22 @@ class ParserTests extends AnyWordSpec {
       "[]"
     )
 
+    val incorrectArgsExamples = List(
+      "[",
+      "[...]"
+    )
+
     forAll(correctArgsExamples) {
       example =>
         example in {
           shouldParse(argsAllInput(_), example)
+        }
+    }
+
+    forAll(incorrectArgsExamples) {
+      example =>
+        example in {
+          shouldFailParsing(argsAllInput(_), example)
         }
     }
   }

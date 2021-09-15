@@ -1,13 +1,30 @@
 package org.polystat.odin.parser.fastparse
 
 import com.github.tarao.nonempty.collection.NonEmpty
-import org.polystat.odin.core.ast.{EOAnonExpr, EOBnd, EOCopy, EODot, EOExpr, EOSimpleApp}
+import org.polystat.odin.core.ast.{EOAnonExpr, EOBnd, EOCopy, EODot, EOExpr, EOSimpleApp, LazyName}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.Utils.createNonEmpty
-import fastparse._, SingleLineWhitespace._
+import fastparse._
+import SingleLineWhitespace._
 import higherkindness.droste.data.Fix
 
+
 object SingleLineApplication {
+
+  def parameterName[_: P]: P[LazyName] = P(
+    Tokens.identifier | P("@").map(_ => "@")
+  ).map(LazyName)
+
+
+  def args[_: P]: P[(Vector[LazyName], Option[LazyName])] =
+    P("[" ~
+      (
+        (parameterName.rep(1) ~ "...").map(params => (params.init.toVector, Some(params.last))) |
+          parameterName.rep.map(params => (params.toVector, None))
+        )
+      ~ "]"
+    )
+
 
   def attributeName[_: P]: P[String] = (Tokens.identifier | "$" | "@" | "^").!
 
