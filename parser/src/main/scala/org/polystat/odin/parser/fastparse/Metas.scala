@@ -1,20 +1,21 @@
 package org.polystat.odin.parser.fastparse
 
-import org.polystat.odin.core.ast.{EOAliasMeta, EOMetas, EORTMeta}
-import fastparse._, SingleLineWhitespace._
+import fastparse.SingleLineWhitespace._
+import fastparse._
+import org.polystat.odin.core.ast.{EOAliasMeta, EORTMeta}
 
 object Metas {
-  private def packageMeta[_: P] = P(
+  def packageMeta[_: P]: P[String] = P(
     "+package" ~ packageName.! ~ "\n"
   )
 
-  private def aliasMeta[_: P] = P(
+  def aliasMeta[_: P]: P[EOAliasMeta] = P(
     "+alias" ~ aliasName.! ~ packageName.! ~ "\n"
   ).map {
     case (alias, src) => EOAliasMeta(alias, src)
   }
 
-  private def rtMeta[_: P] = P(
+  def rtMeta[_: P]: P[EORTMeta] = P(
     "+rt" ~ aliasName.! ~ artifactId.! ~ "\n"
   ).map {
     case (rtName, src) => EORTMeta(rtName, src)
@@ -41,10 +42,4 @@ object Metas {
     Tokens.identifier.rep(sep = ".", min = 1)
   ).map(_.mkString(sep = "."))
 
-  def metas[_: P]: P[EOMetas] = P(
-    Tokens.emptyLinesOrComments ~ packageMeta.? ~
-      (Tokens.emptyLinesOrComments ~ (rtMeta | aliasMeta)).rep
-  ).map {
-    case (pkg, metas) => EOMetas(pkg, metas.toVector)
-  }
 }

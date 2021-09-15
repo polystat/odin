@@ -4,11 +4,12 @@ import fastparse._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 import IgnoreEmptyLinesOrComments._
-
+import org.polystat.odin.parser.fastparse.Metas.{packageMeta, rtMeta, aliasMeta}
 
 
 /**
  * Contains the entrypoint for the parser
+ *
  * @param indent          the spaces before the statements in the outermost block
  * @param indentationStep InnerBlockIndentation minus OuterBlockIndentation
  */
@@ -18,9 +19,16 @@ class Parser(
             ) extends RespectsIndentation {
 
 
+  def metas[_: P]: P[EOMetas] = P(
+    packageMeta.? ~
+      (rtMeta | aliasMeta).rep
+  ).map {
+    case (pkg, metas) => EOMetas(pkg, metas.toVector)
+  }
+
   def program[_: P]: P[EOProg[EOExprOnly]] = P(
     Start ~
-      Metas.metas ~
+      metas ~
       `object`.rep ~
       End
   ).map {
