@@ -36,7 +36,7 @@ class AnonymousObjects(
   }
 
   def anonymousAbstraction[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
-    args ~ boundAttributes.?
+    args ~/ boundAttributes.?
   ).map {
     case (params, vararg, attrs) => EOAnonExpr(
       Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))

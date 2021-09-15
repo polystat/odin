@@ -11,12 +11,12 @@ import higherkindness.droste.data.Fix
 
 object SingleLineApplication {
 
-  def parameterName[_: P] = P(
+  def parameterName[_: P]: P[LazyName] = P(
     Tokens.identifier | P("@").map(_ => "@")
   ).map(LazyName)
 
 
-  def args[_: P] =
+  def args[_: P]: P[(Vector[LazyName], Option[LazyName])] =
     P("[" ~
       (
         (parameterName.rep(1) ~ "...").map(params => (params.init.toVector, Some(params.last))) |
