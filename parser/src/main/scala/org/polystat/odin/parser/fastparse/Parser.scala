@@ -20,16 +20,16 @@ class Parser(
 
 
   def metas[_: P]: P[EOMetas] = P(
-    packageMeta.? ~
-      (rtMeta | aliasMeta).rep
+    packageMeta.? ~/
+      (rtMeta | aliasMeta)./.rep
   ).map {
     case (pkg, metas) => EOMetas(pkg, metas.toVector)
   }
 
   def program[_: P]: P[EOProg[EOExprOnly]] = P(
-    Start ~
-      metas ~
-      `object`.rep ~
+    Start ~/
+      metas ~/
+      `object`./.rep ~
       End
   ).map {
     case (metas, objs) => EOProg(

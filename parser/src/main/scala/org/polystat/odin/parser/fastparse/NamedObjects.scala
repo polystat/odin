@@ -12,8 +12,8 @@ class NamedObjects(
                     override val indentationStep: Int = 2
                   ) extends RespectsIndentation {
 
-  def name[_: P]: P[EONamedBnd] = P(">" ~
-      (Tokens.identifier | "@").! ~ "!".!.?
+  def name[_: P]: P[EONamedBnd] = P(
+    ">" ~/ (Tokens.identifier | "@").! ~ "!".!.?
   ).map {
     case ("@", None) => EODecoration
     case (name, Some(_)) => EOAnyNameBnd(ConstName(name))
@@ -28,21 +28,21 @@ class NamedObjects(
   )
 
   def namedRegularApplication[_: P]: P[EOBndExpr[EOExprOnly]] = P(
-    singleLineApplication ~ name ~ verticalApplicationArgs.?
+    singleLineApplication ~ name ~/ verticalApplicationArgs.?
   ).map {
     case (trg, name, Some(args)) => EOBndExpr(name, Fix[EOExpr](EOCopy(trg, args)))
     case (trg, name, None) => EOBndExpr(name, trg)
   }
 
   def namedInverseDotApplication[_: P]: P[EOBndExpr[EOExprOnly]] = P(
-    Tokens.identifier ~ "." ~ name ~ verticalApplicationArgs
+    Tokens.identifier ~ "." ~ name ~/ verticalApplicationArgs
   ).map {
     case (id, name, args) => EOBndExpr(name, createInverseDot(id, args))
   }
 
 
   def namedAbstraction[_: P]: P[EOBndExpr[EOExprOnly]] = P(
-    args ~ name ~ boundAttributes.?
+    args ~ name ~/ boundAttributes.?
   ).map {
     case (params, vararg, name, attrs) => EOBndExpr(
       name,

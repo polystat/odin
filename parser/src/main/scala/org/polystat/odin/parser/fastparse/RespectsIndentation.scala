@@ -24,17 +24,17 @@ abstract class RespectsIndentation(
   ).map(_.length)
 
   def boundAttributes[_: P]: P[Vector[EOBndExpr[EOExprOnly]]] = P(
-    ("\n" ~ deeper).flatMapX(
+    ("\n" ~ deeper)./.flatMapX(
       i => new NamedObjects(indent = i).namedObject
-        .repX(sep = "\n" ~ (" " * i))
+        .repX(sep = ("\n" ~ (" " * i))./)
     )
   ).map(_.toVector)
 
   def verticalApplicationArgs[_: P]
   : P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = P(
-    ("\n" ~ deeper).flatMapX(
+    ("\n" ~ deeper)./.flatMapX(
       i => new Parser(indent = i).`object`
-        .repX(1, sep = "\n" ~ (" " * i))
+        .repX(1, sep = ("\n" ~ (" " * i))./)
     )
   ).map(createNonEmpty)
 
