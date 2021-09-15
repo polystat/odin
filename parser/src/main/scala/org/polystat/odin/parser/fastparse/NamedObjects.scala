@@ -12,7 +12,7 @@ class NamedObjects(
                     override val indentationStep: Int = 2
                   ) extends RespectsIndentation {
 
-  def name[_: P]: P[EONamedBnd] = P(Pass ~ ">" ~
+  def name[_: P]: P[EONamedBnd] = P(">" ~
       (Tokens.identifier | "@").! ~ "!".!.?
   ).map {
     case ("@", None) => EODecoration
