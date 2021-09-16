@@ -2,7 +2,7 @@ ThisBuild / scalaVersion := "2.13.6"
 
 ThisBuild / name := "odin-project"
 ThisBuild / organization := "org.polystat.odin"
-ThisBuild / organizationName := "polystat"
+ThisBuild / organizationName := "org.polystat"
 ThisBuild / organizationHomepage := Some(url("https://github.com/polystat"))
 ThisBuild / homepage := Some(url("https://github.com/polystat/odin"))
 ThisBuild / description :=
@@ -48,6 +48,7 @@ lazy val publishSettings = Seq(
   },
   publishArtifact := true,
   publishMavenStyle := true,
+  sonatypeProfileName := "org.polystat",
 )
 
 lazy val commonSettings = Compiler.settings ++ Seq(
