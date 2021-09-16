@@ -1,11 +1,12 @@
 package org.polystat.odin.parser.fastparse
 
-import org.polystat.odin.core.ast.{ConstName, EOAnyNameBnd, EOBndExpr, EOCopy, EODecoration, EOExpr, EONamedBnd, EOObj, LazyName}
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.fastparse.SingleLineApplication.{singleLineApplication, args}
-import org.polystat.odin.parser.Utils.createInverseDot
-import fastparse._, SingleLineWhitespace._
+import fastparse.SingleLineWhitespace._
+import fastparse._
 import higherkindness.droste.data.Fix
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.core.ast._
+import org.polystat.odin.parser.Utils.{createArrayFromNonEmpty, createInverseDot}
+import org.polystat.odin.parser.fastparse.SingleLineApplication.{args, singleLineApplication}
 
 class NamedObjects(
                     override val indent: Int = 0,
@@ -38,6 +39,15 @@ class NamedObjects(
     Tokens.identifier ~ "." ~ name ~/ verticalApplicationArgs
   ).map {
     case (id, name, args) => EOBndExpr(name, createInverseDot(id, args))
+  }
+
+  def namedVerticalArray[_: P]: P[EOBndExpr[EOExprOnly]] = P(
+    "*" ~ name ~/ verticalApplicationArgs.?
+  ).map {
+    case (name, args) => EOBndExpr(
+      bndName = name,
+      expr = createArrayFromNonEmpty(args)
+    )
   }
 
 

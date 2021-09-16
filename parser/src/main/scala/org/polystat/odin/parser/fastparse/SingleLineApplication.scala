@@ -1,12 +1,12 @@
 package org.polystat.odin.parser.fastparse
 
 import com.github.tarao.nonempty.collection.NonEmpty
-import org.polystat.odin.core.ast.{EOAnonExpr, EOBnd, EOCopy, EODot, EOExpr, EOSimpleApp, LazyName}
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.Utils.createNonEmpty
+import fastparse.SingleLineWhitespace._
 import fastparse._
-import SingleLineWhitespace._
 import higherkindness.droste.data.Fix
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.core.ast._
+import org.polystat.odin.parser.Utils.createNonEmpty
 
 
 object SingleLineApplication {
@@ -59,6 +59,14 @@ object SingleLineApplication {
   }
 
   def singleLineApplication[_: P]: P[EOExprOnly] = P(
-    justApplication | parenthesized | applicationTarget
+    justApplication | parenthesized | applicationTarget | singleLineArray
   )
+
+  def singleLineArray[_: P]: P[EOExprOnly] = P(
+    "*" ~ (parenthesized | applicationTarget).rep
+  ).map {
+    elems => Fix[EOExpr](EOArray(
+      elems.map(EOAnonExpr(_)).toVector
+    ))
+  }
 }

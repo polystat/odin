@@ -6,6 +6,16 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 
 object Utils {
+
+  def createArrayFromNonEmpty(ne: Option[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]]): EOExprOnly = {
+    Fix[EOExpr](EOArray(
+      ne match {
+        case Some(value) => value
+        case None => Vector()
+      }
+    ))
+  }
+
   def createNonEmpty(objs: Seq[EOBnd[EOExprOnly]])
   : NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
     NonEmpty.from(objs) match {
