@@ -1,11 +1,12 @@
 package org.polystat.odin.parser.fastparse
 
-import org.polystat.odin.core.ast.{EOAnonExpr, EOCopy, EOExpr, EOObj}
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.fastparse.SingleLineApplication.{singleLineApplication, args}
-import org.polystat.odin.parser.Utils.createInverseDot
-import fastparse._, SingleLineWhitespace._
+import fastparse.SingleLineWhitespace._
+import fastparse._
 import higherkindness.droste.data.Fix
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.core.ast._
+import org.polystat.odin.parser.Utils.{createArrayFromNonEmpty, createInverseDot}
+import org.polystat.odin.parser.fastparse.SingleLineApplication.{args, singleLineApplication}
 
 class AnonymousObjects(
                         override val indent: Int = 0,
@@ -33,6 +34,12 @@ class AnonymousObjects(
     Tokens.identifier ~ "." ~ verticalApplicationArgs
   ).map {
     case (id, args) => EOAnonExpr(createInverseDot(id, args))
+  }
+
+  def namedVerticalArray[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
+    "*" ~/ verticalApplicationArgs.?
+  ).map {
+    args => EOAnonExpr(createArrayFromNonEmpty(args))
   }
 
   def anonymousAbstraction[_: P]: P[EOAnonExpr[EOExprOnly]] = P(

@@ -263,6 +263,59 @@ class ParserTests extends AnyWordSpec {
     }
   }
 
+  "arrays" should {
+
+    val correctExamples = List(
+      "simple single line array" ->
+        """
+          |* "Lucy" "Jeff" 314 > stuff
+          |""".stripMargin
+      ,
+
+      "nested single line array" ->
+        """
+          |* (* deep stuff here) 'a' 'b' 'c' > some_deep_stuff
+          |
+          |""".stripMargin
+      ,
+    "simple multiline array" ->
+      """
+        |*
+        |  "hello"
+        |  "world"
+        |  'I'
+        |  "am"
+        |  "array"
+        |  "I have no name"
+        |""".stripMargin
+      ,
+    "nested multiline array" ->
+      """
+        |* > cool
+        |  "hello"
+        |  "world"
+        |  *
+        |    'I'
+        |    "am"
+        |    "array"
+        |  *
+        |    *
+        |      "My name is cool"
+        |      *
+        |        *
+        |          literally
+        |""".stripMargin
+
+    )
+
+    forAll(correctExamples) {
+      case (label, example) =>
+        label in {
+          shouldParse(new Parser().program(_), example)
+        }
+    }
+  }
+
   "existing programs" should {
     forAll(getListOfFiles("/eo_sources")) {
       source =>
