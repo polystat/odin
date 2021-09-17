@@ -18,9 +18,9 @@ object Tokens {
   lazy val lowercase: P[Char] = P.charIn('a' to 'z')
   lazy val identifier: P[String] = (
     lowercase ~
-      (letter | digit | P.charIn('-') | P.charIn('_')).rep
+      (letter | digit | P.charIn('-') | P.charIn('_')).rep0
     ).map {
-    case (c, value) => (c :: value).toList.mkString
+    case (c, value) => (c :: value).mkString
   }
 
 
