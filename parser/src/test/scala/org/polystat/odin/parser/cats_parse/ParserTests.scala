@@ -8,7 +8,14 @@ import org.scalatest.Assertion
 
 class ParserTests extends AnyWordSpec {
 
-  def shouldParse[A](parser: Either[Parser0[A], Parser[A]], input: String): Assertion = {
+  type ParserType[A] = Either[Parser0[A], Parser[A]]
+
+  def checkParser[A](
+                      check: Either[Parser.Error, A] => Boolean
+                    )(
+                      parser: ParserType[A],
+                      input: String)
+  : Assertion = {
     val parsed = parser match {
       case Left(value) => value.parseAll(input)
       case Right(value) => value.parseAll(input)
@@ -17,7 +24,15 @@ class ParserTests extends AnyWordSpec {
       case Left(value) => println(value)
       case Right(value) => astPrinter.pprintln(value)
     }
-    assert(parsed.isRight)
+    assert(check(parsed))
+  }
+
+  def shouldParse[A]: (ParserType[A], String) => Assertion = {
+    checkParser[A](_.isRight)
+  }
+
+  def shouldFailParsing[A]: (ParserType[A], String) => Assertion = {
+    checkParser(_.isLeft)
   }
 
   "tokens" should {
@@ -88,7 +103,7 @@ class ParserTests extends AnyWordSpec {
 
     "just package" in {
       shouldParse(Left(Metas.metas),
-      """
+        """
           |# package meta
           |+package sandbox
           |""".stripMargin
@@ -97,7 +112,7 @@ class ParserTests extends AnyWordSpec {
 
     "no metas" in {
       shouldParse(Left(Metas.metas),
-      """
+        """
           |
           | # no metas here
           |""".stripMargin)
@@ -105,6 +120,31 @@ class ParserTests extends AnyWordSpec {
 
     "nothing" in {
       shouldParse(Left(Metas.metas), "")
+    }
+  }
+
+  "params" should {
+    "empty" in {
+      shouldParse(Right(SingleLine.params), "[]")
+    }
+    "no varargs" in {
+      shouldParse(Right(SingleLine.params), "[a-a b c]")
+    }
+    "only phi" in {
+      shouldParse(Right(SingleLine.params), "[@]")
+    }
+    "varargs" in {
+      shouldParse(Right(SingleLine.params), "[a b c...]")
+    }
+    "vararg phi" in {
+      shouldParse(Right(SingleLine.params), "[@...]")
+    }
+    "fail" in {
+      shouldFailParsing(Right(SingleLine.params), "[...]")
+      shouldFailParsing(Right(SingleLine.params), "[")
+      shouldFailParsing(Right(SingleLine.params), "[a..]")
+      shouldFailParsing(Right(SingleLine.params), "[a a a a a a a..]")
+      shouldFailParsing(Right(SingleLine.params), "[a  ...]")
     }
   }
 
