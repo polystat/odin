@@ -4,7 +4,7 @@ import cats.data.OptionT
 import cats.effect.Sync
 import cats.effect.Ref
 import cats.implicits._
-import org.polystat.odin.analysis.mutualrec.naive.errors.DuplicatedMethodAttributes
+import org.polystat.odin.analysis.mutualrec.naive.exceptions.DuplicatedMethodAttributes
 import MethodAttribute.createMethodAttribute
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
