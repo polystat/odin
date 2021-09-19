@@ -1,12 +1,12 @@
 package org.polystat.odin.parser.cats_parse
 
-import cats.parse.Parser.void
-import cats.parse.Rfc5234.{crlf, lf, wsp}
-import cats.parse.{Parser0, Parser => P}
+import cats.parse.Rfc5234.{crlf, lf}
+import cats.parse.{Parser => P, _}
 
 object Tokens {
 
-  val singleLineWhitespace: P[Unit] = void(wsp.rep(1))
+  val wsp: P[Unit] = Rfc5234.wsp.rep(1).void
+  val optWsp: Parser0[Unit] = wsp.?.void
   val eol: P[Unit] = (wsp.rep0.with1 ~ (crlf | lf)).void
   val emptyLinesOrComments: Parser0[Unit] = (
     (wsp.rep0 *> (P.char('#') *> P.charsWhile0(_ != '\n')).?).with1 *>
@@ -22,6 +22,15 @@ object Tokens {
     ).map {
     case (c, value) => (c :: value).mkString
   }
+  val float: P[Float] = Numbers.jsonNumber.map(_.toFloat)
+  val integer: P[Int] = Numbers.signedIntString.map(_.toInt)
+  val string: P[String] = JsonStringUtil.escapedString('\"')
 
+  val char: P[Char] =
+    (
+      JsonStringUtil.escapedToken.backtrack |
+        P.charWhere(c => c != '\n' && c != '\'')
+      )
+      .surroundedBy(P.char('\''))
 
 }

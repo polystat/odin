@@ -17,6 +17,7 @@ object Dependencies {
     val pprint = "0.6.6"
     val fs2 = "3.1.1"
     val newTypes = "0.0.1"
+    val apacheCommons = "1.9"
   }
 
   val cats = Seq(
@@ -71,6 +72,10 @@ object Dependencies {
     "org.typelevel" %% "cats-parse" % V.catsParse
   )
 
+  val apacheCommons = Seq(
+    "org.apache.commons" % "commons-text" % V.apacheCommons
+  )
+
 
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
@@ -79,5 +84,5 @@ object Dependencies {
 
   val core: Seq[ModuleID] = common ++ droste ++ fs2
   val interop: Seq[ModuleID] = common
-  val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse ++ pprint ++ catsParse
+  val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse ++ pprint ++ catsParse ++ apacheCommons
 }

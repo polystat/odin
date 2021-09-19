@@ -1,9 +1,10 @@
 package org.polystat.odin.parser.cats_parse
 
-import org.scalatest.wordspec.AnyWordSpec
 import cats.parse.{Parser, Parser0}
 import org.polystat.odin.parser.TestUtils.astPrinter
 import org.scalatest.Assertion
+import org.scalatest.Inspectors.forAll
+import org.scalatest.wordspec.AnyWordSpec
 
 
 class ParserTests extends AnyWordSpec {
@@ -16,12 +17,13 @@ class ParserTests extends AnyWordSpec {
                       parser: ParserType[A],
                       input: String)
   : Assertion = {
+    val pp = new Prettyprint(input = input)
     val parsed = parser match {
       case Left(value) => value.parseAll(input)
       case Right(value) => value.parseAll(input)
     }
     parsed match {
-      case Left(value) => println(value)
+      case Left(value) => println(pp.prettyprint(value))
       case Right(value) => astPrinter.pprintln(value)
     }
     assert(check(parsed))
@@ -47,6 +49,26 @@ class ParserTests extends AnyWordSpec {
           |
           |  # 32434123
           |""".stripMargin)
+    }
+
+    "strings" in {
+      shouldParse(Right(Tokens.string),
+        """"\nHello,\n\r\tthis is a 'char'\n\t\b\tand this is a \"string\"\n""""
+      )
+      shouldParse(Right(Tokens.string), 
+      "\"\\u043F\\u0440\\u0438\\u0432\\u0435\\u0442\\u002C\\u0020\\u044F\\u0020\\u0027\\u0441\\u0438\\u043C" +
+        "\\u0432\\u043E\\u043B\\u0027\\u002C\\u0020\\u0430\\u0020\\u044D\\u0442\\u043E\\u0020\\u0022\\u0441\\u0442" +
+        "\\u0440\\u043E\\u0447\\u043A\\u0430\\u0022\"")
+      shouldParse(Right(Tokens.string),
+      "\"\\u60e3\\u6d41\\u00b7\\u660e\\u65e5\\u9999\\u00b7\\u5170\\u683c\\u96f7\"")
+    }
+    "chars" in {
+      shouldParse(Right(Tokens.char), """'\n'""")
+      shouldParse(Right(Tokens.char), """'\t'""")
+      shouldParse(Right(Tokens.char), """'A'""")
+      shouldParse(Right(Tokens.char), "\'\\u0416\'")
+      shouldParse(Right(Tokens.char), "\'Ж\'")
+      shouldParse(Right(Tokens.char), "\'\\u9999\'")
     }
 
   }
@@ -123,7 +145,7 @@ class ParserTests extends AnyWordSpec {
     }
   }
 
-  "params" should {
+  "abstraction params" should {
     "empty" in {
       shouldParse(Right(SingleLine.params), "[]")
     }
@@ -141,7 +163,7 @@ class ParserTests extends AnyWordSpec {
     }
     "fail" in {
       shouldFailParsing(Right(SingleLine.params), "[...]")
-      shouldFailParsing(Right(SingleLine.params), "[")
+//      shouldFailParsing(Right(SingleLine.params), "[" )
       shouldFailParsing(Right(SingleLine.params), "[a..]")
       shouldFailParsing(Right(SingleLine.params), "[a a a a a a a..]")
       shouldFailParsing(Right(SingleLine.params), "[a  ...]")
