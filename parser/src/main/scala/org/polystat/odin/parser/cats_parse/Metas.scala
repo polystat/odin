@@ -1,23 +1,25 @@
 package org.polystat.odin.parser.cats_parse
 
+import cats.parse.SemVer.semverString
 import cats.parse.{Parser0, Parser => P}
 import org.polystat.odin.core.ast.{EOAliasMeta, EOMetas, EORTMeta}
+import org.polystat.odin.parser.cats_parse.Tokens._
+
 
 object Metas {
 
-  private val packageName = {
-    Tokens.identifier.repSep(1, P.char('.'))
+  private val packageName =
+    identifier.repSep(1, P.char('.'))
       .map(_.toList.mkString("."))
-  }
 
   val packageMeta: P[String] =
-    P.string("+package") *> Tokens.singleLineWhitespace *> packageName
+    P.string("+package") *> wsp *> packageName
 
-  private val aliasName = Tokens.identifier
+  private val aliasName = identifier
 
   val aliasMeta: P[EOAliasMeta] = (
     P.string("+alias") *>
-      aliasName.surroundedBy(Tokens.singleLineWhitespace) ~
+      aliasName.surroundedBy(wsp) ~
         packageName
     ).map {
     case (alias, src) => EOAliasMeta(alias, src)
@@ -26,15 +28,8 @@ object Metas {
 
   private val artifactId = {
 
-    val artifactName = Tokens.identifier
-
-    val artifactVersion =
-      Tokens.digit.rep(1).repSep(3, P.string("."))
-        .map {
-          lst =>
-            lst.map(_.toList.mkString)
-              .toList.mkString(".")
-        }
+    val artifactName = identifier
+    val artifactVersion = semverString
 
     (
       packageName ~
@@ -47,15 +42,15 @@ object Metas {
 
   val rtMeta: P[EORTMeta] = (
     P.string("+rt") *>
-      aliasName.surroundedBy(Tokens.singleLineWhitespace) ~
+      aliasName.surroundedBy(wsp) ~
         artifactId
     ).map {
     case (alias, src) => EORTMeta(alias, src)
   }
 
   val metas: Parser0[EOMetas] = (
-    (Tokens.emptyLinesOrComments *> (packageMeta <* Tokens.eol).?) ~
-      (Tokens.emptyLinesOrComments.with1 *> ((rtMeta | aliasMeta) <* Tokens.eol)).rep0
+    (emptyLinesOrComments *> (packageMeta <* eol).?) ~
+      (emptyLinesOrComments.with1 *> ((rtMeta | aliasMeta) <* eol)).rep0
     ).map {
     case (pkg, metas) => EOMetas(pkg, metas.toVector)
   }
