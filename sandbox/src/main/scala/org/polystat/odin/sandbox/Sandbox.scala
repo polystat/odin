@@ -1,8 +1,9 @@
 package org.polystat.odin.sandbox
 
-import cats.effect.{ ExitCode, IO, IOApp, Resource }
+import cats.effect.{ ExitCode, IO, IOApp, Resource, Sync }
 import cats.implicits._
-import org.polystat.odin.analysis.mutualrec.naive.mutualrec.{ findMutualRecursionInTopLevelObjects, resolveMethodsReferencesForEOProgram }
+import org.polystat.odin.analysis.EOOdinAnalyzer
+import org.polystat.odin.analysis.mutualrec.naive.{ findMutualRecursionInTopLevelObjects, resolveMethodsReferencesForEOProgram }
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.backend.eolang.inlineorlines.ops._
@@ -54,4 +55,13 @@ object Sandbox extends IOApp {
       }
     )
   } yield exitCode
+
+  // Easy way to run all available analysis and print the results for EO source
+  // code
+  private def analyzeEoSourceCodeAndPrintErrors[F[_]: Sync](
+    code: String
+  ): F[Unit] = for {
+    errors <- EOOdinAnalyzer.impl.analyzeSourceCode(code).compile.toVector
+    _ <- Sync[F].delay(errors.map(_.tap(println)))
+  } yield ()
 }

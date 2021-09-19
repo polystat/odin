@@ -1,4 +1,4 @@
-package org.polystat.odin.analysis.mutualrec.naive
+package org.polystat.odin.analysis.mutualrec
 
 import cats._
 import cats.data.Chain
@@ -11,7 +11,7 @@ import org.polystat.odin.analysis.mutualrec.naive.services.{ MethodAttribute, To
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast.{ EOArray, EOBndExpr, EOCopy, EODot, EOObj, EOProg, EOSimpleApp }
 
-object mutualrec {
+package object naive {
   def resolveTopLevelObjectsAndAttrs[F[_] : Monad](
     eoProg: EOProg[EOExprOnly]
   )(
@@ -184,4 +184,11 @@ object mutualrec {
       recDeps <- recDepsForMethods.sequence
     } yield recDeps
   }
+
+  def findMutualRecursionFromAst[F[_] : Sync](
+    program: EOProg[EOExprOnly]
+  ): F[Vector[MethodRecursiveDependency[F]]] = for {
+    topLevelObjects <- resolveMethodsReferencesForEOProgram(program)
+    mutualRec <- findMutualRecursionInTopLevelObjects(topLevelObjects)
+  } yield mutualRec
 }
