@@ -11,6 +11,7 @@ object TestUtils {
   val astPrinter: PPrinter = pprint.copy(
     additionalHandlers = {
       case nonEmpty: NonEmpty[_, _] => pprint.treeify(nonEmpty.value)
+      case s: String => pprint.Tree.Literal(s)
     }
   )
 
