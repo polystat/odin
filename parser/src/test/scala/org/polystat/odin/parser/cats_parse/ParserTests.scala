@@ -61,6 +61,10 @@ class ParserTests extends AnyWordSpec {
         "\\u0440\\u043E\\u0447\\u043A\\u0430\\u0022\"")
       shouldParse(Right(Tokens.string),
       "\"\\u60e3\\u6d41\\u00b7\\u660e\\u65e5\\u9999\\u00b7\\u5170\\u683c\\u96f7\"")
+      shouldParse(Right(Tokens.string),
+        "\"\\\\u0416 != \\u0416\""
+      )
+
     }
     "chars" in {
       shouldParse(Right(Tokens.char), """'\n'""")
