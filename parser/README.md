@@ -3,9 +3,9 @@
 ## Description
 
 This submodule holds the source code for EO parser written in Scala using a library
-called [`fastparse`](https://github.com/scala/scala-parser-combinators). It should recognize any valid EO
+called [`fastparse`](https://github.com/com-lihaoyi/fastparse). It should recognize any valid EO
 program and produce an AST defined in
-the [`core`](https://github.com/Sitiritis/eo-static-analyzer/tree/master/core/src/main/scala/eo/core/ast) module.
+the `core` module.
 
 ### Missing functionality
 A part of the syntax features defined in the paper is missing in the implementation of this parser, namely:
@@ -23,7 +23,7 @@ specifics of Tymur's AST and the `fastparse` library, there were some diversions
 
 ### Tests
 
-Most of EO programs that were used to test this parser (but not all) are
+Most EO programs that were used to test this parser (but not all) are
 available in `parser/src/test/resources/eo_sources`.
 The tests themselves can be found in the form of ScalaTest unit 
 tests in `parser/src/test/scala/org/polystat/odin/parser/fastparse`.
