@@ -5,17 +5,17 @@ import org.polystat.odin.core.ast.{EOAliasMeta, EOMetas, EORTMeta}
 
 object Metas {
 
-  private lazy val packageName = {
+  private val packageName = {
     Tokens.identifier.repSep(1, P.char('.'))
       .map(_.toList.mkString("."))
   }
 
-  lazy val packageMeta: P[String] =
+  val packageMeta: P[String] =
     P.string("+package") *> Tokens.singleLineWhitespace *> packageName
 
-  private lazy val aliasName = Tokens.identifier
+  private val aliasName = Tokens.identifier
 
-  lazy val aliasMeta: P[EOAliasMeta] = (
+  val aliasMeta: P[EOAliasMeta] = (
     P.string("+alias") *>
       aliasName.surroundedBy(Tokens.singleLineWhitespace) ~
         packageName
@@ -24,11 +24,11 @@ object Metas {
   }
 
 
-  private lazy val artifactId = {
+  private val artifactId = {
 
-    lazy val artifactName = Tokens.identifier
+    val artifactName = Tokens.identifier
 
-    lazy val artifactVersion =
+    val artifactVersion =
       Tokens.digit.rep(1).repSep(3, P.string("."))
         .map {
           lst =>
@@ -45,7 +45,7 @@ object Metas {
     }
   }
 
-  lazy val rtMeta: P[EORTMeta] = (
+  val rtMeta: P[EORTMeta] = (
     P.string("+rt") *>
       aliasName.surroundedBy(Tokens.singleLineWhitespace) ~
         artifactId
@@ -53,7 +53,7 @@ object Metas {
     case (alias, src) => EORTMeta(alias, src)
   }
 
-  lazy val metas: Parser0[EOMetas] = (
+  val metas: Parser0[EOMetas] = (
     (Tokens.emptyLinesOrComments *> (packageMeta <* Tokens.eol).?) ~
       (Tokens.emptyLinesOrComments.with1 *> ((rtMeta | aliasMeta) <* Tokens.eol)).rep0
     ).map {

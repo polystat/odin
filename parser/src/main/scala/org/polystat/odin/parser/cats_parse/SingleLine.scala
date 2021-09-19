@@ -5,11 +5,11 @@ import org.polystat.odin.core.ast._
 
 object SingleLine {
 
-  lazy val parameterName: P[LazyName] = (
+  val parameterName: P[LazyName] = (
     Tokens.identifier | P.char('@').as("@")
     ).map(LazyName)
 
-  lazy val params: P[(Vector[LazyName], Option[LazyName])] = (
+  val params: P[(Vector[LazyName], Option[LazyName])] = (
     P.string("[") *>
       (
         (parameterName.repSep(1, Tokens.singleLineWhitespace).soft <* P.string("..."))
