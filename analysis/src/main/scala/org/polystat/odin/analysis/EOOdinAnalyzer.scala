@@ -8,7 +8,7 @@ import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.Parser
+import org.polystat.odin.parser.scala_parser_combinators.Parser
 
 trait EOOdinAnalyzer[F[_]] {
   def analyzeSourceCode(code: String): Stream[F, OdinAnalysisError]
