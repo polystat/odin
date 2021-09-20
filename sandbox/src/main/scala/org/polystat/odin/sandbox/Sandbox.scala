@@ -1,14 +1,14 @@
 package org.polystat.odin.sandbox
 
-import cats.effect.{ ExitCode, IO, IOApp, Resource }
+import cats.effect.{ ExitCode, IO, IOApp, Resource, Sync }
 import cats.implicits._
-import org.polystat.odin.analysis.mutualrec.naive.mutualrec.{ findMutualRecursionInTopLevelObjects, resolveMethodsReferencesForEOProgram }
+import org.polystat.odin.analysis.EOOdinAnalyzer
+import org.polystat.odin.analysis.mutualrec.naive.{ findMutualRecursionInTopLevelObjects, resolveMethodsReferencesForEOProgram }
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.backend.eolang.inlineorlines.ops._
 import org.polystat.odin.parser.Parser
 import org.polystat.odin.parser.errors.{ LexerError, ParserError }
-import programs.mutualRecursionExample
 
 import scala.io.Source
 import scala.util.chaining._
@@ -16,8 +16,6 @@ import scala.util.chaining._
 object Sandbox extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = for {
     exitCode <- IO.pure(ExitCode.Success)
-    //    mutualRecEORepr: String = mutualRecursionExample.toEO.allLinesToString
-    //    _ <- IO(mutualRecEORepr.tap(println))
 
     fileName = "mutual_rec_example.eo"
     fileSourceResource = Resource.make(IO(Source.fromResource(fileName)))(src => IO(src.close()))
@@ -29,7 +27,7 @@ object Sandbox extends IOApp {
     programText = program.toEO.allLinesToString
     _ <- IO(programText.tap(println))
 
-    topLevelObjects <- resolveMethodsReferencesForEOProgram[IO](mutualRecursionExample)
+    topLevelObjects <- resolveMethodsReferencesForEOProgram[IO](program)
 
     mutualRec <- findMutualRecursionInTopLevelObjects(topLevelObjects)
     mutualRecFiltered = mutualRec.filter(_.nonEmpty)
@@ -54,4 +52,13 @@ object Sandbox extends IOApp {
       }
     )
   } yield exitCode
+
+  // Easy way to run all available analysis and print the results for EO source
+  // code
+  private def analyzeEoSourceCodeAndPrintErrors[F[_]: Sync](
+    code: String
+  ): F[Unit] = for {
+    errors <- EOOdinAnalyzer.impl.analyzeSourceCode(code).compile.toVector
+    _ <- Sync[F].delay(errors.map(_.tap(println)))
+  } yield ()
 }
