@@ -4,23 +4,22 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import higherkindness.droste.data.Fix
+import org.polystat.odin.parser.TestUtils.TestCase
 
 object SingleLineExamples {
 
-  val correct: List[(String, (String, EOExprOnly))] =
+  val correct: List[TestCase[EOExprOnly]] =
     List(
-      (
-        "justA",
-        (
-          "a",
-          Fix[EOExpr](EOSimpleApp("a"))
-        )
+      TestCase(
+        label = "justA",
+        code = "a",
+        ast = Some(Fix[EOExpr](EOSimpleApp("a")))
       ),
 
-      (
-        "normal application",
-        (
-          "a b c d",
+      TestCase(
+        label = "normal application",
+        code = "a b c d",
+        ast = Some(
           Fix[EOExpr](EOCopy(
             Fix[EOExpr](EOSimpleApp("a")),
             NonEmpty[Vector[EOBnd[EOExprOnly]]](
@@ -29,11 +28,13 @@ object SingleLineExamples {
               EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
             )))
         )
+
       ),
 
-      ("rightAssociative",
-        (
-          "a (b (c d))",
+      TestCase(
+        label = "rightAssociative",
+        code = "a (b (c d))",
+        ast = Some(
           Fix[EOExpr](EOCopy(
             Fix[EOExpr](EOSimpleApp("a")),
             NonEmpty[Vector[EOBnd[EOExprOnly]]](
@@ -46,10 +47,10 @@ object SingleLineExamples {
         )
       ),
 
-      (
-        "leftAssociative",
-        (
-          "((a b) c) d",
+      TestCase(
+        label = "leftAssociative",
+        code = "((a b) c) d",
+        ast = Some(
           Fix[EOExpr](EOCopy(
             Fix[EOExpr](EOCopy(
               Fix[EOExpr](EOCopy(
