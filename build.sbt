@@ -13,6 +13,7 @@ ThisBuild / description :=
 ThisBuild / versionScheme := Some("semver-spec")
 ThisBuild / sonatypeProfileName := "org.polystat"
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild / releaseVersionBump := sbtrelease.Version.Bump.Next
 
 lazy val noPublishSettings = Seq(
   publish := {},
