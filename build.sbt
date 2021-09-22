@@ -1,3 +1,5 @@
+import ReleaseTransformations._
+
 ThisBuild / scalaVersion := "2.13.6"
 
 ThisBuild / name := "odin-project"
@@ -8,8 +10,10 @@ ThisBuild / homepage := Some(url("https://github.com/polystat/odin"))
 ThisBuild / description :=
   """Odin (object dependency inspector) — static analyzer for EO source code
     |that detects OOP-related bugs.""".stripMargin
+ThisBuild / versionScheme := Some("semver-spec")
 ThisBuild / sonatypeProfileName := "org.polystat"
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild / releaseVersionBump := sbtrelease.Version.Bump.Next
 
 lazy val noPublishSettings = Seq(
   publish := {},
@@ -49,10 +53,26 @@ lazy val publishSettings = Seq(
   publishArtifact := true,
   publishMavenStyle := true,
   sonatypeProfileName := "org.polystat",
+  releasePublishArtifactsAction := PgpKeys.publishSigned.value
 )
 
 lazy val commonSettings = Compiler.settings ++ Seq(
   resolvers += Opts.resolver.sonatypeSnapshots
+)
+
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,
+  inquireVersions,
+  runClean,
+  runTest,
+  setReleaseVersion,
+  commitReleaseVersion,
+  tagRelease,
+  releaseStepCommandAndRemaining("publishSigned"),
+  releaseStepCommand("sonatypeBundleRelease"),
+  setNextVersion,
+  commitNextVersion,
+  pushChanges,
 )
 
 lazy val odin = project
