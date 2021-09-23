@@ -1,3 +1,5 @@
+[![Maven Release](https://badgen.net/maven/v/metadata-url/https/repo1.maven.org/maven2/org/polystat/odin/odin_2.13/maven-metadata.xml)](https://oss.sonatype.org/content/repositories/releases/org/polystat/odin/odin_2.13/ )
+
 Odin (object dependency inspector) — a static analyzer for [EO programming language](https://github.com/cqfn/eo).
 
 # ⚠️🚧 Work in progress 🚧⚠️
