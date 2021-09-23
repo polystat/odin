@@ -1,4 +1,4 @@
-package org.polystat.odin.parser.scala_parser_combinators
+package org.polystat.odin.parser.combinators
 
 import com.github.tarao.nonempty.collection.NonEmpty
 import org.polystat.odin.core.ast._

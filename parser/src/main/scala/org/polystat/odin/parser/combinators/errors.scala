@@ -1,4 +1,4 @@
-package org.polystat.odin.parser.scala_parser_combinators
+package org.polystat.odin.parser.combinators
 
 object errors {
   sealed trait ParsingError {

@@ -1,5 +1,3 @@
-# The project is moved to the https://github.com/polystat/odin
-
 Odin (object dependency inspector) — a static analyzer for [EO programming language](https://github.com/cqfn/eo).
 
 # ⚠️🚧 Work in progress 🚧⚠️

@@ -1,4 +1,4 @@
-package org.polystat.odin.parser.scala_parser_combinators
+package org.polystat.odin.parser.combinators
 
 sealed trait Token
 

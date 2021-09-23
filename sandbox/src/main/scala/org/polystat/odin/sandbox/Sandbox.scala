@@ -7,9 +7,8 @@ import org.polystat.odin.analysis.mutualrec.naive.{ findMutualRecursionInTopLeve
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.backend.eolang.inlineorlines.ops._
-import org.polystat.odin.parser.scala_parser_combinators.Parser
-import org.polystat.odin.parser.scala_parser_combinators.errors.{ LexerError, ParserError }
-import programs.mutualRecursionExample
+import org.polystat.odin.parser.combinators.Parser
+import org.polystat.odin.parser.combinators.errors.{ LexerError, ParserError }
 
 import scala.io.Source
 import scala.util.chaining._
@@ -30,7 +29,7 @@ object Sandbox extends IOApp {
     programText = program.toEO.allLinesToString
     _ <- IO(programText.tap(println))
 
-    topLevelObjects <- resolveMethodsReferencesForEOProgram[IO](mutualRecursionExample)
+    topLevelObjects <- resolveMethodsReferencesForEOProgram[IO](program)
 
     mutualRec <- findMutualRecursionInTopLevelObjects(topLevelObjects)
     mutualRecFiltered = mutualRec.filter(_.nonEmpty)

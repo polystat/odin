@@ -63,7 +63,7 @@ object Dependencies {
   )
 
   val pprint = Seq(
-    "com.lihaoyi" %% "pprint" % V.pprint
+    "com.lihaoyi" %% "pprint" % V.pprint % Test
   )
 
 
@@ -73,6 +73,6 @@ object Dependencies {
     newTypes
 
   val core: Seq[ModuleID] = common ++ droste ++ fs2
-  val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse ++ pprint
+  val parser: Seq[ModuleID] = common ++ parserCombinators ++ fastparse ++ pprint
   val interop: Seq[ModuleID] = common
 }
