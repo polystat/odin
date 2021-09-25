@@ -7,73 +7,90 @@ import cats.implicits._
 import org.polystat.odin.analysis.mutualrec.naive.services.MethodAttribute.MethodInfo
 import org.polystat.odin.analysis.mutualrec.naive.services.TopLevelObjects.createTopLevelObjectsWithRefs
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.mutualrec.naive.services.{ MethodAttribute, TopLevelObjects }
+import org.polystat.odin.analysis.mutualrec.naive.services.{
+  MethodAttribute,
+  TopLevelObjects
+}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast.{ EOArray, EOBndExpr, EOCopy, EODot, EOObj, EOProg, EOSimpleApp }
+import org.polystat.odin.core.ast.{
+  EOArray,
+  EOBndExpr,
+  EOCopy,
+  EODot,
+  EOObj,
+  EOProg,
+  EOSimpleApp
+}
 
 package object naive {
-  def resolveTopLevelObjectsAndAttrs[F[_] : Monad](
+
+  def resolveTopLevelObjectsAndAttrs[F[_]: Monad](
     eoProg: EOProg[EOExprOnly]
-  )(
-    implicit objs: TopLevelObjects[F],
+  )(implicit
+    objs: TopLevelObjects[F],
   ): F[Unit] = for {
     _ <- eoProg.bnds.traverse {
       case EOBndExpr(objName, objExpr) => Fix.un(objExpr) match {
-        case o: EOObj[EOExprOnly] => objs.add(objName.name.name, o)
-        case _ => Monad[F].pure(())
-      }
+          case o: EOObj[EOExprOnly] => objs.add(objName.name.name, o)
+          case _ => Monad[F].pure(())
+        }
       case _ => Monad[F].pure(())
     }
   } yield ()
 
   def resolveMethodsReferences[
-    F[_] : Monad,
-  ](
-    implicit objs: TopLevelObjects[F],
+    F[_]: Monad,
+  ](implicit
+    objs: TopLevelObjects[F],
   ): F[Vector[String]] = {
     def analyzeMethodBodyExpr(
       expr: EOExprOnly,
       topLevelObjectName: String,
       methodName: String,
       methodBodyAttrName: String
-    )(
-      implicit methAttr: MethodAttribute[F]
+    )(implicit
+      methAttr: MethodAttribute[F]
     ): F[Vector[String]] = Fix.un(expr) match {
-      case _: EOObj[EOExprOnly] => Monad[F].pure(Vector(
-        s"""Warning: cannot analyze object
-           |${topLevelObjectName}.${methodName}.${methodBodyAttrName},
-           |because analysis of nested objects is not supported""".stripMargin
-      ))
+      case _: EOObj[EOExprOnly] => Monad[F].pure(
+          Vector(
+            s"""Warning: cannot analyze object
+               |$topLevelObjectName.$methodName.$methodBodyAttrName,
+               |because analysis of nested objects is not supported""".stripMargin
+          )
+        )
       case EOCopy(trg, args) => trg match {
-        // if the pattern is like `self.attrName self`
-        // then it is possible that attrName is recursive for some self
-        // so we try to find it for some self and record this fact in the
-        // method state
-        case EODot(EOSimpleApp(dotLeftName), attrName)
-          if args.headOption.exists(_.expr match {
-            case EOSimpleApp(firstArgName) => firstArgName == dotLeftName
-            case _ => false
-          }) => for {
-          referencedMethods <- objs.findMethodsWithParamsByName(attrName)
-          _ <- referencedMethods.traverse_ { refMeth =>
-            methAttr.referenceMethod(refMeth)
-          }
-        } yield Vector.empty
-        case e => analyzeMethodBodyExpr(
-          e,
-          topLevelObjectName,
-          methodName,
-          methodBodyAttrName
-        )
-      }
+          // if the pattern is like `self.attrName self`
+          // then it is possible that attrName is recursive for some self
+          // so we try to find it for some self and record this fact in the
+          // method state
+          case EODot(EOSimpleApp(dotLeftName), attrName)
+               if args
+                 .headOption
+                 .exists(_.expr match {
+                   case EOSimpleApp(firstArgName) => firstArgName == dotLeftName
+                   case _ => false
+                 }) =>
+            for {
+              referencedMethods <- objs.findMethodsWithParamsByName(attrName)
+              _ <- referencedMethods.traverse_ { refMeth =>
+                methAttr.referenceMethod(refMeth)
+              }
+            } yield Vector.empty
+          case e => analyzeMethodBodyExpr(
+              e,
+              topLevelObjectName,
+              methodName,
+              methodBodyAttrName
+            )
+        }
       case EOArray(elems) => elems.flatTraverse { elem =>
-        analyzeMethodBodyExpr(
-          elem.expr,
-          topLevelObjectName,
-          methodName,
-          methodBodyAttrName
-        )
-      }
+          analyzeMethodBodyExpr(
+            elem.expr,
+            topLevelObjectName,
+            methodName,
+            methodBodyAttrName
+          )
+        }
       // Do not analyze (because they can't cause recursion):
       // - simple app
       // - just dot
@@ -90,26 +107,27 @@ package object naive {
         val (meth, objName) = method
         for {
           MethodInfo(body, _) <- meth.getMethodInfo
-          methBodyResult <- body.foldM(Vector.empty[String]) { (methBodyRes, methBodyAttr) =>
-            for {
-              methodBodyAttrResult <- methBodyAttr match {
-                case EOBndExpr(methAttrAttrName, exprToAnalyze) =>
-                  analyzeMethodBodyExpr(
-                    exprToAnalyze,
-                    objName,
-                    meth.name,
-                    methAttrAttrName.name.name
-                  )(meth)
-                case _ => Monad[F].pure(Vector.empty[String])
-              }
-            } yield methodBodyAttrResult ++ methBodyRes
-          }
+          methBodyResult <-
+            body.foldM(Vector.empty[String]) { (methBodyRes, methBodyAttr) =>
+              for {
+                methodBodyAttrResult <- methBodyAttr match {
+                  case EOBndExpr(methAttrAttrName, exprToAnalyze) =>
+                    analyzeMethodBodyExpr(
+                      exprToAnalyze,
+                      objName,
+                      meth.name,
+                      methAttrAttrName.name.name
+                    )(meth)
+                  case _ => Monad[F].pure(Vector.empty[String])
+                }
+              } yield methodBodyAttrResult ++ methBodyRes
+            }
         } yield res ++ methBodyResult
       }
     } yield result
   }
 
-  def resolveMethodsReferencesForEOProgram[F[_] : Sync](
+  def resolveMethodsReferencesForEOProgram[F[_]: Sync](
     program: EOProg[EOExprOnly]
   ): F[TopLevelObjects[F]] = for {
     topLevelObjects <- createTopLevelObjectsWithRefs[F]
@@ -127,7 +145,7 @@ package object naive {
     Chain[MethodCallStack[F]], // list of paths that lead to recursion
   ]
 
-  def findMethodRecursiveLinks[F[_] : Monad](
+  def findMethodRecursiveLinks[F[_]: Monad](
     method: MethodAttribute[F],
     callStack: MethodCallStack[F] = Chain.empty
   ): F[MethodRecursiveDependency[F]] = {
@@ -159,10 +177,14 @@ package object naive {
             callStack.append(method)
           )
         } yield resF
-        res <- recDeps.foldLeft(Monad[F].pure(Map.empty[
-          MethodAttribute[F],
-          Chain[MethodCallStack[F]],
-        ])) { (resMapF, recDepF) =>
+        res <- recDeps.foldLeft(
+          Monad[F].pure(
+            Map.empty[
+              MethodAttribute[F],
+              Chain[MethodCallStack[F]],
+            ]
+          )
+        ) { (resMapF, recDepF) =>
           for {
             resMap <- resMapF
             recDep <- recDepF
@@ -172,7 +194,7 @@ package object naive {
     }
   }
 
-  def findMutualRecursionInTopLevelObjects[F[_] : Monad](
+  def findMutualRecursionInTopLevelObjects[F[_]: Monad](
     topLevelObjectsWithRefs: TopLevelObjects[F]
   ): F[Vector[MethodRecursiveDependency[F]]] = {
     for {
@@ -185,10 +207,11 @@ package object naive {
     } yield recDeps
   }
 
-  def findMutualRecursionFromAst[F[_] : Sync](
+  def findMutualRecursionFromAst[F[_]: Sync](
     program: EOProg[EOExprOnly]
   ): F[Vector[MethodRecursiveDependency[F]]] = for {
     topLevelObjects <- resolveMethodsReferencesForEOProgram(program)
     mutualRec <- findMutualRecursionInTopLevelObjects(topLevelObjects)
   } yield mutualRec
+
 }

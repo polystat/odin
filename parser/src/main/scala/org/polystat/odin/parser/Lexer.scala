@@ -10,8 +10,8 @@ object Lexer extends RegexParsers {
   override val whiteSpace: Regex = "[ \t\r\f]+".r
 
   def identifier: Parser[IDENTIFIER] = {
-    "[a-z][a-z0-9_A-Z\\-]*".r ^^ {
-      str => IDENTIFIER(str)
+    "[a-z][a-z0-9_A-Z\\-]*".r ^^ { str =>
+      IDENTIFIER(str)
     }
   }
 
@@ -23,26 +23,26 @@ object Lexer extends RegexParsers {
   }
 
   def string: Parser[STRING] = {
-    """"[^"]*"""".r ^^ {
-      str => STRING(str)
+    """"[^"]*"""".r ^^ { str =>
+      STRING(str)
     }
   }
 
   def integer: Parser[INTEGER] = {
-    """[+-]?\b[0-9]+\b""".r ^^ {
-      str => INTEGER(str)
+    """[+-]?\b[0-9]+\b""".r ^^ { str =>
+      INTEGER(str)
     }
   }
 
   def single_line_comment: Parser[SINGLE_LINE_COMMENT] = {
-    """#.*""".r ^^ {
-      str => SINGLE_LINE_COMMENT(str.tail)
+    """#.*""".r ^^ { str =>
+      SINGLE_LINE_COMMENT(str.tail)
     }
   }
 
   def meta: Parser[META] = {
-    """\+[a-z][a-z0-9_A-Z\-]*[ ].*""".r ^^ {
-      str => {
+    """\+[a-z][a-z0-9_A-Z\-]*[ ].*""".r ^^ { str =>
+      {
         val split = str.split(" ", 2)
         META(split(0).stripMargin, split(1).stripMargin)
       }
@@ -94,12 +94,14 @@ object Lexer extends RegexParsers {
   ): List[Token] = {
     tokens.headOption match {
 
-      // if there is an increase in indentation level, we push this new level into the stack
+      // if there is an increase in indentation level, we push this new level
+      // into the stack
       // and produce an INDENT
       case Some(INDENTATION(spaces)) if spaces > indents.head =>
         INDENT :: processIndentations(tokens.tail, spaces :: indents)
 
-      // if there is a decrease, we pop from the stack until we have matched the new level,
+      // if there is a decrease, we pop from the stack until we have matched the
+      // new level,
       // producing a DEDENT for each pop
       case Some(INDENTATION(spaces)) if spaces < indents.head =>
         val (dropped, kept) = indents.partition(_ > spaces)
@@ -113,14 +115,14 @@ object Lexer extends RegexParsers {
       case Some(token) =>
         token :: processIndentations(tokens.tail, indents)
 
-      // the final step is to produce a DEDENT for each indentation level still remaining, thus
+      // the final step is to produce a DEDENT for each indentation level still
+      // remaining, thus
       // "closing" the remaining open INDENTS
       case None =>
         indents.filter(_ > 0).map(_ => DEDENT)
 
     }
   }
-
 
   private def phi: Parser[PHI] = "@" ^^ (_ => PHI())
 
