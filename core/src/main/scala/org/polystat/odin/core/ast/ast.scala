@@ -94,7 +94,10 @@ sealed case class EOCopy[+A](
 sealed trait EOData[+A] extends EOExpr[A]
 
 sealed case class EOSingleByte(byte: Byte)
-sealed case class EOBytesData[+A](bytes: NonEmpty[EOSingleByte, Vector[EOSingleByte]]) extends EOData[A]
+
+sealed case class EOBytesData[+A](
+  bytes: NonEmpty[EOSingleByte, Vector[EOSingleByte]]
+) extends EOData[A]
 
 sealed case class EOStrData[+A](str: String) extends EOData[A]
 
