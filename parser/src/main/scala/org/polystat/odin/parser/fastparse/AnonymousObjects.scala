@@ -6,23 +6,21 @@ import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.Utils.{createArrayFromNonEmpty, createInverseDot}
+import org.polystat.odin.parser.fastparse.Common._
 import org.polystat.odin.parser.fastparse.SingleLineApplication.{args, singleLineApplication}
 
-class AnonymousObjects(
-                        override val indent: Int = 0,
-                        override val indentationStep: Int = 2
-                      ) extends RespectsIndentation {
+private[parser] object AnonymousObjects {
 
 
-  def anonymousObject[_: P]: P[EOAnonExpr[EOExprOnly]] =
-    anonymousAbstraction | anonymousApplication
+  def anonymousObject[_: P](indent: Int, indentationStep: Int): P[EOAnonExpr[EOExprOnly]] =
+    anonymousAbstraction(indent, indentationStep) | anonymousApplication(indent, indentationStep)
 
-  def anonymousApplication[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
-    anonymousInverseDotApplication | anonymousRegularApplication
+  def anonymousApplication[_: P](indent: Int, indentationStep: Int): P[EOAnonExpr[EOExprOnly]] = P(
+    anonymousInverseDotApplication(indent, indentationStep) | anonymousRegularApplication(indent, indentationStep)
   )
 
-  def anonymousRegularApplication[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
-    singleLineApplication ~ verticalApplicationArgs.?
+  def anonymousRegularApplication[_: P](indent: Int, indentationStep: Int): P[EOAnonExpr[EOExprOnly]] = P(
+    singleLineApplication ~ verticalApplicationArgs(indent, indentationStep).?
   ).map {
     case (trg, Some(args)) => EOAnonExpr(
       Fix[EOExpr](EOCopy(trg, args))
@@ -30,20 +28,20 @@ class AnonymousObjects(
     case (trg, None) => EOAnonExpr(trg)
   }
 
-  def anonymousInverseDotApplication[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
-    Tokens.identifier ~ "." ~ verticalApplicationArgs
+  def anonymousInverseDotApplication[_: P](indent: Int, indentationStep: Int): P[EOAnonExpr[EOExprOnly]] = P(
+    Tokens.identifier ~ "." ~ verticalApplicationArgs(indent, indentationStep)
   ).map {
     case (id, args) => EOAnonExpr(createInverseDot(id, args))
   }
 
-  def namedVerticalArray[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
-    "*" ~/ verticalApplicationArgs.?
+  def namedVerticalArray[_: P](indent: Int, indentationStep: Int): P[EOAnonExpr[EOExprOnly]] = P(
+    "*" ~/ verticalApplicationArgs(indent, indentationStep).?
   ).map {
     args => EOAnonExpr(createArrayFromNonEmpty(args))
   }
 
-  def anonymousAbstraction[_: P]: P[EOAnonExpr[EOExprOnly]] = P(
-    args ~/ boundAttributes.?
+  def anonymousAbstraction[_: P](indent: Int, indentationStep: Int): P[EOAnonExpr[EOExprOnly]] = P(
+    args ~/ boundAttributes(indent, indentationStep).?
   ).map {
     case (params, vararg, attrs) => EOAnonExpr(
       Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))

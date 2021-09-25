@@ -5,7 +5,7 @@ import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 
-object Utils {
+private[parser] object Utils {
 
   def createArrayFromNonEmpty(ne: Option[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]]): EOExprOnly = {
     Fix[EOExpr](EOArray(

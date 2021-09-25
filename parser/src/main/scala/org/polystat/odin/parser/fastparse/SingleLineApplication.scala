@@ -9,7 +9,7 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.Utils.createNonEmpty
 
 
-object SingleLineApplication {
+private[parser] object SingleLineApplication {
 
   def parameterName[_: P]: P[LazyName] = P(
     Tokens.identifier | P("@").map(_ => "@")

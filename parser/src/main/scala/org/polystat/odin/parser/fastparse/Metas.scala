@@ -4,7 +4,7 @@ import fastparse.SingleLineWhitespace._
 import fastparse._
 import org.polystat.odin.core.ast.{EOAliasMeta, EORTMeta}
 
-object Metas {
+private[parser] object Metas {
   def packageMeta[_: P]: P[String] = P(
     "+package" ~/ packageName.! ~/ "\n"
   )

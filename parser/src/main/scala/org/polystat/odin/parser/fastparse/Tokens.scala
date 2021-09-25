@@ -5,7 +5,7 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import fastparse._, NoWhitespace._
 import higherkindness.droste.data.Fix
 
-object Tokens {
+private[parser] object Tokens {
 
   def comment[_: P]: P[Unit] = P(
     whitespaceChars ~ "#" ~ CharsWhile(_ != '\n', 0) ~ "\n"
