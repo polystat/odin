@@ -7,17 +7,22 @@ import org.polystat.odin.core.ast._
 
 private[parser] object Utils {
 
-  def createArrayFromNonEmpty(ne: Option[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]]): EOExprOnly = {
-    Fix[EOExpr](EOArray(
-      ne match {
-        case Some(value) => value
-        case None => Vector()
-      }
-    ))
+  def createArrayFromNonEmpty(
+    ne: Option[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]]
+  ): EOExprOnly = {
+    Fix[EOExpr](
+      EOArray(
+        ne match {
+          case Some(value) => value
+          case None => Vector()
+        }
+      )
+    )
   }
 
-  def createNonEmpty(objs: Seq[EOBnd[EOExprOnly]])
-  : NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
+  def createNonEmpty(
+    objs: Seq[EOBnd[EOExprOnly]]
+  ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
     NonEmpty.from(objs) match {
       case Some(value) => value.toVector
       case None => throw new Exception("1 or more arguments expected, got 0.")
@@ -33,8 +38,10 @@ private[parser] object Utils {
 
   // TODO: rewrite so that the information
   //  about names of bindings is not lost
-  def createInverseDot(id: String,
-                       args: Vector[EOBnd[EOExprOnly]]): EOExprOnly = {
+  def createInverseDot(
+    id: String,
+    args: Vector[EOBnd[EOExprOnly]]
+  ): EOExprOnly = {
     if (args.tail.nonEmpty) {
       Fix[EOExpr](
         EOCopy(
@@ -46,6 +53,5 @@ private[parser] object Utils {
       Fix[EOExpr](EODot(extractEOExpr(args.head), id))
     }
   }
-
 
 }

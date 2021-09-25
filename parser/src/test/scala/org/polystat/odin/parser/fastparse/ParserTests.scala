@@ -5,24 +5,25 @@ import fastparse._
 import IgnoreEmptyLinesOrComments._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
-import org.polystat.odin.parser.TestUtils.{astPrinter, fileNameOf, getListOfFiles, readCodeFrom}
+import org.polystat.odin.parser.TestUtils.{
+  astPrinter,
+  fileNameOf,
+  getListOfFiles,
+  readCodeFrom
+}
 import org.polystat.odin.parser.{MutualRecExample, SingleLineExamples}
 import org.scalatest.Assertion
 import org.scalatest.Inspectors.forAll
 
-
-
 class ParserTests extends AnyWordSpec {
-
-
 
   def parseEntireInput[_: P, T](p: => P[T]): P[T] = P(Start ~ p ~ End)
 
   def checkParser[T](
-                      parser: P[_] => P[T],
-                      input: String,
-                      check: Parsed[T] => Boolean
-                    ): Assertion = {
+    parser: P[_] => P[T],
+    input: String,
+    check: Parsed[T] => Boolean
+  ): Assertion = {
     val parsed = parse(input, parser)
     parsed match {
       case Parsed.Success(value, _) => astPrinter.pprintln(value)
@@ -40,11 +41,13 @@ class ParserTests extends AnyWordSpec {
   }
 
   def shouldProduceAST[AST](
-                           parser: P[_] => P[AST],
-                           input: String,
-                           expectedAST: AST
-                         ): Assertion = {
-    checkParser(parser, input,
+    parser: P[_] => P[AST],
+    input: String,
+    expectedAST: AST
+  ): Assertion = {
+    checkParser(
+      parser,
+      input,
       check = (res: Parsed[AST]) => {
         res match {
           case Parsed.Success(value, _) => value == expectedAST
@@ -53,7 +56,6 @@ class ParserTests extends AnyWordSpec {
       }
     )
   }
-
 
   "tokens" should {
     "be recognized correctly" in {
@@ -71,7 +73,8 @@ class ParserTests extends AnyWordSpec {
     def metasAllInput[_: P]: P[EOMetas] = parseEntireInput(Parser.metas)
 
     "be recognized correctly" in {
-      shouldParse(metasAllInput(_),
+      shouldParse(
+        metasAllInput(_),
         """
           |
           |# start
@@ -95,7 +98,8 @@ class ParserTests extends AnyWordSpec {
           |+alias sprintf org.eolang.txt.sprintf
           |
           |+alias biba boba
-          |""".stripMargin)
+          |""".stripMargin
+      )
     }
   }
 
@@ -117,18 +121,16 @@ class ParserTests extends AnyWordSpec {
       "[...]"
     )
 
-    forAll(correctArgsExamples) {
-      example =>
-        example in {
-          shouldParse(argsAllInput(_), example)
-        }
+    forAll(correctArgsExamples) { example =>
+      example in {
+        shouldParse(argsAllInput(_), example)
+      }
     }
 
-    forAll(incorrectArgsExamples) {
-      example =>
-        example in {
-          shouldFailParsing(argsAllInput(_), example)
-        }
+    forAll(incorrectArgsExamples) { example =>
+      example in {
+        shouldFailParsing(argsAllInput(_), example)
+      }
     }
   }
 
@@ -139,7 +141,6 @@ class ParserTests extends AnyWordSpec {
     val correctExamples = List(
       "simplest possible object" ->
         "[]",
-
       "many nested objects, formatted correctly" ->
         """[]
           |  [a b c] > a
@@ -149,7 +150,6 @@ class ParserTests extends AnyWordSpec {
           |      [] > asd
           |    [] > noArgs
           |    [someArgs] > someArg""".stripMargin,
-
       "shows the flexibility of whitespace" ->
         """[]
           |  # This is a
@@ -170,7 +170,6 @@ class ParserTests extends AnyWordSpec {
     val incorrectExamples = List(
       "simplest malformed object" ->
         "[",
-
       "object with inconsistent indentation" ->
         """[]
           |  [] > objects
@@ -181,18 +180,16 @@ class ParserTests extends AnyWordSpec {
           |""".stripMargin
     )
 
-    forAll(correctExamples) {
-      case (label, example) =>
-        label in {
-          shouldParse(anonymousAbstractionAllInput(_), example)
-        }
+    forAll(correctExamples) { case (label, example) =>
+      label in {
+        shouldParse(anonymousAbstractionAllInput(_), example)
+      }
     }
 
-    forAll(incorrectExamples) {
-      case (label, example) =>
-        label in {
-          shouldFailParsing(anonymousAbstractionAllInput(_), example)
-        }
+    forAll(incorrectExamples) { case (label, example) =>
+      label in {
+        shouldFailParsing(anonymousAbstractionAllInput(_), example)
+      }
     }
   }
 
@@ -212,7 +209,6 @@ class ParserTests extends AnyWordSpec {
           |    # some anonymous object
           |    [] > someArg
           |  d""".stripMargin,
-
       "some data objects" ->
         """a > namedA
           |  123
@@ -223,7 +219,6 @@ class ParserTests extends AnyWordSpec {
         """a.b.c.d > namedA
           |  $.^.@.a > some-obj-from-outer-scope
           |  1.neg""".stripMargin,
-
       "some single line applications" ->
         """(a) > named-a-with-redundant-parentheses
           |
@@ -236,7 +231,6 @@ class ParserTests extends AnyWordSpec {
           |  # this a reverse application:
           |  # ((a applied to b) applied to c)
           |  ((a b) c) d > reverseApplication""".stripMargin,
-
       "anonymous inverse dot applications" ->
         """a > namedA
           |  # testing anonymous
@@ -255,11 +249,10 @@ class ParserTests extends AnyWordSpec {
           |        d > d-""".stripMargin
     )
 
-    forAll(correctExamples) {
-      case (label, example) =>
-        label in {
-          shouldParse(namedApplicationAllInput(_), example)
-        }
+    forAll(correctExamples) { case (label, example) =>
+      label in {
+        shouldParse(namedApplicationAllInput(_), example)
+      }
     }
   }
 
@@ -269,59 +262,52 @@ class ParserTests extends AnyWordSpec {
       "simple single line array" ->
         """
           |* "Lucy" "Jeff" 314 > stuff
-          |""".stripMargin
-      ,
-
+          |""".stripMargin,
       "nested single line array" ->
         """
           |* (* deep stuff here) 'a' 'b' 'c' > some_deep_stuff
           |
+          |""".stripMargin,
+      "simple multiline array" ->
+        """
+          |*
+          |  "hello"
+          |  "world"
+          |  'I'
+          |  "am"
+          |  "array"
+          |  "I have no name"
+          |""".stripMargin,
+      "nested multiline array" ->
+        """
+          |* > cool
+          |  "hello"
+          |  "world"
+          |  *
+          |    'I'
+          |    "am"
+          |    "array"
+          |  *
+          |    *
+          |      "My name is cool"
+          |      *
+          |        *
+          |          literally
           |""".stripMargin
-      ,
-    "simple multiline array" ->
-      """
-        |*
-        |  "hello"
-        |  "world"
-        |  'I'
-        |  "am"
-        |  "array"
-        |  "I have no name"
-        |""".stripMargin
-      ,
-    "nested multiline array" ->
-      """
-        |* > cool
-        |  "hello"
-        |  "world"
-        |  *
-        |    'I'
-        |    "am"
-        |    "array"
-        |  *
-        |    *
-        |      "My name is cool"
-        |      *
-        |        *
-        |          literally
-        |""".stripMargin
-
     )
 
-    forAll(correctExamples) {
-      case (label, example) =>
-        label in {
-          shouldParse(Parser.program(0, 2)(_), example)
-        }
+    forAll(correctExamples) { case (label, example) =>
+      label in {
+        shouldParse(Parser.program(0, 2)(_), example)
+      }
     }
   }
 
   "existing programs" should {
-    forAll(getListOfFiles("/eo_sources")) {
-      source =>
-        fileNameOf(source) in {
-          shouldParse(Parser.program(0, 2)(_), readCodeFrom(source))
-        }
+    forAll(getListOfFiles("/eo_sources")) { source =>
+      fileNameOf(source) in {
+        shouldParse(Parser.program(0, 2)(_), readCodeFrom(source))
+      }
     }
 
     "mutual recursion example" in {
@@ -332,17 +318,15 @@ class ParserTests extends AnyWordSpec {
       )
     }
 
-    forAll(SingleLineExamples.correct){
-      case (label, (code, ast)) =>
-        label in {
-          shouldProduceAST[EOExprOnly](
-            SingleLineApplication.singleLineApplication(_),
-            code,
-            ast
-          )
-        }
+    forAll(SingleLineExamples.correct) { case (label, (code, ast)) =>
+      label in {
+        shouldProduceAST[EOExprOnly](
+          SingleLineApplication.singleLineApplication(_),
+          code,
+          ast
+        )
+      }
     }
   }
-
 
 }

@@ -9,8 +9,8 @@ import scala.jdk.CollectionConverters._
 object TestUtils {
 
   val astPrinter: PPrinter = pprint.copy(
-    additionalHandlers = {
-      case nonEmpty: NonEmpty[_, _] => pprint.treeify(nonEmpty.value)
+    additionalHandlers = { case nonEmpty: NonEmpty[_, _] =>
+      pprint.treeify(nonEmpty.value)
     }
   )
 
@@ -20,7 +20,8 @@ object TestUtils {
 
   def readCodeFrom(fileName: String): String = {
     val code = io.Source.fromFile(fileName)
-    try code.mkString finally code.close()
+    try code.mkString
+    finally code.close()
   }
 
   def getListOfFiles(dir: String): List[String] = {
