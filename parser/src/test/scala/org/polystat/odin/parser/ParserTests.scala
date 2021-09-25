@@ -4,14 +4,14 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
-import org.polystat.odin.parser.errors.{ LexerError, ParserError, ParsingError }
+import org.polystat.odin.parser.errors.{LexerError, ParserError, ParsingError}
 import org.scalatest.Inspectors.forAll
 import org.scalatest.funspec.AnyFunSpec
 import java.io.File
 import scala.reflect.ClassTag
 
-
 object MutualRecExample {
+
   val ast: EOProg[EOExprOnly] = EOProg(
     EOMetas(
       pack = Some("sandbox"),
@@ -43,7 +43,9 @@ object MutualRecExample {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("x")), "write")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("x")), "write")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )
@@ -65,7 +67,9 @@ object MutualRecExample {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "f")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("self")), "f")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
@@ -81,8 +85,6 @@ object MutualRecExample {
           )
         )
       ),
-
-
       EOBndExpr(
         EOAnyNameBnd(LazyName("derived")),
         Fix[EOExpr](
@@ -102,7 +104,9 @@ object MutualRecExample {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "g")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("self")), "g")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
@@ -120,6 +124,7 @@ object MutualRecExample {
       ),
     )
   )
+
   val code: String =
     """+package sandbox
       |+alias stdout org.eolang.io.stdout
@@ -140,9 +145,11 @@ object MutualRecExample {
       |      self
       |      v
       |""".stripMargin
+
 }
 
 object FailingCode {
+
   val misplacedExclamationMark: String =
     """
       |this
@@ -153,34 +160,39 @@ object FailingCode {
     """
       |&~
       |""".stripMargin
+
 }
 
 class ParserTests extends AnyFunSpec {
 
   type ParserResult = Either[ParsingError, EOProg[EOExprOnly]]
 
-  private def produces[A <: ParsingError : ClassTag](result: ParserResult): Boolean = {
+  private def produces[A <: ParsingError: ClassTag](
+    result: ParserResult
+  ): Boolean = {
     result match {
       case Left(_: A) => true
       case _ => false
     }
   }
 
-  private def assertCodeProducesAST(code: String, ast: Vector[EOBnd[EOExprOnly]]) = {
+  private def assertCodeProducesAST(
+    code: String,
+    ast: Vector[EOBnd[EOExprOnly]]
+  ) = {
     assert(Parser(code) == Right(EOProg(EOMetas(None, Vector()), ast)))
   }
 
-
   private def readCodeFrom(fileName: String): String = {
     val code = io.Source.fromFile(fileName)
-    try code.mkString finally code.close()
+    try code.mkString
+    finally code.close()
   }
 
   private def getListOfFiles(dir: String): List[String] = {
     val file = new File(dir)
     file.listFiles().map(_.getPath).toList
   }
-
 
   describe("Parser") {
     describe("produces correct AST for correct programs") {
@@ -194,7 +206,6 @@ class ParserTests extends AnyFunSpec {
             """
               |a
               |""".stripMargin,
-
           ast = Vector(
             EOAnonExpr(Fix[EOExpr](EOSimpleApp("a")))
           )
@@ -219,14 +230,15 @@ class ParserTests extends AnyFunSpec {
           Vector(
             EOBndExpr(
               EOAnyNameBnd(LazyName("aAppliedToBCandD")),
-              Fix[EOExpr](EOCopy(
-                Fix[EOExpr](EOSimpleApp("a")),
-                NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                  EOAnonExpr(Fix[EOExpr](EOSimpleApp("b"))),
-                  EOAnonExpr(Fix[EOExpr](EOSimpleApp("c"))),
-                  EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
+              Fix[EOExpr](
+                EOCopy(
+                  Fix[EOExpr](EOSimpleApp("a")),
+                  NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                    EOAnonExpr(Fix[EOExpr](EOSimpleApp("b"))),
+                    EOAnonExpr(Fix[EOExpr](EOSimpleApp("c"))),
+                    EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
+                  )
                 )
-              )
               )
             )
           )
@@ -237,17 +249,36 @@ class ParserTests extends AnyFunSpec {
               |a (b (c d)) > rightAssociative
               |""".stripMargin,
           ast =
-            Vector(EOBndExpr(
-              EOAnyNameBnd(LazyName("rightAssociative")),
-              Fix[EOExpr](EOCopy(
-                Fix[EOExpr](EOSimpleApp("a")),
-                NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                  EOAnonExpr(Fix[EOExpr](EOCopy(Fix[EOExpr](EOSimpleApp("b")),
+            Vector(
+              EOBndExpr(
+                EOAnyNameBnd(LazyName("rightAssociative")),
+                Fix[EOExpr](
+                  EOCopy(
+                    Fix[EOExpr](EOSimpleApp("a")),
                     NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                      EOAnonExpr(Fix[EOExpr](EOCopy(
-                        Fix[EOExpr](EOSimpleApp("c")),
-                        NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                          EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))))))))))))))
+                      EOAnonExpr(
+                        Fix[EOExpr](
+                          EOCopy(
+                            Fix[EOExpr](EOSimpleApp("b")),
+                            NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                              EOAnonExpr(
+                                Fix[EOExpr](
+                                  EOCopy(
+                                    Fix[EOExpr](EOSimpleApp("c")),
+                                    NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                                      EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
+                                    )
+                                  )
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
             )
         )
         assertCodeProducesAST(
@@ -258,28 +289,40 @@ class ParserTests extends AnyFunSpec {
           ast = Vector(
             EOBndExpr(
               EOAnyNameBnd(LazyName("leftAssociative")),
-              Fix[EOExpr](EOCopy(
-                Fix[EOExpr](EOCopy(
-                  Fix[EOExpr](EOCopy(
-                    Fix[EOExpr](EOSimpleApp("a")),
-                    NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("b")))))),
-                  NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("c")))))),
-                NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("d"))))
-              ))
+              Fix[EOExpr](
+                EOCopy(
+                  Fix[EOExpr](
+                    EOCopy(
+                      Fix[EOExpr](
+                        EOCopy(
+                          Fix[EOExpr](EOSimpleApp("a")),
+                          NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                            EOAnonExpr(Fix[EOExpr](EOSimpleApp("b")))
+                          )
+                        )
+                      ),
+                      NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                        EOAnonExpr(Fix[EOExpr](EOSimpleApp("c")))
+                      )
+                    )
+                  ),
+                  NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                    EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
+                  )
+                )
+              )
             )
           )
         )
       }
 
-      forAll(getListOfFiles("core/src/test/resources/eo")) {
-        (src: String) =>
-          it(s"$src") {
-            val ast = Parser(readCodeFrom(src))
-            assert(ast.isRight)
-          }
+      forAll(getListOfFiles("core/src/test/resources/eo")) { (src: String) =>
+        it(s"$src") {
+          val ast = Parser(readCodeFrom(src))
+          assert(ast.isRight)
+        }
       }
     }
-
 
     describe("produces errors for incorrect programs") {
 
@@ -313,8 +356,12 @@ class ParserTests extends AnyFunSpec {
     }
 
     it("should return false if there is no error") {
-      assert(!produces[LexerError](Right(EOProg(EOMetas(None, Vector()), Vector()))))
-      assert(!produces[ParserError](Right(EOProg(EOMetas(None, Vector()), Vector()))))
+      assert(
+        !produces[LexerError](Right(EOProg(EOMetas(None, Vector()), Vector())))
+      )
+      assert(
+        !produces[ParserError](Right(EOProg(EOMetas(None, Vector()), Vector())))
+      )
     }
   }
 

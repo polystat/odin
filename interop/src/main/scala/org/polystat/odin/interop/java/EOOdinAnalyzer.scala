@@ -12,11 +12,14 @@ trait EOOdinAnalyzer {
 }
 
 object EOOdinAnalyzer {
+
   class EOOdinAnalyzerImpl() extends EOOdinAnalyzer {
     private val delegate = analysis.EOOdinAnalyzer.impl[IO]
     implicit private val runtime: IORuntime = IORuntime.global
 
-    override def analyzeSourceCode(code: String): java.util.List[OdinAnalysisErrorInterop] =
+    override def analyzeSourceCode(
+      code: String
+    ): java.util.List[OdinAnalysisErrorInterop] =
       delegate
         .analyzeSourceCode(code)
         .map(fromOdinAnalysisError)
@@ -24,5 +27,7 @@ object EOOdinAnalyzer {
         .toList
         .unsafeRunSync()
         .asJava
+
   }
+
 }
