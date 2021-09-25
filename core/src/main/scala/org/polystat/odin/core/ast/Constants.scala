@@ -1,6 +1,7 @@
 package org.polystat.odin.core.ast
 
 object Constants {
+
   object ATTRS {
     val DECORATION: String = "@"
     val PARENT: String = "^"
@@ -16,4 +17,5 @@ object Constants {
     val FREE_ATTR_DECL_ED: String = "]"
     val META_PREFIX: String = "+"
   }
+
 }

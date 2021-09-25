@@ -32,3 +32,17 @@ jobs:
           java-version: '11'
       - name: Build the project
         run: sbt test
+
+  format:
+    name: Format scala source code
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Check formatting
+        run: sbt scalafmtCheckAll

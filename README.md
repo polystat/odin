@@ -70,5 +70,6 @@ When a pull request is sent to `master` or a branch with a pull request to `mast
 
 - Build — all projects in the repository are built to check that the code compiles
 - Test — all tests are ran to check that new changes have not broken the existing functionality
+- Check code formatting — the code formatting will be checked via `scalafmt`. If it fails run `sbt scalafmtAll` and commit the updated formatting.
 
 For more information, see `.github/workflows/ci.yml`.
