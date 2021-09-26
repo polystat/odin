@@ -66,4 +66,4 @@ jobs:
           path: ${{ env.COURSIER_CACHE }}
           key: scalafix-cache
       - name: Run scalafix checks
-        run: sbt scalafixAll --check
+        run: sbt "scalafixAll --check"
