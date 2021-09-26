@@ -74,12 +74,11 @@ object Parser extends Parsers {
 
   private def createNonEmpty(
     objs: Seq[EOBnd[EOExprOnly]]
-  ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
+  ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] =
     NonEmpty.from(objs) match {
       case Some(value) => value.toVector
-      case None => throw new Exception("1 or more arguments expected, got 0.")
+      case None => throw new Exception("1 or more arguments expected, got 0.") // scalafix:ok; TODO: remove the method
     }
-  }
 
   private def extractEOExpr(bnd: EOBnd[EOExprOnly]): EOExprOnly = {
     bnd match {

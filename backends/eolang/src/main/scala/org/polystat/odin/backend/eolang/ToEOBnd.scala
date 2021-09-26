@@ -21,7 +21,7 @@ object ToEOBnd {
     ): R =
       ToEOBnd[T, R, NR].bndToEO(src)(name)
 
-    implicit class ToEOBndOps[T, R, NR](val src: T) extends AnyVal {
+    implicit class ToEOBndOps[T, R, NR](private val src: T) extends AnyVal {
 
       def bndToEO(name: NR)(implicit toEOBnd: ToEOBnd[T, R, NR]): R =
         ToEOBnd[T, R, NR].bndToEO(src)(name)

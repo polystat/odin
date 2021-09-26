@@ -24,7 +24,8 @@ object inlineorlines {
 
   object ops {
 
-    implicit class InlineOrLinesOps(val iol: InlineOrLines) extends AnyVal {
+    implicit class InlineOrLinesOps(private val iol: InlineOrLines)
+      extends AnyVal {
       import conversions._
 
       def toIterable: Iterable[String] = iol
