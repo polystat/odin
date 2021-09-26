@@ -71,5 +71,13 @@ When a pull request is sent to `master` or a branch with a pull request to `mast
 - Build — all projects in the repository are built to check that the code compiles
 - Test — all tests are ran to check that new changes have not broken the existing functionality
 - Check code formatting — the code formatting will be checked via `scalafmt`. If it fails run `sbt scalafmtAll` and commit the updated formatting.
+- Lint — run scalafix. If it fails run `sbt scalafixAll` and fix issues that are not autofixable manually.
+
+  [scalafix official documentation](https://scalacenter.github.io/scalafix/docs/users/installation.html#sbt) tells that SemanticDB compiler plugin with `-Yrangepos` flag adds overhead to the compilation, so it is recommended to create a local `.jvmopts` file with the following content:
+  ```
+    -Xss8m
+    -Xms1G
+    -Xmx8G
+  ```
 
 For more information, see `.github/workflows/ci.yml`.
