@@ -1,7 +1,7 @@
 import sbt._
-import sbt.Keys._
 
 object Dependencies {
+
   object V {
     val cats = "2.6.1"
     val catsMtl = "1.2.1"

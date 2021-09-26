@@ -8,3 +8,7 @@ target/
 
 # File system
 .DS_Store
+
+# JVM
+
+.jvmopts
