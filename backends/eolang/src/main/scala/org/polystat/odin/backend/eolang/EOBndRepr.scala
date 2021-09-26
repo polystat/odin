@@ -29,7 +29,7 @@ object EOBndRepr {
     ): R =
       EOBndRepr[R, NR].bindToName(src)(name)
 
-    implicit class EOReprOps[R, NR](val src: R) extends AnyVal {
+    implicit class EOReprOps[R, NR](private val src: R) extends AnyVal {
 
       def bindToName(name: NR)(implicit eoRepr: EOBndRepr[R, NR]): R =
         EOBndRepr[R, NR].bindToName(src)(name)
