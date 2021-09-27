@@ -55,10 +55,10 @@ private[parser] object SingleLineApplication {
       (applicationTarget | parenthesized).rep(1)
     )
     innerHorizontalApplicationArgs.flatMap(args =>
-      NonEmpty.from(args.map(EOAnonExpr(_))) match {
-        case Some(value) => Pass(value.toVector)
-        case None => Fail(Common.nonEmptyErrorMsg)
-      }
+      NonEmpty
+        .from(args.map(EOAnonExpr(_)).toVector)
+        .map(Pass(_))
+        .getOrElse(Fail(Common.nonEmptyErrorMsg))
     )
   }
 

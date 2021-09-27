@@ -37,10 +37,10 @@ private[parser] object Common {
         .`object`(indent + indentationStep, indentationStep)
         .repX(1, sep = "\n" ~ deeper(indent, indentationStep)./)
         .flatMapX(objs =>
-          NonEmpty.from(objs) match {
-            case Some(value) => Pass(value.toVector)
-            case None => Fail(nonEmptyErrorMsg)
-          }
+          NonEmpty
+            .from(objs.toVector)
+            .map(Pass(_))
+            .getOrElse(Fail(nonEmptyErrorMsg))
         )
   )
 
