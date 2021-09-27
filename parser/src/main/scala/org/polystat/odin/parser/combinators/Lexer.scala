@@ -5,7 +5,7 @@ import scala.util.parsing.combinator.RegexParsers
 import errors._
 
 object Lexer extends RegexParsers {
-  override def skipWhitespace = true
+  override def skipWhitespace: Boolean = true
 
   override val whiteSpace: Regex = "[ \t\r\f]+".r
 
