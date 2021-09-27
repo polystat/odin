@@ -136,7 +136,7 @@ class ParserTests extends AnyWordSpec {
 
   "abstraction" should {
     def anonymousAbstractionAllInput[_: P] =
-      parseEntireInput(AnonymousObjects.anonymousAbstraction(0, 2))
+      parseEntireInput(AnonymousObjects.anonymousObject(0, 2))
 
     val correctExamples = List(
       "simplest possible object" ->
@@ -195,7 +195,7 @@ class ParserTests extends AnyWordSpec {
 
   "application" should {
     def namedApplicationAllInput[_: P] =
-      parseEntireInput(NamedObjects.namedApplication(0, 2))
+      parseEntireInput(NamedObjects.namedObject(0, 2))
 
     val correctExamples = List(
       "some simple objects" ->

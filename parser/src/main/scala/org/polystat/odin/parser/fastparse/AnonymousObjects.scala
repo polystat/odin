@@ -20,61 +20,42 @@ private[parser] object AnonymousObjects {
   def anonymousObject[_: P](
     indent: Int,
     indentationStep: Int
-  ): P[EOAnonExpr[EOExprOnly]] =
-    anonymousAbstraction(indent, indentationStep) | anonymousApplication(
-      indent,
-      indentationStep
+  ): P[EOAnonExpr[EOExprOnly]] = {
+
+    def anonymousApplication: P[EOAnonExpr[EOExprOnly]] = P(
+      anonymousInverseDotApplication | anonymousRegularApplication
     )
 
-  def anonymousApplication[_: P](
-    indent: Int,
-    indentationStep: Int
-  ): P[EOAnonExpr[EOExprOnly]] = P(
-    anonymousInverseDotApplication(
-      indent,
-      indentationStep
-    ) | anonymousRegularApplication(indent, indentationStep)
-  )
+    def anonymousRegularApplication: P[EOAnonExpr[EOExprOnly]] = P(
+      singleLineApplication ~ verticalApplicationArgs(indent, indentationStep).?
+    ).map {
+      case (trg, Some(args)) => EOAnonExpr(
+          Fix[EOExpr](EOCopy(trg, args))
+        )
+      case (trg, None) => EOAnonExpr(trg)
+    }
 
-  def anonymousRegularApplication[_: P](
-    indent: Int,
-    indentationStep: Int
-  ): P[EOAnonExpr[EOExprOnly]] = P(
-    singleLineApplication ~ verticalApplicationArgs(indent, indentationStep).?
-  ).map {
-    case (trg, Some(args)) => EOAnonExpr(
-        Fix[EOExpr](EOCopy(trg, args))
+    def anonymousInverseDotApplication: P[EOAnonExpr[EOExprOnly]] = P(
+      Tokens.identifier ~ "." ~ verticalApplicationArgs(indent, indentationStep)
+    ).map { case (id, args) =>
+      EOAnonExpr(createInverseDot(id, args))
+    }
+
+    def anonymousVerticalArray: P[EOAnonExpr[EOExprOnly]] = P(
+      "*" ~/ verticalApplicationArgs(indent, indentationStep).?
+    ).map { args =>
+      EOAnonExpr(createArrayFromNonEmpty(args))
+    }
+
+    def anonymousAbstraction: P[EOAnonExpr[EOExprOnly]] = P(
+      args ~/ boundAttributes(indent, indentationStep).?
+    ).map { case (params, vararg, attrs) =>
+      EOAnonExpr(
+        Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
       )
-    case (trg, None) => EOAnonExpr(trg)
-  }
+    }
 
-  def anonymousInverseDotApplication[_: P](
-    indent: Int,
-    indentationStep: Int
-  ): P[EOAnonExpr[EOExprOnly]] = P(
-    Tokens.identifier ~ "." ~ verticalApplicationArgs(indent, indentationStep)
-  ).map { case (id, args) =>
-    EOAnonExpr(createInverseDot(id, args))
-  }
-
-  def namedVerticalArray[_: P](
-    indent: Int,
-    indentationStep: Int
-  ): P[EOAnonExpr[EOExprOnly]] = P(
-    "*" ~/ verticalApplicationArgs(indent, indentationStep).?
-  ).map { args =>
-    EOAnonExpr(createArrayFromNonEmpty(args))
-  }
-
-  def anonymousAbstraction[_: P](
-    indent: Int,
-    indentationStep: Int
-  ): P[EOAnonExpr[EOExprOnly]] = P(
-    args ~/ boundAttributes(indent, indentationStep).?
-  ).map { case (params, vararg, attrs) =>
-    EOAnonExpr(
-      Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
-    )
+    anonymousAbstraction | anonymousApplication | anonymousVerticalArray
   }
 
 }
