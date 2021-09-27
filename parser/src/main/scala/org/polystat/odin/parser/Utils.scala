@@ -9,25 +9,9 @@ private[parser] object Utils {
 
   def createArrayFromNonEmpty(
     ne: Option[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]]
-  ): EOExprOnly = {
-    Fix[EOExpr](
-      EOArray(
-        ne match {
-          case Some(value) => value
-          case None => Vector()
-        }
-      )
-    )
-  }
-
-  def createNonEmpty(
-    objs: Seq[EOBnd[EOExprOnly]]
-  ): NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]] = {
-    NonEmpty.from(objs) match {
-      case Some(value) => value.toVector
-      case None => throw new Exception("1 or more arguments expected, got 0.")
-    }
-  }
+  ): EOExprOnly = Fix[EOExpr](
+    EOArray(ne.map(_.value).getOrElse(Vector.empty[EOBnd[EOExprOnly]]))
+  )
 
   private def extractEOExpr(bnd: EOBnd[EOExprOnly]): EOExprOnly = {
     bnd match {
@@ -41,17 +25,17 @@ private[parser] object Utils {
   def createInverseDot(
     id: String,
     args: Vector[EOBnd[EOExprOnly]]
-  ): EOExprOnly = {
-    if (args.tail.nonEmpty) {
-      Fix[EOExpr](
-        EOCopy(
-          Fix[EOExpr](EODot(extractEOExpr(args.head), id)),
-          createNonEmpty(args.tail)
-        )
-      )
-    } else {
-      Fix[EOExpr](EODot(extractEOExpr(args.head), id))
-    }
-  }
+  ): EOExprOnly =
+    Fix[EOExpr](
+      NonEmpty
+        .from(args.tail)
+        .map { tail =>
+          EOCopy(
+            Fix[EOExpr](EODot(extractEOExpr(args.head), id)),
+            tail
+          )
+        }
+        .getOrElse(EODot(extractEOExpr(args.head), id))
+    )
 
 }

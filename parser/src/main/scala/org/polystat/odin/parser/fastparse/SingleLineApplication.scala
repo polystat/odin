@@ -6,7 +6,6 @@ import fastparse._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
-import org.polystat.odin.parser.Utils.createNonEmpty
 
 private[parser] object SingleLineApplication {
 
@@ -49,9 +48,19 @@ private[parser] object SingleLineApplication {
 
   def horizontalApplicationArgs[
     _: P
-  ]: P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = P(
-    (applicationTarget | parenthesized).rep(1)
-  ).map(args => createNonEmpty(args.map(EOAnonExpr(_))))
+  ]: P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
+    // a workaround suggested by
+    // https://github.com/com-lihaoyi/fastparse/issues/217
+    def innerHorizontalApplicationArgs = P(
+      (applicationTarget | parenthesized).rep(1)
+    )
+    innerHorizontalApplicationArgs.flatMap(args =>
+      NonEmpty.from(args.map(EOAnonExpr(_))) match {
+        case Some(value) => Pass(value.toVector)
+        case None => Fail(Common.nonEmptyErrorMsg)
+      }
+    )
+  }
 
   def justApplication[_: P]: P[EOExprOnly] = P(
     (parenthesized | applicationTarget) ~ horizontalApplicationArgs

@@ -4,13 +4,15 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import fastparse._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast.{EOBnd, EOBndExpr}
-import org.polystat.odin.parser.Utils.createNonEmpty
 import org.polystat.odin.parser.fastparse.IgnoreEmptyLinesOrComments._
 
 /**
   * Contains parts required by both named and unnamed objects
   */
 private[parser] object Common {
+
+  val nonEmptyErrorMsg: String =
+    "Managed to parse zero arguments, where 1 or more were required. This is probably a bug."
 
   private def deeper[_: P](indent: Int, indentationStep: Int) = P(
     " " * (indent + indentationStep)
@@ -34,6 +36,12 @@ private[parser] object Common {
       Parser
         .`object`(indent + indentationStep, indentationStep)
         .repX(1, sep = "\n" ~ deeper(indent, indentationStep)./)
-  ).map(createNonEmpty)
+        .flatMapX(objs =>
+          NonEmpty.from(objs) match {
+            case Some(value) => Pass(value.toVector)
+            case None => Fail(nonEmptyErrorMsg)
+          }
+        )
+  )
 
 }

@@ -5,7 +5,7 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import errors._
 import higherkindness.droste.data.Fix
-import org.polystat.odin.parser.Utils.{createInverseDot, createNonEmpty}
+import org.polystat.odin.parser.Utils.createInverseDot
 
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
@@ -145,13 +145,25 @@ object Parser extends Parsers {
     attributeChain | simpleApplicationTarget
   }
 
+  private val nonEmptyErrorMsg =
+    "Managed to parse zero arguments, where 1 or more were required. This is probably a bug."
+
   def singleLineApplication: Parser[EOExprOnly] = {
     val justTarget = applicationTarget
     val parenthesized = LPAREN ~> singleLineApplication <~ RPAREN
-    val horizontalApplicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
-      rep1(justTarget | parenthesized) ^^
-        (args => createNonEmpty(args.map(EOAnonExpr(_))))
-    }
+
+    val horizontalApplicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] =
+      for {
+        args <- rep1(justTarget | parenthesized)
+        maybeNonemptyArgs = NonEmpty.from(args.map(EOAnonExpr(_)).toVector)
+        result <- maybeNonemptyArgs
+          .map(as => success(as))
+          .getOrElse(
+            failure(
+              nonEmptyErrorMsg
+            )
+          )
+      } yield result
     val justApplication =
       (parenthesized | justTarget) ~ horizontalApplicationArgs ^^ {
         case trg ~ args => Fix[EOExpr](EOCopy(trg, args))
@@ -161,8 +173,12 @@ object Parser extends Parsers {
   }
 
   def verticalApplicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
-    INDENT ~> rep1(`object`) <~ DEDENT ^^
-      (argList => createNonEmpty(argList))
+    INDENT ~> rep1(`object`) <~ DEDENT >> { args =>
+      NonEmpty.from(args) match {
+        case Some(value) => success(value.toVector)
+        case None => failure(nonEmptyErrorMsg)
+      }
+    }
   }
 
   def namedApplication: Parser[EOBndExpr[EOExprOnly]] = {
