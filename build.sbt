@@ -49,14 +49,7 @@ lazy val publishSettings = Seq(
   ),
   licenses := List("MIT" -> url("https://mit-license.org")),
   pomIncludeRepository := { _ => false },
-  publishTo := {
-    val nexus = "https://s01.oss.sonatype.org/"
-
-    if (isSnapshot.value)
-      Some("snapshots" at nexus + "content/repositories/snapshots")
-    else
-      Some("releases" at nexus + "service/local/staging/deploy/maven2")
-  },
+  publishTo := sonatypePublishToBundle.value,
   publishArtifact := true,
   publishMavenStyle := true,
   sonatypeProfileName := "org.polystat",
