@@ -52,13 +52,17 @@ class ParserTests extends AnyFunSpec {
     code: String,
     ast: Vector[EOBnd[EOExprOnly]]
   ) = {
-    assert(Parser(code) == Right(EOProg(EOMetas(None, Vector()), ast)))
+    @annotation.nowarn
+    val parseResult = Parser(code)
+    assert(parseResult == Right(EOProg(EOMetas(None, Vector()), ast)))
   }
 
   describe("Parser") {
     describe("produces correct AST for correct programs") {
       it("mutual recursion example") {
-        assert(Parser(MutualRecExample.code) == Right(MutualRecExample.ast))
+        @annotation.nowarn
+        val parsed = Parser(MutualRecExample.code)
+        assert(parsed == Right(MutualRecExample.ast))
       }
 
       it("single line application examples") {
@@ -179,6 +183,7 @@ class ParserTests extends AnyFunSpec {
 
       forAll(getListOfFiles("/eo_sources")) { src =>
         it(fileNameOf(src)) {
+          @annotation.nowarn
           val ast = Parser(readCodeFrom(src))
           assert(ast.isRight)
         }
@@ -188,17 +193,21 @@ class ParserTests extends AnyFunSpec {
     describe("produces errors for incorrect programs") {
 
       it("misplaced exclamation marks") {
+        @annotation.nowarn
+        val parsed = Parser(FailingCode.misplacedExclamationMark)
         assert(
           produces[ParserError](
-            Parser(FailingCode.misplacedExclamationMark)
+            parsed
           )
         )
       }
 
       it("invalid tokens") {
+        @annotation.nowarn
+        val parsed = Parser(FailingCode.invalidTokens)
         assert(
           produces[LexerError](
-            Parser(FailingCode.invalidTokens)
+            parsed
           )
         )
       }
