@@ -6,4 +6,5 @@ object text {
   def indentSpace: Int => String => String = indentWith(' ')
 
   def indent: String => String = indentWith(' ')(2)
+
 }
