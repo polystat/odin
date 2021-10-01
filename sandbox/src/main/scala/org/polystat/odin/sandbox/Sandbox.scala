@@ -7,8 +7,8 @@ import org.polystat.odin.analysis.mutualrec.naive.{ findMutualRecursionInTopLeve
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.backend.eolang.inlineorlines.ops._
-import org.polystat.odin.parser.Parser
-import org.polystat.odin.parser.errors.{ LexerError, ParserError }
+import org.polystat.odin.parser.combinators.Parser
+import org.polystat.odin.parser.combinators.errors.{ LexerError, ParserError }
 
 import scala.io.Source
 import scala.util.chaining._
@@ -16,6 +16,8 @@ import scala.util.chaining._
 object Sandbox extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = for {
     exitCode <- IO.pure(ExitCode.Success)
+    //    mutualRecEORepr: String = mutualRecursionExample.toEO.allLinesToString
+    //    _ <- IO(mutualRecEORepr.tap(println))
 
     fileName = "mutual_rec_example.eo"
     fileSourceResource = Resource.make(IO(Source.fromResource(fileName)))(src => IO(src.close()))

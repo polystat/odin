@@ -1,0 +1,33 @@
+# 123
++package sandbox
+
+# ooo
++rt jvm adopt:java8:1.302.2
+# 000
+# some meaningful text
+[] > main
+  a > namedA
+  a.b.c > namedC
+  a > aCopiedWithB
+    # gogogo
+    b
+  a > aCopiedWithBCopiedWithC
+    b > bCopiedWithC
+      c > justC
+  c. > inverseDotExample
+    b.
+      a
+  # some more text
+  [@ b] > @
+    [ad...] > one2!
+  [a @...] > another
+    # some more text
+    [a b c d...] > another2
+  # some unrelated comment
+  a b c d > aAppliedToBCandD
+  a (b (c d)) > rightAssociative
+  ((a b) c) d > leftAssociative
+  a.x v > axv
+  a > msg
+    1
+    2

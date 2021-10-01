@@ -1,4 +1,4 @@
-package org.polystat.odin.parser
+package org.polystat.odin.parser.combinators
 
 object errors {
 
