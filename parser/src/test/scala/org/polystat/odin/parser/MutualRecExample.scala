@@ -6,6 +6,7 @@ import org.polystat.odin.core.ast._
 import higherkindness.droste.data.Fix
 
 object MutualRecExample {
+
   val ast: EOProg[EOExprOnly] = EOProg(
     EOMetas(
       pack = Some("sandbox"),
@@ -37,7 +38,9 @@ object MutualRecExample {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("x")), "write")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("x")), "write")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )
@@ -59,7 +62,9 @@ object MutualRecExample {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "f")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("self")), "f")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
@@ -75,8 +80,6 @@ object MutualRecExample {
           )
         )
       ),
-
-
       EOBndExpr(
         EOAnyNameBnd(LazyName("derived")),
         Fix[EOExpr](
@@ -96,7 +99,9 @@ object MutualRecExample {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "g")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("self")), "g")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
@@ -114,6 +119,7 @@ object MutualRecExample {
       ),
     )
   )
+
   val code: String =
     """+package sandbox
       |+alias stdout org.eolang.io.stdout
@@ -134,4 +140,5 @@ object MutualRecExample {
       |      self
       |      v
       |""".stripMargin
+
 }

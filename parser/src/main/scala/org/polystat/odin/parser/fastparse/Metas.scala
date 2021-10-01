@@ -4,21 +4,22 @@ import fastparse.SingleLineWhitespace._
 import fastparse._
 import org.polystat.odin.core.ast.{EOAliasMeta, EORTMeta}
 
-object Metas {
+private[parser] object Metas {
+
   def packageMeta[_: P]: P[String] = P(
     "+package" ~/ packageName.! ~/ "\n"
   )
 
   def aliasMeta[_: P]: P[EOAliasMeta] = P(
     "+alias" ~/ aliasName.! ~/ packageName.! ~/ "\n"
-  ).map {
-    case (alias, src) => EOAliasMeta(alias, src)
+  ).map { case (alias, src) =>
+    EOAliasMeta(alias, src)
   }
 
   def rtMeta[_: P]: P[EORTMeta] = P(
     "+rt" ~/ aliasName.! ~/ artifactId.! ~/ "\n"
-  ).map {
-    case (rtName, src) => EORTMeta(rtName, src)
+  ).map { case (rtName, src) =>
+    EORTMeta(rtName, src)
   }
 
   // TODO: refine rule

@@ -4,53 +4,48 @@ import fastparse._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 import IgnoreEmptyLinesOrComments._
-import org.polystat.odin.parser.fastparse.Metas.{packageMeta, rtMeta, aliasMeta}
-
+import org.polystat.odin.parser.fastparse.Metas.{aliasMeta, packageMeta, rtMeta}
 
 /**
- * Contains the entrypoint for the parser
- *
- * @param indent          the spaces before the statements in the outermost block
- * @param indentationStep InnerBlockIndentation minus OuterBlockIndentation
- */
-class Parser(
-              override val indent: Int = 0,
-              override val indentationStep: Int = 2
-            ) extends RespectsIndentation {
+  * Entrypoint for the parser
+  */
+object Parser {
 
-
-  def metas[_: P]: P[EOMetas] = P(
+  private[parser] def metas[_: P]: P[EOMetas] = P(
     packageMeta.? ~/
       (rtMeta | aliasMeta)./.rep
-  ).map {
-    case (pkg, metas) => EOMetas(pkg, metas.toVector)
+  ).map { case (pkg, metas) =>
+    EOMetas(pkg, metas.toVector)
   }
 
-  def program[_: P]: P[EOProg[EOExprOnly]] = P(
+  private[parser] def program[_: P](
+    indent: Int,
+    indentationStep: Int
+  ): P[EOProg[EOExprOnly]] = P(
     Start ~/
       metas ~/
-      `object`./.rep ~
+      `object`(indent, indentationStep)./.rep ~
       End
-  ).map {
-    case (metas, objs) => EOProg(
+  ).map { case (metas, objs) =>
+    EOProg(
       metas = metas,
       bnds = objs.toVector
     )
   }
 
-  def `object`[_: P]: P[EOBnd[EOExprOnly]] = P(
-    new NamedObjects(indent = indent, indentationStep = indentationStep).namedObject |
-      new AnonymousObjects(indent = indent, indentationStep = indentationStep).anonymousObject
+  private[parser] def `object`[_: P](
+    indent: Int,
+    indentationStep: Int
+  ): P[EOBnd[EOExprOnly]] = P(
+    NamedObjects.namedObject(indent, indentationStep) |
+      AnonymousObjects.anonymousObject(indent, indentationStep)
   )
 
-}
-
-
-object Parser {
   def parse(
-             code: String,
-             indentationStep: Int = 2
-           ): Parsed[EOProg[EOExprOnly]] = {
-    fastparse.parse(code, new Parser(indentationStep = indentationStep).program(_))
+    code: String,
+    indentationStep: Int = 2
+  ): Parsed[EOProg[EOExprOnly]] = {
+    fastparse.parse(code, Parser.program(0, indentationStep)(_))
   }
+
 }

@@ -1,4 +1,4 @@
-package org.polystat.odin.parser.scala_parser_combinators
+package org.polystat.odin.parser.combinators
 
 sealed trait Token
 
@@ -16,10 +16,10 @@ case class PHI(name: "@" = "@") extends ACCESSIBLE_ATTRIBUTE_NAME
 case class RHO(name: "^" = "^") extends ACCESSIBLE_ATTRIBUTE_NAME
 case class SELF(name: "$" = "$") extends ACCESSIBLE_ATTRIBUTE_NAME
 
-
 sealed trait LITERAL extends Token {
   val value: String
 }
+
 case class STRING(value: String) extends LITERAL
 case class CHAR(value: String) extends LITERAL
 case class INTEGER(value: String) extends LITERAL
@@ -43,5 +43,3 @@ case object PLUS extends Token
 case object ASSIGN_NAME extends Token
 case object SLASH extends Token
 case object DOTS extends Token
-
-

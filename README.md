@@ -1,4 +1,4 @@
-# The project is moved to the https://github.com/polystat/odin
+[![Maven Release](https://badgen.net/maven/v/metadata-url/https/repo1.maven.org/maven2/org/polystat/odin/odin_2.13/maven-metadata.xml)](https://oss.sonatype.org/content/repositories/releases/org/polystat/odin/odin_2.13/ )
 
 Odin (object dependency inspector) — a static analyzer for [EO programming language](https://github.com/cqfn/eo).
 
@@ -70,5 +70,14 @@ When a pull request is sent to `master` or a branch with a pull request to `mast
 
 - Build — all projects in the repository are built to check that the code compiles
 - Test — all tests are ran to check that new changes have not broken the existing functionality
+- Lint — run scalafix. If it fails run `sbt scalafixAll` and fix issues that are not autofixable manually.
+
+  [scalafix official documentation](https://scalacenter.github.io/scalafix/docs/users/installation.html#sbt) tells that SemanticDB compiler plugin with `-Yrangepos` flag adds overhead to the compilation, so it is recommended to create a local `.jvmopts` file with the following content:
+  ```
+    -Xss8m
+    -Xms1G
+    -Xmx8G
+  ```
+- Check code formatting — the code formatting will be checked via `scalafmt`. If it fails run `sbt scalafmtAll` and commit the updated formatting.
 
 For more information, see `.github/workflows/ci.yml`.

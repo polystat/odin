@@ -1,16 +1,17 @@
-package org.polystat.odin.parser.scala_parser_combinators
+package org.polystat.odin.parser.combinators
 
 import com.github.tarao.nonempty.collection.NonEmpty
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import errors._
 import higherkindness.droste.data.Fix
-import org.polystat.odin.parser.Utils.{createInverseDot, createNonEmpty}
+import org.polystat.odin.parser.Utils.createInverseDot
 
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
 object Parser extends Parsers {
+
   class WorkflowTokenReader(val tokens: Seq[Token]) extends Reader[Token] {
     override def first: Token = tokens.head
 
@@ -47,18 +48,24 @@ object Parser extends Parsers {
   }
 
   private def accessibleAttributeName: Parser[ACCESSIBLE_ATTRIBUTE_NAME] =
-    accept("accessibleAttributeName", {
-      case name: ACCESSIBLE_ATTRIBUTE_NAME => name
-    })
+    accept(
+      "accessibleAttributeName",
+      { case name: ACCESSIBLE_ATTRIBUTE_NAME =>
+        name
+      }
+    )
 
   private def literal: Parser[LITERAL] = {
     accept("literal", { case lit: LITERAL => lit })
   }
 
   private def single_line_comment: Parser[SINGLE_LINE_COMMENT] = {
-    accept("single line comment", {
-      case comment: SINGLE_LINE_COMMENT => comment
-    })
+    accept(
+      "single line comment",
+      { case comment: SINGLE_LINE_COMMENT =>
+        comment
+      }
+    )
   }
 
   private def meta: Parser[META] = {
@@ -69,34 +76,34 @@ object Parser extends Parsers {
     rep(NEWLINE | single_line_comment)
 
   def program: Parser[EOProg[EOExprOnly]] = {
-    opt(metas) ~ objects ^^ {
-      case metas ~ objs =>
-        EOProg(metas.getOrElse(EOMetas(None, Vector())), objs)
+    opt(metas) ~ objects ^^ { case metas ~ objs =>
+      EOProg(metas.getOrElse(EOMetas(None, Vector())), objs)
     }
   }
 
   def metas: Parser[EOMetas] = {
-    rep1(commentsOrNewlines ~> meta) ^^ { metas => {
-      def processOtherMetas(other: List[META]): List[EOMeta] = other match {
-        case META(name, text) :: tail if name == "+alias" =>
-          val alias :: value :: _ =
-            text.split(' ').filterNot(_.isEmpty).toList
-          EOAliasMeta(alias, value) :: processOtherMetas(tail)
-        case META(name, text) :: tail if name == "+rt" =>
-          val rt :: value :: _ = text.split(' ').filterNot(_.isEmpty).toList
-          EORTMeta(rt, value) :: processOtherMetas(tail)
-        case META(_, _) :: tail => processOtherMetas(tail)
-        case Nil => Nil
-      }
+    rep1(commentsOrNewlines ~> meta) ^^ { metas =>
+      {
+        def processOtherMetas(other: List[META]): List[EOMeta] = other match {
+          case META(name, text) :: tail if name == "+alias" =>
+            val alias :: value :: _ =
+              text.split(' ').filterNot(_.isEmpty).toList
+            EOAliasMeta(alias, value) :: processOtherMetas(tail)
+          case META(name, text) :: tail if name == "+rt" =>
+            val rt :: value :: _ = text.split(' ').filterNot(_.isEmpty).toList
+            EORTMeta(rt, value) :: processOtherMetas(tail)
+          case META(_, _) :: tail => processOtherMetas(tail)
+          case Nil => Nil
+        }
 
-      val (pkg, otherMetas) = metas.head match {
-        case META(name, text) if name == "+package" =>
-          (Some(text), metas.tail)
-        case META(_, _) => (None, metas)
-      }
+        val (pkg, otherMetas) = metas.head match {
+          case META(name, text) if name == "+package" =>
+            (Some(text), metas.tail)
+          case META(_, _) => (None, metas)
+        }
 
-      EOMetas(pkg, processOtherMetas(otherMetas).toVector)
-    }
+        EOMetas(pkg, processOtherMetas(otherMetas).toVector)
+      }
     }
   }
 
@@ -138,31 +145,45 @@ object Parser extends Parsers {
     attributeChain | simpleApplicationTarget
   }
 
+  private val nonEmptyErrorMsg =
+    "Managed to parse zero arguments, where 1 or more were required. This is probably a bug."
+
   def singleLineApplication: Parser[EOExprOnly] = {
     val justTarget = applicationTarget
     val parenthesized = LPAREN ~> singleLineApplication <~ RPAREN
-    val horizontalApplicationArgs
-    : Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
-      rep1(justTarget | parenthesized) ^^
-        (args => createNonEmpty(args.map(EOAnonExpr(_))))
-    }
-    val justApplication = (parenthesized | justTarget) ~ horizontalApplicationArgs ^^ {
-      case trg ~ args => Fix[EOExpr](EOCopy(trg, args))
-    }
+
+    val horizontalApplicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] =
+      for {
+        args <- rep1(justTarget | parenthesized)
+        maybeNonemptyArgs = NonEmpty.from(args.map(EOAnonExpr(_)).toVector)
+        result <- maybeNonemptyArgs
+          .map(as => success(as))
+          .getOrElse(
+            failure(
+              nonEmptyErrorMsg
+            )
+          )
+      } yield result
+    val justApplication =
+      (parenthesized | justTarget) ~ horizontalApplicationArgs ^^ {
+        case trg ~ args => Fix[EOExpr](EOCopy(trg, args))
+      }
 
     justApplication | parenthesized | justTarget
   }
 
-  def verticalApplicationArgs
-  : Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
-    INDENT ~> rep1(`object`) <~ DEDENT ^^
-      (argList => createNonEmpty(argList))
+  def verticalApplicationArgs: Parser[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = {
+    INDENT ~> rep1(`object`) <~ DEDENT >> { args =>
+      NonEmpty.from(args) match {
+        case Some(value) => success(value.toVector)
+        case None => failure(nonEmptyErrorMsg)
+      }
+    }
   }
 
   def namedApplication: Parser[EOBndExpr[EOExprOnly]] = {
-    val noArgs = singleLineApplication ~ name ^^ {
-      case target ~ name =>
-        EOBndExpr(name, target)
+    val noArgs = singleLineApplication ~ name ^^ { case target ~ name =>
+      EOBndExpr(name, target)
     }
     val inverseDot = identifier ~ DOT ~ name ~ verticalApplicationArgs ^^ {
       case id ~ _ ~ name ~ args =>
@@ -191,27 +212,24 @@ object Parser extends Parsers {
     inverseDot | withArgs | noArgs
   }
 
-
   def abstraction: Parser[EOBnd[EOExprOnly]] = {
     namedAbsObj | anonAbsObj
   }
 
   def anonAbsObj: Parser[EOAnonExpr[EOExprOnly]] = {
-    args ~ opt(boundAttrs) ^^ {
-      case (params, vararg) ~ attrs =>
-        EOAnonExpr(
-          Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
-        )
+    args ~ opt(boundAttrs) ^^ { case (params, vararg) ~ attrs =>
+      EOAnonExpr(
+        Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
+      )
     }
   }
 
   def namedAbsObj: Parser[EOBndExpr[EOExprOnly]] = {
-    args ~ name ~ opt(boundAttrs) ^^ {
-      case (params, vararg) ~ name ~ attrs =>
-        EOBndExpr(
-          name,
-          Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
-        )
+    args ~ name ~ opt(boundAttrs) ^^ { case (params, vararg) ~ name ~ attrs =>
+      EOBndExpr(
+        name,
+        Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
+      )
     }
   }
 
@@ -259,4 +277,5 @@ object Parser extends Parsers {
     }
     attrs | noAttrs
   }
+
 }

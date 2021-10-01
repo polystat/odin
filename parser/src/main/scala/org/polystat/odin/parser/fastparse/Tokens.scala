@@ -5,7 +5,7 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import fastparse._, NoWhitespace._
 import higherkindness.droste.data.Fix
 
-object Tokens {
+private[parser] object Tokens {
 
   def comment[_: P]: P[Unit] = P(
     whitespaceChars ~ "#" ~ CharsWhile(_ != '\n', 0) ~ "\n"
@@ -22,7 +22,8 @@ object Tokens {
 
   def digit[_: P]: P[String] = P(CharIn("0-9")).!
 
-  def integer[_: P]: P[EOExprOnly] = P("-".? ~ CharsWhileIn("0-9")).!
+  def integer[_: P]: P[EOExprOnly] = P("-".? ~ CharsWhileIn("0-9"))
+    .!
     .map(int => Fix[EOExpr](EOIntData(int.toInt)))
 
   def char[_: P]: P[EOExprOnly] = P("\'" ~ letter.! ~ "\'")

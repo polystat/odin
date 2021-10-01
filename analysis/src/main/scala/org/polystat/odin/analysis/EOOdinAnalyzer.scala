@@ -8,7 +8,7 @@ import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.scala_parser_combinators.Parser
+import org.polystat.odin.parser.combinators.Parser
 
 trait EOOdinAnalyzer[F[_]] {
   def analyzeSourceCode(code: String): Stream[F, OdinAnalysisError]
@@ -19,12 +19,15 @@ object EOOdinAnalyzer {
 
   object OdinAnalysisError extends NewtypeWrapped[String]
 
-  def impl[F[_] : Sync]: EOOdinAnalyzer[F] = new EOOdinAnalyzer[F] {
+  def impl[F[_]: Sync]: EOOdinAnalyzer[F] = new EOOdinAnalyzer[F] {
+
     def analyzeSourceCode(code: String): Stream[F, OdinAnalysisError] =
       for {
-        programAst <- Stream.eval(Sync[F].fromEither(
-          Parser(code).left.map(e => new IllegalArgumentException(e.msg))
-        ))
+        programAst <- Stream.eval(
+          Sync[F].fromEither(
+            Parser(code).left.map(e => new IllegalArgumentException(e.msg))
+          )
+        )
         mutualRecursionErrors <- findMutualRecursion(programAst)
       } yield mutualRecursionErrors
 
@@ -42,11 +45,17 @@ object EOOdinAnalyzer {
             s"is mutually recursive with method " ++
             s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
 
-        val dependencyChainString = depChain.append(method).map(m => s"${m.parentObject.objName}.${m.name}").mkString_(" -> ")
+        val dependencyChainString = depChain
+          .append(method)
+          .map(m => s"${m.parentObject.objName}.${m.name}")
+          .mkString_(" -> ")
 
-        val errorMessage = mutualRecString ++ " through the following possible code path:\n" ++ dependencyChainString
+        val errorMessage =
+          mutualRecString ++ " through the following possible code path:\n" ++ dependencyChainString
         OdinAnalysisError(errorMessage)
       })
     } yield odinError
+
   }
+
 }

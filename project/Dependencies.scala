@@ -1,11 +1,11 @@
 import sbt._
-import sbt.Keys._
 
 object Dependencies {
+
   object V {
-    val cats = "2.3.0"
-    val catsMtl = "1.2.0"
-    val catsEffect = "3.2.5"
+    val cats = "2.6.1"
+    val catsMtl = "1.2.1"
+    val catsEffect = "3.2.7"
     val catsParse = "0.3.4"
     val scalaTest = "3.2.9"
     val scalaCheck = "3.2.9.0"
@@ -65,7 +65,7 @@ object Dependencies {
   )
 
   val pprint = Seq(
-    "com.lihaoyi" %% "pprint" % V.pprint
+    "com.lihaoyi" %% "pprint" % V.pprint % Test
   )
 
   val catsParse = Seq(
@@ -83,6 +83,6 @@ object Dependencies {
     newTypes
 
   val core: Seq[ModuleID] = common ++ droste ++ fs2
+  val parser: Seq[ModuleID] = common ++ parserCombinators ++ fastparse ++ pprint ++ catsParse ++ apacheCommons
   val interop: Seq[ModuleID] = common
-  val parser: Seq[ModuleID] = core ++ parserCombinators ++ fastparse ++ pprint ++ catsParse ++ apacheCommons
 }
