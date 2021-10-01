@@ -6,7 +6,6 @@ import TestUtils._
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
-
 trait EOParserTestSuite extends AnyWordSpec {
 
   type ParserT[A]
@@ -14,9 +13,12 @@ trait EOParserTestSuite extends AnyWordSpec {
   type Error
   type ParserResultT[A] = Either[Error, Success[A]]
 
-  def checkParser[A](check: ParserResultT[A] => Boolean)(parser: ParserT[A], input: String): Assertion
+  def checkParser[A](
+    check: ParserResultT[A] => Boolean
+  )(parser: ParserT[A], input: String): Assertion
 
-  def shouldFailParsing[A]: (ParserT[A], String) => Assertion = checkParser(_.isLeft)
+  def shouldFailParsing[A]: (ParserT[A], String) => Assertion =
+    checkParser(_.isLeft)
 
   def shouldParse[A]: (ParserT[A], String) => Assertion = checkParser(_.isRight)
 
@@ -26,7 +28,6 @@ trait EOParserTestSuite extends AnyWordSpec {
       case Right(value) => value == ast
     }
 
-
   def programParser: ParserT[EOProg[EOExprOnly]]
 
   def singleLineApplicationParser: ParserT[EOExprOnly]
@@ -34,35 +35,49 @@ trait EOParserTestSuite extends AnyWordSpec {
   type Examples[A] = List[TestCase[A]]
 
   def checkExamples[A](
-                        parser: ParserT[A],
-                        correctExamples: Examples[A] = Nil,
-                        incorrectExamples: Examples[A] = Nil
-                      ): Unit = {
-    ((correctExamples, shouldParse[A]) :: (incorrectExamples, shouldFailParsing[A]) :: Nil).foreach {
-      case (examples, check) =>
-        examples.foreach {
-          case TestCase(label, code, Some(ast)) =>
-            registerTest(label) {
-              shouldProduceAST[A](ast)(parser, code)
-            }
-          case TestCase(label, code, None) =>
-            registerTest(label) {
-              check(parser, code)
-            }
-        }
+    parser: ParserT[A],
+    correctExamples: Examples[A] = Nil,
+    incorrectExamples: Examples[A] = Nil
+  ): Unit = {
+    ((correctExamples, shouldParse[A]) :: (
+      incorrectExamples,
+      shouldFailParsing[A]
+    ) :: Nil).foreach { case (examples, check) =>
+      examples.foreach {
+        case TestCase(label, code, Some(ast)) =>
+          registerTest(label) {
+            shouldProduceAST[A](ast)(parser, code)
+          }
+        case TestCase(label, code, None) =>
+          registerTest(label) {
+            check(parser, code)
+          }
+      }
     }
   }
 
-  val examplesFromSources: Examples[EOProg[EOExprOnly]] = getListOfFiles("/eo_sources").map(
-    filename => TestCase(fileNameOf(filename), readCodeFrom(filename))
-  )
+  val examplesFromSources: Examples[EOProg[EOExprOnly]] = getListOfFiles(
+    "/eo_sources"
+  ).map(filename => TestCase(fileNameOf(filename), readCodeFrom(filename)))
 
   val mutualRecursionExample: Examples[EOProg[EOExprOnly]] = List(
-    TestCase("Mutual Recursion Example", MutualRecExample.code, Some(MutualRecExample.ast))
+    TestCase(
+      "Mutual Recursion Example",
+      MutualRecExample.code,
+      Some(MutualRecExample.ast)
+    )
   )
 
   checkExamples(programParser, correctExamples = examplesFromSources)
-  checkExamples[EOExprOnly](singleLineApplicationParser, correctExamples = SingleLineExamples.correct)
-  checkExamples[EOProg[EOExprOnly]](programParser, correctExamples = mutualRecursionExample)
+
+  checkExamples[EOExprOnly](
+    singleLineApplicationParser,
+    correctExamples = SingleLineExamples.correct
+  )
+
+  checkExamples[EOProg[EOExprOnly]](
+    programParser,
+    correctExamples = mutualRecursionExample
+  )
 
 }

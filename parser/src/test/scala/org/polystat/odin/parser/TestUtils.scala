@@ -23,7 +23,8 @@ object TestUtils {
 
   def readCodeFrom(fileName: String): String = {
     val code = io.Source.fromFile(fileName)
-    try code.mkString finally code.close()
+    try code.mkString
+    finally code.close()
   }
 
   def getListOfFiles(dir: String): List[String] = {

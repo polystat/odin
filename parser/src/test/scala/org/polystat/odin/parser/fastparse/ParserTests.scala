@@ -4,10 +4,9 @@ import fastparse._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite
-import org.polystat.odin.parser.TestUtils.{TestCase, astPrinter}
+import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
 import org.polystat.odin.parser.fastparse.IgnoreEmptyLinesOrComments._
 import org.scalatest.Assertion
-
 
 class ParserTests extends EOParserTestSuite {
 
@@ -17,9 +16,9 @@ class ParserTests extends EOParserTestSuite {
   override type Success[A] = A
   override type Error = Parsed.Failure
 
-
-  override def checkParser[A](check: ParserResultT[A] => Boolean)
-                             (parser: ParserT[A], input: String): Assertion = {
+  override def checkParser[A](
+    check: ParserResultT[A] => Boolean
+  )(parser: ParserT[A], input: String): Assertion = {
     val parsed = parse(input, parser) match {
       case Parsed.Success(value, _) => Right(value)
       case failure: Parsed.Failure => Left(failure)
@@ -31,10 +30,11 @@ class ParserTests extends EOParserTestSuite {
     assert(check(parsed))
   }
 
-  override def programParser: ParserT[EOProg[EOExprOnly]] = new Parser().program(_)
+  override def programParser: ParserT[EOProg[EOExprOnly]] =
+    Parser.program(0, 2)(_)
 
-  override def singleLineApplicationParser: ParserT[EOExprOnly] = SingleLineApplication.singleLineApplication(_)
-
+  override def singleLineApplicationParser: ParserT[EOExprOnly] =
+    SingleLineApplication.singleLineApplication(_)
 
   "tokens" should {
     "be recognized correctly" in {
@@ -49,10 +49,11 @@ class ParserTests extends EOParserTestSuite {
   }
 
   "metas" should {
-    def metasAllInput[_: P]: P[EOMetas] = parseEntireInput(new Parser().metas)
+    def metasAllInput[_: P]: P[EOMetas] = parseEntireInput(Parser.metas)
 
     "be recognized correctly" in {
-      shouldParse(metasAllInput(_),
+      shouldParse(
+        metasAllInput(_),
         """
           |
           |# start
@@ -76,7 +77,8 @@ class ParserTests extends EOParserTestSuite {
           |+alias sprintf org.eolang.txt.sprintf
           |
           |+alias biba boba
-          |""".stripMargin)
+          |""".stripMargin
+      )
     }
   }
 
@@ -85,8 +87,7 @@ class ParserTests extends EOParserTestSuite {
     def argsAllInput[_: P]: P[(Vector[LazyName], Option[LazyName])] =
       parseEntireInput(SingleLineApplication.args)
 
-    val correctArgsExamples:
-      List[TestCase[(Vector[LazyName], Option[LazyName])]] =
+    val correctArgsExamples: List[TestCase[(Vector[LazyName], Option[LazyName])]] =
       List(
         TestCase("[a b  c    d...]", "[a b  c    d...]"),
         TestCase("[a b c d]", "[a b c d]"),
@@ -95,8 +96,7 @@ class ParserTests extends EOParserTestSuite {
         TestCase("[]", "[]")
       )
 
-    val incorrectArgsExamples:
-      List[TestCase[(Vector[LazyName], Option[LazyName])]] =
+    val incorrectArgsExamples: List[TestCase[(Vector[LazyName], Option[LazyName])]] =
       List(
         TestCase("[", "[", None),
         TestCase("[...]", "[...]", None)
@@ -108,19 +108,17 @@ class ParserTests extends EOParserTestSuite {
       incorrectExamples = incorrectArgsExamples
     )
 
-
   }
 
   "abstraction" should {
     def anonymousAbstractionAllInput[_: P] =
-      parseEntireInput(new AnonymousObjects().anonymousAbstraction)
+      parseEntireInput(AnonymousObjects.anonymousObject(0, 2))
 
     val correctExamples: Examples[EOAnonExpr[EOExprOnly]] = List(
       TestCase(
         label = "simplest possible object",
         code = "[]",
       ),
-
       TestCase(
         label = "many nested objects, formatted correctly",
         code =
@@ -133,7 +131,6 @@ class ParserTests extends EOParserTestSuite {
             |    [] > noArgs
             |    [someArgs] > someArg""".stripMargin
       ),
-
       TestCase(
         label = "shows the flexibility of whitespace",
         code =
@@ -159,7 +156,6 @@ class ParserTests extends EOParserTestSuite {
         label = "simplest malformed object",
         code = "["
       ),
-
       TestCase(
         label = "object with inconsistent indentation",
         code =
@@ -183,7 +179,7 @@ class ParserTests extends EOParserTestSuite {
 
   "application" should {
     def namedApplicationAllInput[_: P]: P[EOBndExpr[EOExprOnly]] =
-      parseEntireInput(new NamedObjects().namedApplication)
+      parseEntireInput(NamedObjects.namedObject(0, 2))
 
     val correctExamples: List[TestCase[EOBndExpr[EOExprOnly]]] = List(
       TestCase(
@@ -201,7 +197,6 @@ class ParserTests extends EOParserTestSuite {
             |  d""".stripMargin,
         ast = None
       ),
-
       TestCase(
         label = "some data objects",
         code =
@@ -212,7 +207,6 @@ class ParserTests extends EOParserTestSuite {
             |  a""".stripMargin,
         ast = None
       ),
-
       TestCase(
         label = "some attribute chains",
         code =
@@ -235,7 +229,6 @@ class ParserTests extends EOParserTestSuite {
             |  # ((a applied to b) applied to c)
             |  ((a b) c) d > reverseApplication""".stripMargin
       ),
-
       TestCase(
         label = "anonymous inverse dot applications",
         code =
@@ -259,7 +252,10 @@ class ParserTests extends EOParserTestSuite {
             |        d > d-""".stripMargin
       )
     )
-    checkExamples(namedApplicationAllInput(_), correctExamples = correctExamples)
+    checkExamples(
+      namedApplicationAllInput(_),
+      correctExamples = correctExamples
+    )
   }
 
   "arrays" should {
@@ -272,7 +268,6 @@ class ParserTests extends EOParserTestSuite {
             |* "Lucy" "Jeff" 314 > stuff
             |""".stripMargin,
       ),
-
       TestCase(
         label = "nested single line array",
         code =
@@ -281,7 +276,6 @@ class ParserTests extends EOParserTestSuite {
             |
             |""".stripMargin
       ),
-
       TestCase(
         label = "simple multiline array",
         code =
@@ -318,4 +312,5 @@ class ParserTests extends EOParserTestSuite {
 
     checkExamples(programParser, correctExamples)
   }
+
 }

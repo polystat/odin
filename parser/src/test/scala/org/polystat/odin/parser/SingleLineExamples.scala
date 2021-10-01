@@ -15,49 +15,82 @@ object SingleLineExamples {
         code = "a",
         ast = Some(Fix[EOExpr](EOSimpleApp("a")))
       ),
-
       TestCase(
         label = "normal application",
         code = "a b c d",
         ast = Some(
-          Fix[EOExpr](EOCopy(
-            Fix[EOExpr](EOSimpleApp("a")),
-            NonEmpty[Vector[EOBnd[EOExprOnly]]](
-              EOAnonExpr(Fix[EOExpr](EOSimpleApp("b"))),
-              EOAnonExpr(Fix[EOExpr](EOSimpleApp("c"))),
-              EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
-            )))
+          Fix[EOExpr](
+            EOCopy(
+              Fix[EOExpr](EOSimpleApp("a")),
+              NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                EOAnonExpr(Fix[EOExpr](EOSimpleApp("b"))),
+                EOAnonExpr(Fix[EOExpr](EOSimpleApp("c"))),
+                EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
+              )
+            )
+          )
         )
-
       ),
-
       TestCase(
         label = "rightAssociative",
         code = "a (b (c d))",
         ast = Some(
-          Fix[EOExpr](EOCopy(
-            Fix[EOExpr](EOSimpleApp("a")),
-            NonEmpty[Vector[EOBnd[EOExprOnly]]](
-              EOAnonExpr(Fix[EOExpr](EOCopy(Fix[EOExpr](EOSimpleApp("b")),
-                NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                  EOAnonExpr(Fix[EOExpr](EOCopy(
-                    Fix[EOExpr](EOSimpleApp("c")),
-                    NonEmpty[Vector[EOBnd[EOExprOnly]]](
-                      EOAnonExpr(Fix[EOExpr](EOSimpleApp("d"))))))))))))))
+          Fix[EOExpr](
+            EOCopy(
+              Fix[EOExpr](EOSimpleApp("a")),
+              NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                EOAnonExpr(
+                  Fix[EOExpr](
+                    EOCopy(
+                      Fix[EOExpr](EOSimpleApp("b")),
+                      NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                        EOAnonExpr(
+                          Fix[EOExpr](
+                            EOCopy(
+                              Fix[EOExpr](EOSimpleApp("c")),
+                              NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                                EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
         )
       ),
-
       TestCase(
         label = "leftAssociative",
         code = "((a b) c) d",
         ast = Some(
-          Fix[EOExpr](EOCopy(
-            Fix[EOExpr](EOCopy(
-              Fix[EOExpr](EOCopy(
-                Fix[EOExpr](EOSimpleApp("a")),
-                NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("b")))))),
-              NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("c")))))),
-            NonEmpty[Vector[EOBnd[EOExprOnly]]](EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))))))
+          Fix[EOExpr](
+            EOCopy(
+              Fix[EOExpr](
+                EOCopy(
+                  Fix[EOExpr](
+                    EOCopy(
+                      Fix[EOExpr](EOSimpleApp("a")),
+                      NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                        EOAnonExpr(Fix[EOExpr](EOSimpleApp("b")))
+                      )
+                    )
+                  ),
+                  NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                    EOAnonExpr(Fix[EOExpr](EOSimpleApp("c")))
+                  )
+                )
+              ),
+              NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
+              )
+            )
+          )
+        )
       )
     )
+
 }

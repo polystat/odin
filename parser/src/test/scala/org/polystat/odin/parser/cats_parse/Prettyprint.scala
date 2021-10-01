@@ -43,4 +43,5 @@ class Prettyprint(filename: String = "", input: String) {
 
   def prettyprint(x: Parser.Error): String =
     x.expected.map(prettyprint).toList.mkString("")
+
 }

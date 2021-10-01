@@ -6,17 +6,13 @@ import org.scalatest.Assertion
 import org.scalatest.Inspectors.forAll
 import org.scalatest.wordspec.AnyWordSpec
 
-
 class ParserTests extends AnyWordSpec {
 
   type ParserType[A] = Either[Parser0[A], Parser[A]]
 
   def checkParser[A](
-                      check: Either[Parser.Error, A] => Boolean
-                    )(
-                      parser: ParserType[A],
-                      input: String)
-  : Assertion = {
+    check: Either[Parser.Error, A] => Boolean
+  )(parser: ParserType[A], input: String): Assertion = {
     val pp = new Prettyprint(input = input)
     val parsed = parser match {
       case Left(value) => value.parseAll(input)
@@ -40,7 +36,8 @@ class ParserTests extends AnyWordSpec {
   "tokens" should {
 
     "comments or empty lines" in {
-      shouldParse(Left(Tokens.emptyLinesOrComments),
+      shouldParse(
+        Left(Tokens.emptyLinesOrComments),
         """
           |
           |
@@ -48,22 +45,26 @@ class ParserTests extends AnyWordSpec {
           |
           |
           |  # 32434123
-          |""".stripMargin)
+          |""".stripMargin
+      )
     }
 
     "strings" in {
-      shouldParse(Right(Tokens.string),
+      shouldParse(
+        Right(Tokens.string),
         """"\nHello,\n\r\tthis is a 'char'\n\t\b\tand this is a \"string\"\n""""
       )
-      shouldParse(Right(Tokens.string), 
-      "\"\\u043F\\u0440\\u0438\\u0432\\u0435\\u0442\\u002C\\u0020\\u044F\\u0020\\u0027\\u0441\\u0438\\u043C" +
-        "\\u0432\\u043E\\u043B\\u0027\\u002C\\u0020\\u0430\\u0020\\u044D\\u0442\\u043E\\u0020\\u0022\\u0441\\u0442" +
-        "\\u0440\\u043E\\u0447\\u043A\\u0430\\u0022\"")
-      shouldParse(Right(Tokens.string),
-      "\"\\u60e3\\u6d41\\u00b7\\u660e\\u65e5\\u9999\\u00b7\\u5170\\u683c\\u96f7\"")
-      shouldParse(Right(Tokens.string),
-        "\"\\\\u0416 != \\u0416\""
+      shouldParse(
+        Right(Tokens.string),
+        "\"\\u043F\\u0440\\u0438\\u0432\\u0435\\u0442\\u002C\\u0020\\u044F\\u0020\\u0027\\u0441\\u0438\\u043C" +
+          "\\u0432\\u043E\\u043B\\u0027\\u002C\\u0020\\u0430\\u0020\\u044D\\u0442\\u043E\\u0020\\u0022\\u0441\\u0442" +
+          "\\u0440\\u043E\\u0447\\u043A\\u0430\\u0022\""
       )
+      shouldParse(
+        Right(Tokens.string),
+        "\"\\u60e3\\u6d41\\u00b7\\u660e\\u65e5\\u9999\\u00b7\\u5170\\u683c\\u96f7\""
+      )
+      shouldParse(Right(Tokens.string), "\"\\\\u0416 != \\u0416\"")
 
     }
     "chars" in {
@@ -90,11 +91,15 @@ class ParserTests extends AnyWordSpec {
 
     "rt meta" in {
       shouldParse(Right(Metas.rtMeta), "+rt jvm org.eolang:eo-runtime:0.1.24")
-      shouldParse(Right(Metas.rtMeta), "+rt   jvm\t  org.eolang:eo-runtime:0.1.24")
+      shouldParse(
+        Right(Metas.rtMeta),
+        "+rt   jvm\t  org.eolang:eo-runtime:0.1.24"
+      )
     }
 
     "all metas (with package)" in {
-      shouldParse(Left(Metas.metas),
+      shouldParse(
+        Left(Metas.metas),
         """
           |
           |+package sandbox
@@ -115,7 +120,8 @@ class ParserTests extends AnyWordSpec {
     }
 
     "all metas (no package)" in {
-      shouldParse(Left(Metas.metas),
+      shouldParse(
+        Left(Metas.metas),
         """+rt jvm org.eolang:eo-runtime:0.1.24
           |# alias meta
           |  # used to rename imported artifacts
@@ -128,7 +134,8 @@ class ParserTests extends AnyWordSpec {
     }
 
     "just package" in {
-      shouldParse(Left(Metas.metas),
+      shouldParse(
+        Left(Metas.metas),
         """
           |# package meta
           |+package sandbox
@@ -137,11 +144,13 @@ class ParserTests extends AnyWordSpec {
     }
 
     "no metas" in {
-      shouldParse(Left(Metas.metas),
+      shouldParse(
+        Left(Metas.metas),
         """
           |
           | # no metas here
-          |""".stripMargin)
+          |""".stripMargin
+      )
     }
 
     "nothing" in {
@@ -188,22 +197,18 @@ class ParserTests extends AnyWordSpec {
       "no name" -> " > !"
     )
 
-    forAll(correctExamples) {
-      case (label, example) =>
-        label in {
-          shouldParse(Right(SingleLine.bndName), example)
-        }
+    forAll(correctExamples) { case (label, example) =>
+      label in {
+        shouldParse(Right(SingleLine.bndName), example)
+      }
     }
 
-    forAll(incorrectExamples) {
-      case (label, example) =>
-        label in {
-          shouldFailParsing(Right(SingleLine.bndName), example)
-        }
+    forAll(incorrectExamples) { case (label, example) =>
+      label in {
+        shouldFailParsing(Right(SingleLine.bndName), example)
+      }
     }
-
 
   }
-
 
 }
