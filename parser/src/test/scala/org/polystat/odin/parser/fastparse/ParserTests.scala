@@ -87,7 +87,7 @@ class ParserTests extends EOParserTestSuite {
     def argsAllInput[_: P]: P[(Vector[LazyName], Option[LazyName])] =
       parseEntireInput(SingleLineApplication.args)
 
-    val correctArgsExamples: List[TestCase[(Vector[LazyName], Option[LazyName])]] =
+    val correctArgsTests: List[TestCase[(Vector[LazyName], Option[LazyName])]] =
       List(
         TestCase("[a b  c    d...]", "[a b  c    d...]"),
         TestCase("[a b c d]", "[a b c d]"),
@@ -96,16 +96,16 @@ class ParserTests extends EOParserTestSuite {
         TestCase("[]", "[]")
       )
 
-    val incorrectArgsExamples: List[TestCase[(Vector[LazyName], Option[LazyName])]] =
+    val incorrectArgsTests: List[TestCase[(Vector[LazyName], Option[LazyName])]] =
       List(
         TestCase("[", "[", None),
         TestCase("[...]", "[...]", None)
       )
 
-    checkExamples(
+    runTests(
       argsAllInput(_),
-      correctExamples = correctArgsExamples,
-      incorrectExamples = incorrectArgsExamples
+      correctTests = correctArgsTests,
+      incorrectTests = incorrectArgsTests
     )
 
   }
@@ -114,7 +114,7 @@ class ParserTests extends EOParserTestSuite {
     def anonymousAbstractionAllInput[_: P] =
       parseEntireInput(AnonymousObjects.anonymousObject(0, 2))
 
-    val correctExamples: Examples[EOAnonExpr[EOExprOnly]] = List(
+    val correctTests: Tests[EOAnonExpr[EOExprOnly]] = List(
       TestCase(
         label = "simplest possible object",
         code = "[]",
@@ -151,7 +151,7 @@ class ParserTests extends EOParserTestSuite {
       )
     )
 
-    val incorrectExamples: Examples[EOAnonExpr[EOExprOnly]] = List(
+    val incorrectTests: Tests[EOAnonExpr[EOExprOnly]] = List(
       TestCase(
         label = "simplest malformed object",
         code = "["
@@ -169,10 +169,10 @@ class ParserTests extends EOParserTestSuite {
       )
     )
 
-    checkExamples(
+    runTests(
       anonymousAbstractionAllInput(_),
-      correctExamples,
-      incorrectExamples
+      correctTests,
+      incorrectTests
     )
 
   }
@@ -181,7 +181,7 @@ class ParserTests extends EOParserTestSuite {
     def namedApplicationAllInput[_: P]: P[EOBndExpr[EOExprOnly]] =
       parseEntireInput(NamedObjects.namedObject(0, 2))
 
-    val correctExamples: List[TestCase[EOBndExpr[EOExprOnly]]] = List(
+    val correctTests: List[TestCase[EOBndExpr[EOExprOnly]]] = List(
       TestCase(
         label = "some simple objects",
         code =
@@ -252,15 +252,15 @@ class ParserTests extends EOParserTestSuite {
             |        d > d-""".stripMargin
       )
     )
-    checkExamples(
+    runTests(
       namedApplicationAllInput(_),
-      correctExamples = correctExamples
+      correctTests = correctTests
     )
   }
 
   "arrays" should {
 
-    val correctExamples: List[TestCase[EOProg[EOExprOnly]]] = List(
+    val correctTests: List[TestCase[EOProg[EOExprOnly]]] = List(
       TestCase(
         label = "simple single line array",
         code =
@@ -310,7 +310,7 @@ class ParserTests extends EOParserTestSuite {
       )
     )
 
-    checkExamples(programParser, correctExamples)
+    runTests(programParser, correctTests)
   }
 
 }

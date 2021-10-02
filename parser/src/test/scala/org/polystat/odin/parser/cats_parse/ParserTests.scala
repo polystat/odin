@@ -184,7 +184,7 @@ class ParserTests extends AnyWordSpec {
   }
 
   "binding name" should {
-    val correctExamples = List(
+    val correctTests = List(
       "just name" -> " > name  ",
       "decoration" -> ">@",
       "const name" -> " > name!",
@@ -192,18 +192,18 @@ class ParserTests extends AnyWordSpec {
       "const decoration" -> "> @!"
     )
 
-    val incorrectExamples = List(
+    val incorrectTests = List(
       "incorrect symbol" -> " < name",
       "no name" -> " > !"
     )
 
-    forAll(correctExamples) { case (label, example) =>
+    forAll(correctTests) { case (label, example) =>
       label in {
         shouldParse(Right(SingleLine.bndName), example)
       }
     }
 
-    forAll(incorrectExamples) { case (label, example) =>
+    forAll(incorrectTests) { case (label, example) =>
       label in {
         shouldFailParsing(Right(SingleLine.bndName), example)
       }

@@ -32,17 +32,18 @@ trait EOParserTestSuite extends AnyWordSpec {
 
   def singleLineApplicationParser: ParserT[EOExprOnly]
 
-  type Examples[A] = List[TestCase[A]]
+  type Tests[A] = List[TestCase[A]]
 
-  def checkExamples[A](
+  def runTests[A](
     parser: ParserT[A],
-    correctExamples: Examples[A] = Nil,
-    incorrectExamples: Examples[A] = Nil
+    correctTests: Tests[A] = Nil,
+    incorrectTests: Tests[A] = Nil
   ): Unit = {
-    ((correctExamples, shouldParse[A]) :: (
-      incorrectExamples,
-      shouldFailParsing[A]
-    ) :: Nil).foreach { case (examples, check) =>
+    (
+      (correctTests, shouldParse[A]) ::
+        (incorrectTests, shouldFailParsing[A]) ::
+        Nil
+    ).foreach { case (examples, check) =>
       examples.foreach {
         case TestCase(label, code, Some(ast)) =>
           registerTest(label) {
@@ -56,11 +57,11 @@ trait EOParserTestSuite extends AnyWordSpec {
     }
   }
 
-  val examplesFromSources: Examples[EOProg[EOExprOnly]] = getListOfFiles(
+  val examplesFromSources: Tests[EOProg[EOExprOnly]] = getListOfFiles(
     "/eo_sources"
   ).map(filename => TestCase(fileNameOf(filename), readCodeFrom(filename)))
 
-  val mutualRecursionExample: Examples[EOProg[EOExprOnly]] = List(
+  val mutualRecursionExample: Tests[EOProg[EOExprOnly]] = List(
     TestCase(
       "Mutual Recursion Example",
       MutualRecExample.code,
@@ -68,16 +69,16 @@ trait EOParserTestSuite extends AnyWordSpec {
     )
   )
 
-  checkExamples(programParser, correctExamples = examplesFromSources)
+  runTests(programParser, correctTests = examplesFromSources)
 
-  checkExamples[EOExprOnly](
+  runTests[EOExprOnly](
     singleLineApplicationParser,
-    correctExamples = SingleLineExamples.correct
+    correctTests = SingleLineExamples.correct
   )
 
-  checkExamples[EOProg[EOExprOnly]](
+  runTests[EOProg[EOExprOnly]](
     programParser,
-    correctExamples = mutualRecursionExample
+    correctTests = mutualRecursionExample
   )
 
 }
