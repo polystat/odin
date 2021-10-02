@@ -24,6 +24,10 @@ jobs:
         uses: crazy-max/ghaction-import-gpg@v4
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Configure local git
+        run: |
+          git config user.name "${{ secrets.GIT_USERNAME }}"
+          git config user.email "${{ secrets.GIT_USER_EMAIL }}"
       - name: Release new version
         if: ${{ github.event.inputs.release_version == '' }}
         env:

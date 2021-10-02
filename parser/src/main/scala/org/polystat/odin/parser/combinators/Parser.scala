@@ -10,6 +10,7 @@ import org.polystat.odin.parser.Utils.createInverseDot
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.{NoPosition, Position, Reader}
 
+@deprecated("Use org.polystat.odin.parser.fastparse package instead", "0.1.2")
 object Parser extends Parsers {
 
   class WorkflowTokenReader(val tokens: Seq[Token]) extends Reader[Token] {

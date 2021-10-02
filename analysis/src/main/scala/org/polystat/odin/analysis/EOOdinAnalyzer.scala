@@ -8,7 +8,7 @@ import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.combinators.Parser
+import org.polystat.odin.parser.fastparse.Parser
 
 trait EOOdinAnalyzer[F[_]] {
   def analyzeSourceCode(code: String): Stream[F, OdinAnalysisError]
@@ -25,7 +25,18 @@ object EOOdinAnalyzer {
       for {
         programAst <- Stream.eval(
           Sync[F].fromEither(
-            Parser(code).left.map(e => new IllegalArgumentException(e.msg))
+            Parser
+              .parse(code)
+              .fold(
+                onFailure = (label, index, extra) =>
+                  Left(
+                    new IllegalArgumentException(
+                      s"""[$index] Parsing failed with error: $label. Extra:
+                         |$extra""".stripMargin
+                    )
+                  ),
+                onSuccess = (ast, _) => Right(ast)
+              )
           )
         )
         mutualRecursionErrors <- findMutualRecursion(programAst)

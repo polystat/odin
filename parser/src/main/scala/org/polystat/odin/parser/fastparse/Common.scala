@@ -11,12 +11,11 @@ import org.polystat.odin.parser.fastparse.IgnoreEmptyLinesOrComments._
   */
 private[parser] object Common {
 
-  val nonEmptyErrorMsg: String =
+  private[parser] val nonEmptyErrorMsg: String =
     "Managed to parse zero arguments, where 1 or more were required. This is probably a bug."
 
-  private def deeper[_: P](indent: Int, indentationStep: Int) = P(
-    " " * (indent + indentationStep)
-  )
+  private def deeper[_: P](indent: Int, indentationStep: Int): P[Unit] =
+    P(" " * (indent + indentationStep))
 
   def boundAttributes[_: P](
     indent: Int,
