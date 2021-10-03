@@ -30,9 +30,9 @@ class Prettyprint(filename: String = "", input: String) {
   }
 
   def prettyprint(x: Parser.Expectation): String = {
-    val (row, col) = locmap.toLineCol(x.offset).get
+    val (row, col) = locmap.toLineCol(x.offset).getOrElse((0, 0))
     val (r, c) = (row + 1, col + 1)
-    val line = locmap.getLine(row).get
+    val line: String = locmap.getLine(row).get
     val offending =
       s"${row.toString map { _ => ' ' }} | ${" " * col}^"
     s"""
