@@ -5,8 +5,12 @@ import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.cats_parse.Tokens._
+import com.github.tarao.nonempty.collection.NonEmpty
 
 object SingleLine {
+
+  val nonEmptyErrorMsg: String =
+    "Managed to parse zero arguments, where 1 or more were required. This is probably a bug."
 
   val parameterName: P[LazyName] = (
     Tokens.identifier | P.stringIn("@" :: Nil)
@@ -47,7 +51,52 @@ object SingleLine {
       string.map(EOStrData(_))
   ).map(Fix[EOExpr](_))
 
-  val simpleApplicationTarget: P[EOExprOnly] =
-    data | attributeName.map(name => Fix[EOExpr](EOSimpleApp(name)))
+  val singleLineApplication: P[EOExprOnly] =
+    P.recursive[EOExprOnly](recurse => {
+
+      val simpleApplicationTarget: P[EOExprOnly] =
+        data | attributeName.map(name => Fix[EOExpr](EOSimpleApp(name)))
+
+      val attributeChain: P[EOExprOnly] = (
+        (simpleApplicationTarget <* P.char('.')) ~
+          attributeName.repSep(1, P.char('.'))
+      ).map { case (trg, attrs) =>
+        attrs.foldLeft(trg)((acc, id) => Fix[EOExpr](EODot(acc, id)))
+      }
+
+      val applicationTarget: P[EOExprOnly] =
+        attributeChain.backtrack | simpleApplicationTarget
+
+      val parenthesized: P[EOExprOnly] =
+        P.char('(') *> recurse <* P.char(')')
+
+      val horizontalApplicationArgs: P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] =
+        (applicationTarget | parenthesized)
+          .repSep(1, wsp)
+          .flatMap(args =>
+            NonEmpty
+              .from(args.toList.map(EOAnonExpr(_)).toVector)
+              .map(P.pure)
+              .getOrElse(P.failWith(nonEmptyErrorMsg))
+          )
+
+      val justApplication: P[EOExprOnly] = (
+        ((parenthesized | applicationTarget) <* wsp) ~ horizontalApplicationArgs
+      ).map { case (trg, args) =>
+        Fix[EOExpr](EOCopy(trg, args))
+      }
+
+      val singleLineArray: P[EOExprOnly] = (
+        P.char('*') *> wsp *> (parenthesized | applicationTarget)
+          .repSep0(0, wsp)
+      ).map { elems =>
+        Fix[EOExpr](
+          EOArray(elems.map(EOAnonExpr(_)).toVector)
+        )
+      }
+
+      justApplication.backtrack | applicationTarget | parenthesized | singleLineArray
+
+    })
 
 }

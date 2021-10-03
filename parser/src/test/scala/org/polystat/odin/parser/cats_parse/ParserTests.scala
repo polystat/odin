@@ -1,6 +1,8 @@
 package org.polystat.odin.parser.cats_parse
 
 import cats.parse.{Parser, Parser0}
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.parser.SingleLineExamples
 import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
 import org.scalatest.Assertion
 import org.scalatest.Inspectors.forAll
@@ -239,7 +241,13 @@ class ParserTests extends AnyWordSpec {
         shouldFailParsing(Right(SingleLine.bndName), example)
       }
     }
+  }
 
+  "single line application" should {
+    runTests[EOExprOnly](
+      Right(SingleLine.singleLineApplication),
+      SingleLineExamples.correct
+    )
   }
 
 }
