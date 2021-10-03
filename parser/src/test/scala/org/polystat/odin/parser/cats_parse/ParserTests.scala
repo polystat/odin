@@ -1,7 +1,7 @@
 package org.polystat.odin.parser.cats_parse
 
 import cats.parse.{Parser, Parser0}
-import org.polystat.odin.parser.TestUtils.astPrinter
+import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
 import org.scalatest.Assertion
 import org.scalatest.Inspectors.forAll
 import org.scalatest.wordspec.AnyWordSpec
@@ -9,6 +9,17 @@ import org.scalatest.wordspec.AnyWordSpec
 class ParserTests extends AnyWordSpec {
 
   type ParserType[A] = Either[Parser0[A], Parser[A]]
+
+  def runTests[A](parser: ParserType[A], tests: List[TestCase[A]]): Unit = {
+    tests.foreach {
+      case TestCase(label, code, Some(value)) => registerTest(label) {
+          shouldProduce[A](value)(parser, code)
+        }
+      case TestCase(label, code, None) => registerTest(label) {
+          shouldParse(parser, code)
+        }
+    }
+  }
 
   def checkParser[A](
     check: Either[Parser.Error, A] => Boolean
@@ -33,6 +44,13 @@ class ParserTests extends AnyWordSpec {
     checkParser(_.isLeft)
   }
 
+  def shouldProduce[AST](ast: AST): (ParserType[AST], String) => Assertion = {
+    checkParser[AST] {
+      case Left(_) => false
+      case Right(value) => value == ast
+    }
+  }
+
   "tokens" should {
 
     "comments or empty lines" in {
@@ -49,31 +67,44 @@ class ParserTests extends AnyWordSpec {
       )
     }
 
-    "strings" in {
-      shouldParse(
-        Right(Tokens.string),
-        """"\nHello,\n\r\tthis is a 'char'\n\t\b\tand this is a \"string\"\n""""
+    "strings" should {
+      val stringTests = List(
+        TestCase(
+          label = "basic escapes",
+          code =
+            """"\nHello,\n\r\tthis is a 'char'\n\t\b\tand this is a \"string\"\n"""",
+          ast = Some(
+            "\nHello,\n\r\tthis is a 'char'\n\t\b\tand this is a \"string\"\n"
+          )
+        ),
+        TestCase(
+          label = "russian unicode",
+          code =
+            "\"\\u043F\\u0440\\u0438\\u0432\\u0435\\u0442\\u002C\\u0020\\u044F\\u0020\\u0027\\u0441\\u0438\\u043C" +
+              "\\u0432\\u043E\\u043B\\u0027\\u002C\\u0020\\u0430\\u0020\\u044D\\u0442\\u043E\\u0020\\u0022\\u0441\\u0442" +
+              "\\u0440\\u043E\\u0447\\u043A\\u0430\\u0022\"",
+          ast = Some("привет, я 'символ', а это \"строчка\"")
+        ),
+        TestCase(
+          label = "japanese unicode",
+          code =
+            "\"\\u60e3\\u6d41\\u00b7\\u660e\\u65e5\\u9999\\u00b7\\u5170\\u683c\\u96f7\"",
+          ast = Some("惣流·明日香·兰格雷")
+        )
       )
-      shouldParse(
-        Right(Tokens.string),
-        "\"\\u043F\\u0440\\u0438\\u0432\\u0435\\u0442\\u002C\\u0020\\u044F\\u0020\\u0027\\u0441\\u0438\\u043C" +
-          "\\u0432\\u043E\\u043B\\u0027\\u002C\\u0020\\u0430\\u0020\\u044D\\u0442\\u043E\\u0020\\u0022\\u0441\\u0442" +
-          "\\u0440\\u043E\\u0447\\u043A\\u0430\\u0022\""
-      )
-      shouldParse(
-        Right(Tokens.string),
-        "\"\\u60e3\\u6d41\\u00b7\\u660e\\u65e5\\u9999\\u00b7\\u5170\\u683c\\u96f7\""
-      )
-      shouldParse(Right(Tokens.string), "\"\\\\u0416 != \\u0416\"")
-
+      runTests(Right(Tokens.string), stringTests)
     }
-    "chars" in {
-      shouldParse(Right(Tokens.char), """'\n'""")
-      shouldParse(Right(Tokens.char), """'\t'""")
-      shouldParse(Right(Tokens.char), """'A'""")
-      shouldParse(Right(Tokens.char), "\'\\u0416\'")
-      shouldParse(Right(Tokens.char), "\'Ж\'")
-      shouldParse(Right(Tokens.char), "\'\\u9999\'")
+
+    "chars" should {
+      val charTests = List(
+        TestCase(label = "new line", code = "\'\\n\'", Some('\n')),
+        TestCase(label = "tab", code = "\'\\t\'", Some('\t')),
+        TestCase(label = "A", code = "'A'", Some('A')),
+        TestCase(label = "Ж (escaped)", code = "\'\\u0416\'", Some('Ж')),
+        TestCase(label = "Ж (literal)", code = "'Ж'", Some('Ж')),
+        TestCase(label = "香 (escaped)", code = "\'\\u9999\'", Some('香')),
+      )
+      runTests(Right(Tokens.char), charTests)
     }
 
   }
@@ -81,7 +112,7 @@ class ParserTests extends AnyWordSpec {
   "metas" should {
     "package meta" in {
       shouldParse(Right(Metas.packageMeta), "+package sandbox")
-      shouldParse(Right(Metas.packageMeta), "+package sandbox")
+      shouldParse(Right(Metas.packageMeta), "+package org.eolang.stuff")
     }
 
     "alias meta" in {

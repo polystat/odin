@@ -1,6 +1,5 @@
 package org.polystat.odin.parser.cats_parse
 
-import org.apache.commons.text.StringEscapeUtils
 import cats.parse.{Parser => P, Parser0 => P0}
 
 /**
@@ -59,10 +58,14 @@ abstract class GenericStringUtil {
     }
 
     val after = P.oneOf(escapes :: octP :: hexP :: u4 :: Nil)
-    (P.char('\\').as("\\") ~ after).map { case (bs, after) =>
-      val unescaped = StringEscapeUtils.unescapeJava(bs + after)
-      require(unescaped.length == 1)
-      unescaped.charAt(0)
+    (P.char('\\').as("\\") ~ after).flatMap { case (bs, after) =>
+      unescape(bs + after).fold(
+        _ => P.fail,
+        char => {
+          require(char.length == 1)
+          P.pure(char.charAt(0))
+        }
+      )
     }
   }
 
@@ -154,7 +157,7 @@ abstract class GenericStringUtil {
                   case 'u' => loop(decodeNum(idx + 2, 4, 16))
                   case 'U' => loop(decodeNum(idx + 2, 8, 16))
                   case other =>
-                    // \c is interpretted as just \c, if the character isn't
+                    // \c is interpreted as just \c, if the character isn't
                     // escaped
                     sb.append('\\')
                     sb.append(other)
