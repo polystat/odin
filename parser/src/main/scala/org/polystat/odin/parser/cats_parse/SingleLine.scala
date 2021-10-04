@@ -9,9 +9,6 @@ import com.github.tarao.nonempty.collection.NonEmpty
 
 object SingleLine {
 
-  val nonEmptyErrorMsg: String =
-    "Managed to parse zero arguments, where 1 or more were required. This is probably a bug."
-
   val parameterName: P[LazyName] = (
     Tokens.identifier | P.stringIn("@" :: Nil)
   ).map(LazyName)
@@ -19,7 +16,8 @@ object SingleLine {
   val params: P[(Vector[LazyName], Option[LazyName])] = (
     P.charIn('[') *>
       (
-        (parameterName.repSep(1, wsp).soft <* P.string("..."))
+        (parameterName.repSep(1, wsp) <* P.string("..."))
+          .backtrack
           .map(params => (params.init.toVector, Some(params.last))) |
           parameterName
             .repSep0(0, wsp)
@@ -68,7 +66,7 @@ object SingleLine {
         attributeChain.backtrack | simpleApplicationTarget
 
       val parenthesized: P[EOExprOnly] =
-        P.char('(') *> recurse <* P.char(')')
+        recurse.between(P.char('('), P.char(')'))
 
       val horizontalApplicationArgs: P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] =
         (applicationTarget | parenthesized)
@@ -77,7 +75,7 @@ object SingleLine {
             NonEmpty
               .from(args.toList.map(EOAnonExpr(_)).toVector)
               .map(P.pure)
-              .getOrElse(P.failWith(nonEmptyErrorMsg))
+              .getOrElse(P.failWith(Common.nonEmptyErrorMsg))
           )
 
       val justApplication: P[EOExprOnly] = (
@@ -95,7 +93,10 @@ object SingleLine {
         )
       }
 
-      justApplication.backtrack | applicationTarget | parenthesized | singleLineArray
+      justApplication.backtrack |
+        applicationTarget |
+        parenthesized |
+        singleLineArray
 
     })
 
