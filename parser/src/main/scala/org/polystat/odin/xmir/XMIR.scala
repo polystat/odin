@@ -50,16 +50,17 @@ object XMIR extends IOApp {
       |  false
       |""".stripMargin
 
-  val divByZero =
+  val divByZero: String =
     """[] > base
       |  2 > a
-      |  [self x] > f
+      |  [self x...] > f
       |    div. > @
-      |      x
+      |      x.get 0
       |      self.a
       |[] > derived
       |  base > @
       |  0 > a
+      |  base.^.f > stuff
       |""".stripMargin
 
   def parseXMIR(xmir: Node) = {

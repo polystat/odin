@@ -4,16 +4,10 @@
                 id="simplify-xmir"
 >
     <xsl:template match="o[@base and starts-with(@base, '.')]">
-        <copy>
+        <copy bound-to="{@name}">
             <xsl:apply-templates select="@const"/>
-            <xsl:attribute name="bound-to">
-                <xsl:value-of select="@name"/>
-            </xsl:attribute>
             <of>
-                <attribute>
-                    <xsl:attribute name="name">
-                        <xsl:value-of select="substring-after(@base, '.')"/>
-                    </xsl:attribute>
+                <attribute name="{substring-after(@base, '.')}">
                     <of>
                         <xsl:apply-templates select="*[position() = 1]"/>
                     </of>
@@ -25,17 +19,10 @@
         </copy>
     </xsl:template>
     <xsl:template match="o[@base and not(starts-with(@base, '.'))]">
-        <copy>
-            <xsl:attribute name="bound-to">
-                <xsl:value-of select="@name"/>
-            </xsl:attribute>
+        <copy bound-to="{@name}">
             <xsl:apply-templates select="@const"/>
             <of>
-                <simple-app>
-                    <xsl:attribute name="name">
-                        <xsl:value-of select="@base"/>
-                    </xsl:attribute>
-                </simple-app>
+                <simple-app name="{@base}"/>
             </of>
             <with>
                 <xsl:apply-templates select="*"/>
@@ -43,30 +30,18 @@
         </copy>
     </xsl:template>
     <xsl:template match="o[not(@base)]">
-        <abstraction>
-            <xsl:attribute name="bound-to">
-                <xsl:value-of select="@name"/>
-            </xsl:attribute>
+        <abstraction bound-to="{@name}">
             <xsl:apply-templates select="@const"/>
             <xsl:apply-templates select="*"/>
         </abstraction>
     </xsl:template>
     <xsl:template match="o[not(@base) and @name and @line = parent::o/@line]">
-        <free>
-            <xsl:value-of select="@name"/>
+        <free name="{@name}">
+            <xsl:apply-templates select="@vararg"/>
         </free>
     </xsl:template>
     <xsl:template match="o[@data]">
-        <data>
-            <xsl:attribute name="type">
-                <xsl:value-of select="@data"/>
-            </xsl:attribute>
-            <xsl:attribute name="value">
-                <xsl:value-of select="text()"/>
-            </xsl:attribute>
-            <xsl:attribute name="bound-to">
-                <xsl:value-of select="@name"/>
-            </xsl:attribute>
+        <data type="{@data}" value="{text()}" bound-to="{@name}">
             <xsl:apply-templates select="@const"/>
         </data>
     </xsl:template>
