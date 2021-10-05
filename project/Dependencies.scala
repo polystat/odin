@@ -16,6 +16,7 @@ object Dependencies {
     val pprint = "0.6.6"
     val fs2 = "3.1.1"
     val newTypes = "0.0.1"
+    val eoParser = "0.7.0"
   }
 
   val cats = Seq(
@@ -66,6 +67,9 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % V.pprint % Test
   )
 
+  val eoParser = Seq(
+    "org.eolang" % "eo-parser" % V.eoParser
+  )
 
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
@@ -73,6 +77,9 @@ object Dependencies {
     newTypes
 
   val core: Seq[ModuleID] = common ++ droste ++ fs2
-  val parser: Seq[ModuleID] = common ++ parserCombinators ++ fastparse ++ pprint
+
+  val parser: Seq[ModuleID] =
+    common ++ parserCombinators ++ fastparse ++ pprint ++ eoParser
+
   val interop: Seq[ModuleID] = common
 }
