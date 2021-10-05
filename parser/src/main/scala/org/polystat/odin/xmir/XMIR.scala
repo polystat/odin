@@ -50,6 +50,18 @@ object XMIR extends IOApp {
       |  false
       |""".stripMargin
 
+  val divByZero =
+    """[] > base
+      |  2 > a
+      |  [self x] > f
+      |    div. > @
+      |      x
+      |      self.a
+      |[] > derived
+      |  base > @
+      |  0 > a
+      |""".stripMargin
+
   def parseXMIR(xmir: Node) = {
     val objs = xmir \\ "objects"
     objs.map(parseObject)
@@ -66,7 +78,7 @@ object XMIR extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = {
     for {
-      xmir <- EOtoXMIR.parse[IO](code)
+      xmir <- EOtoXMIR.parse[IO](divByZero)
       _ <- IO.println(scala.xml.XML.loadString(xmir) \\ "objects")
       jcabiXml <- IO.pure(new XMLDocument(xmir))
       out <- Sync[IO].delay(Files.createTempFile("xmir", ".xml"))

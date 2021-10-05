@@ -5,6 +5,7 @@
 >
     <xsl:template match="o[@base and starts-with(@base, '.')]">
         <copy>
+            <xsl:apply-templates select="@const"/>
             <xsl:attribute name="bound-to">
                 <xsl:value-of select="@name"/>
             </xsl:attribute>
@@ -28,6 +29,7 @@
             <xsl:attribute name="bound-to">
                 <xsl:value-of select="@name"/>
             </xsl:attribute>
+            <xsl:apply-templates select="@const"/>
             <of>
                 <simple-app>
                     <xsl:attribute name="name">
@@ -45,6 +47,7 @@
             <xsl:attribute name="bound-to">
                 <xsl:value-of select="@name"/>
             </xsl:attribute>
+            <xsl:apply-templates select="@const"/>
             <xsl:apply-templates select="*"/>
         </abstraction>
     </xsl:template>
@@ -61,6 +64,10 @@
             <xsl:attribute name="value">
                 <xsl:value-of select="text()"/>
             </xsl:attribute>
+            <xsl:attribute name="bound-to">
+                <xsl:value-of select="@name"/>
+            </xsl:attribute>
+            <xsl:apply-templates select="@const"/>
         </data>
     </xsl:template>
     <xsl:template match="node()|@*">
