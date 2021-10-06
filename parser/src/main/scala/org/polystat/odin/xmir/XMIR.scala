@@ -45,6 +45,11 @@ object XMIR {
     } yield parsed
   }
 
+  def cleanName(name: String): String = {
+    val parts = name.split("\\.")
+    parts(parts.length - 1)
+  }
+
   def extractName(attrMap: Map[String, String]): Option[EONamedBnd] = {
     (attrMap.get("bound-to"), attrMap.get("const")) match {
       case (Some("@"), _) => Some(EODecoration)
@@ -114,7 +119,7 @@ object XMIR {
         }
       }
       case Elem(_, "simple-app", attrs, _, _ @_*) => {
-        val name = attrs.asAttrMap("name")
+        val name = cleanName(attrs.asAttrMap("name"))
         (None, Fix[EOExpr](EOSimpleApp(name)))
       }
       case Elem(_, "attribute", attrs, _, children @ _*) => {

@@ -18,7 +18,10 @@ class ParserTests extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   def parseEO(code: String): Option[Vector[EOBnd[EOExprOnly]]] = {
     Parser.parse(code) match {
       case Parsed.Success(value, _) => Some(value.bnds)
-      case _: Parsed.Failure => None
+      case failure: Parsed.Failure => {
+        println(failure.msg)
+        None
+      }
     }
   }
 
@@ -70,13 +73,13 @@ class ParserTests extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       |  less.
       |    1
       |    2
-      |  true
-      |  false
+      |  1
+      |  2
       |""".stripMargin
 
   val divByZero: String =
     """[] > base
-      |  2.5 > a
+      |  2 > a
       |  [self x...] > f
       |    div. > @
       |      x.get 0
@@ -85,10 +88,6 @@ class ParserTests extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       |  base > @
       |  0 > a
       |  base.^.f > stuff
-      |true > aTrue
-      |false > aFalse
-      |true
-      |false
       |"str" > str
       |'c' > char
       |123
@@ -119,9 +118,19 @@ class ParserTests extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       |""".stripMargin
 
   "XMIR parser" - {
-    "work like eo parser" in {
-      compare[IO](verySimple)
+    val tests = List(
+      "a lot of code" -> code,
+      "very simple" -> verySimple,
+      "simple" -> simple,
+      "division by zero" -> divByZero,
+    )
+
+    tests.foreach { case (label, code) =>
+      registerAsyncTest(label) {
+        compare[IO](code)
+      }
     }
+
   }
 
 }
