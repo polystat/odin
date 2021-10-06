@@ -17,6 +17,7 @@ object Dependencies {
     val fs2 = "3.1.1"
     val newTypes = "0.0.1"
     val eoParser = "0.7.0"
+    val catsEffectScalatest = "1.3.0"
   }
 
   val cats = Seq(
@@ -71,6 +72,10 @@ object Dependencies {
     "org.eolang" % "eo-parser" % V.eoParser
   )
 
+  val catsEffectScalatest = Seq(
+    "org.typelevel" %% "cats-effect-testing-scalatest" % V.catsEffectScalatest % Test
+  )
+
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
   val common: Seq[ModuleID] = allCats ++ scalaTest ++ nonEmpty ++ monocle ++
@@ -79,7 +84,7 @@ object Dependencies {
   val core: Seq[ModuleID] = common ++ droste ++ fs2
 
   val parser: Seq[ModuleID] =
-    common ++ parserCombinators ++ fastparse ++ pprint ++ eoParser
+    common ++ parserCombinators ++ fastparse ++ pprint ++ eoParser ++ catsEffectScalatest
 
   val interop: Seq[ModuleID] = common
 }
