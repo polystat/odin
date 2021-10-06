@@ -4,7 +4,12 @@
                 id="simplify-xmir"
 >
     <xsl:template match="o[@base and starts-with(@base, '.')]">
-        <copy bound-to="{@name}">
+        <copy>
+            <xsl:if test="@name">
+                <xsl:attribute name="bound-to">
+                    <xsl:value-of select="@name"/>
+                </xsl:attribute>
+            </xsl:if>
             <xsl:apply-templates select="@const"/>
             <of>
                 <attribute name="{substring-after(@base, '.')}">
@@ -19,7 +24,12 @@
         </copy>
     </xsl:template>
     <xsl:template match="o[@base and not(starts-with(@base, '.'))]">
-        <copy bound-to="{@name}">
+        <copy>
+            <xsl:if test="@name">
+                <xsl:attribute name="bound-to">
+                    <xsl:value-of select="@name"/>
+                </xsl:attribute>
+            </xsl:if>
             <xsl:apply-templates select="@const"/>
             <of>
                 <simple-app name="{@base}"/>
@@ -30,7 +40,12 @@
         </copy>
     </xsl:template>
     <xsl:template match="o[not(@base)]">
-        <abstraction bound-to="{@name}">
+        <abstraction>
+            <xsl:if test="@name">
+                <xsl:attribute name="bound-to">
+                    <xsl:value-of select="@name"/>
+                </xsl:attribute>
+            </xsl:if>
             <xsl:apply-templates select="@const"/>
             <xsl:apply-templates select="*"/>
         </abstraction>
@@ -41,7 +56,12 @@
         </free>
     </xsl:template>
     <xsl:template match="o[@data]">
-        <data type="{@data}" value="{text()}" bound-to="{@name}">
+        <data type="{@data}" value="{text()}">
+            <xsl:if test="@name">
+                <xsl:attribute name="bound-to">
+                    <xsl:value-of select="@name"/>
+                </xsl:attribute>
+            </xsl:if>
             <xsl:apply-templates select="@const"/>
         </data>
     </xsl:template>
