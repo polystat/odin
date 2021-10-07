@@ -8,12 +8,11 @@ import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.TestUtils.astPrinter
 import org.polystat.odin.parser.fastparse.Parser
-import org.polystat.odin.xmir.{EOtoXMIR, XMIR}
+import org.polystat.odin.xmir.XMIR
 import org.scalatest.Assertion
 import org.scalatest.freespec.AsyncFreeSpec
-import org.scalatest.matchers.should.Matchers
 
-class ParserTests extends AsyncFreeSpec with AsyncIOSpec with Matchers {
+class ParserTests extends AsyncFreeSpec with AsyncIOSpec {
 
   def parseEO(code: String): Option[Vector[EOBnd[EOExprOnly]]] = {
     Parser.parse(code) match {

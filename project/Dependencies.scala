@@ -69,7 +69,7 @@ object Dependencies {
   )
 
   val eoParser = Seq(
-    "org.eolang" % "eo-parser" % V.eoParser
+    "org.eolang" % "eo-parser" % V.eoParser % Test
   )
 
   val catsEffectScalatest = Seq(

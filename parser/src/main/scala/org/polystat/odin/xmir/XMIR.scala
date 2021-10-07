@@ -3,38 +3,55 @@ package org.polystat.odin.xmir
 import cats.effect.Sync
 import cats.implicits._
 import com.github.tarao.nonempty.collection.NonEmpty
-import com.jcabi.xml.XMLDocument
 import higherkindness.droste.data.Fix
-import org.cactoos.io.OutputTo
-import org.eolang.parser.{Spy, Xsline}
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
+import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import scala.jdk.CollectionConverters._
+import java.nio.file.{Files, Path}
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.stream.{StreamResult, StreamSource}
 import scala.xml.Elem
 
 object XMIR {
 
+  def applyXSLT[F[_]: Sync](xml: Path): F[Elem] =
+    for {
+      in <- Sync[F].delay(
+        new StreamSource(
+          new ByteArrayInputStream(Files.readAllBytes(xml))
+        )
+      )
+      xsl <- Sync[F].delay(
+        new StreamSource(
+          getClass.getClassLoader.getResourceAsStream("simplify-xmir.xsl")
+        )
+      )
+      out <- Sync[F].delay(
+        new StreamResult(
+          Files.newOutputStream(xml)
+        )
+      )
+
+      transformer <- Sync[F].delay(
+        TransformerFactory.newInstance().newTransformer(xsl)
+      )
+      _ <- Sync[F].delay(
+        transformer.transform(in, out)
+      )
+      scalaXML <- Sync[F].delay(
+        scala.xml.XML.loadFile(xml.toAbsolutePath.toString)
+      )
+    } yield scalaXML
+
   def parse[F[_]: Sync](xmir: String): F[Vector[EOBnd[EOExprOnly]]] = {
     for {
-      jcabiXml <- Sync[F].delay(new XMLDocument(xmir))
       out <- Sync[F].delay(Files.createTempFile("xmir", ".xml"))
       _ <- Sync[F].delay(
         Files.write(out, xmir.getBytes(StandardCharsets.UTF_8))
       )
-      _ <- Sync[F].delay(
-        new Xsline(
-          jcabiXml,
-          new OutputTo(out),
-          new Spy.Verbose,
-          List("simplify-xmir.xsl").asJava
-        ).pass()
-      )
-      scalaXML <- Sync[F].delay(
-        scala.xml.XML.loadFile(out.toAbsolutePath.toString)
-      )
+      scalaXML <- applyXSLT(out)
       objs <- Sync[F].delay(
         (scalaXML \\ "objects" \ "_")
           .collect { case elem: Elem => elem }
@@ -105,9 +122,11 @@ object XMIR {
           .collect { case elem: Elem => elem }
           .head
         val `with` =
-          children.find(node => node.label == "with").get.child.collect {
-            case elem: Elem => elem
-          }
+          children
+            .find(node => node.label == "with")
+            .get
+            .child
+            .collect { case elem: Elem => elem }
 
         // TODO: Where does trgName go???
         val (_, trg) = parseObject(of)

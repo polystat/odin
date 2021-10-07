@@ -1,4 +1,4 @@
-package org.polystat.odin.xmir
+package org.polystat.odin.parser.xmir
 
 import cats.effect.{Resource, Sync}
 import cats.implicits._
