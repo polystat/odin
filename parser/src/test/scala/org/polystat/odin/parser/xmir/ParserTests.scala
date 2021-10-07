@@ -13,27 +13,26 @@ import org.scalatest.freespec.AsyncFreeSpec
 
 class ParserTests extends AsyncFreeSpec with AsyncIOSpec {
 
-  def parseEO(code: String): Option[Vector[EOBnd[EOExprOnly]]] = {
+  def parseEO(code: String): Either[String, Vector[EOBnd[EOExprOnly]]] = {
     Parser.parse(code) match {
-      case Parsed.Success(value, _) => Some(value.bnds)
-      case _: Parsed.Failure => None
+      case Parsed.Success(value, _) => Right(value.bnds)
+      case failure: Parsed.Failure => Left(failure.msg)
     }
   }
 
   def parseXMIR[F[_]: Sync](
     code: String
-  ): F[Option[Vector[EOBnd[EOExprOnly]]]] = {
+  ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
     for {
       xmir <- EOtoXMIR.parse[F](code)
       parsed <- XMIR.parse(xmir)
-    } yield parsed.toOption
+    } yield parsed
   }
 
   def compare[F[_]: Sync](code: String): F[Assertion] = {
     for {
       parsedXMIR <- parseXMIR[F](code)
-      parsedEO = parseEO(code)
-    } yield assert(parsedEO.get == parsedXMIR.get)
+    } yield assert(parseEO(code) == parsedXMIR)
   }
 
   val code: String =
@@ -127,7 +126,6 @@ class ParserTests extends AsyncFreeSpec with AsyncIOSpec {
         compare[IO](code)
       }
     }
-
   }
 
 }
