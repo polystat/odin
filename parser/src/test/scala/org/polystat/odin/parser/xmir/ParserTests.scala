@@ -6,9 +6,8 @@ import cats.implicits._
 import fastparse.Parsed
 import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.TestUtils.astPrinter
+import org.polystat.odin.parser.MutualRecExample
 import org.polystat.odin.parser.fastparse.Parser
-import org.polystat.odin.xmir.XMIR
 import org.scalatest.Assertion
 import org.scalatest.freespec.AsyncFreeSpec
 
@@ -17,27 +16,25 @@ class ParserTests extends AsyncFreeSpec with AsyncIOSpec {
   def parseEO(code: String): Option[Vector[EOBnd[EOExprOnly]]] = {
     Parser.parse(code) match {
       case Parsed.Success(value, _) => Some(value.bnds)
-      case failure: Parsed.Failure => {
-        println(failure.msg)
-        None
-      }
+      case _: Parsed.Failure => None
     }
   }
 
-  def parseXMIR[F[_]: Sync](code: String): F[Vector[EOBnd[EOExprOnly]]] = {
+  def parseXMIR[F[_]: Sync](
+    code: String
+  ): F[Option[Vector[EOBnd[EOExprOnly]]]] = {
     for {
       xmir <- EOtoXMIR.parse[F](code)
       parsed <- XMIR.parse(xmir)
-    } yield parsed
+    } yield parsed.toOption
   }
 
-  def compare[F[_]: Sync](code: String): F[Assertion] =
+  def compare[F[_]: Sync](code: String): F[Assertion] = {
     for {
-      parsedXMIR <- parseXMIR(code)
-      _ <- Sync[F].delay(astPrinter.pprintln(parsedXMIR))
-      parsedEO <- Sync[F].delay(parseEO(code).get)
-      _ <- Sync[F].delay(astPrinter.pprintln(parsedEO))
-    } yield assert(parsedEO == parsedXMIR)
+      parsedXMIR <- parseXMIR[F](code)
+      parsedEO = parseEO(code)
+    } yield assert(parsedEO.get == parsedXMIR.get)
+  }
 
   val code: String =
     """+package sandbox
@@ -122,6 +119,7 @@ class ParserTests extends AsyncFreeSpec with AsyncIOSpec {
       "very simple" -> verySimple,
       "simple" -> simple,
       "division by zero" -> divByZero,
+      "mutual_recursion_example" -> MutualRecExample.code
     )
 
     tests.foreach { case (label, code) =>
