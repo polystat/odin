@@ -1,10 +1,18 @@
 # Implementation inlining refactoring analysis — Design document
 
+This analysis is inspired by the paper [A Study of the Fragile Base Class Problem](https://www.researchgate.net/publication/248590657_A_Study_of_the_Fragile_Base_Class_Problem), specifically by the example `3.3 Unjustified Assumptions in Modifier`.
+
 ## Problem description
 
-- [ ] TODO
+The original paper states the problem as follows:
 
-### Examples
+![Unjustified assumption in modifier](img/unjustified-assumption-in-modifier.png)
+
+After the revision of `C`, the behavior of `C'` is the same as it was before, but the behavior of `(M mod C)` is now different. It was expected that the modifier weakens the contract, but after the revision the contract is not weakened for methods `m` and `n`.
+
+In the next section the problem is translated into C++, then in EO and finally a solution in EO is proposed.
+
+### C++ example
 
 The following examples are implemented in C++ and compiled via gcc 11.2 hosted at https://compiler-explorer.com with the following compiler flags:
 
@@ -12,9 +20,7 @@ The following examples are implemented in C++ and compiled via gcc 11.2 hosted a
 --std=c++20 -Wall -Werror -Wpedantic -Wextra -Wconversion
 ```
 
-#### True positive
-
-##### Base example
+#### Base example
 
 [Base example](https://compiler-explorer.com/z/Kq4Mb46cc).
 
@@ -104,7 +110,7 @@ The God has unlimited mana
 Character with 5 mana casts a spell
 ```
 
-##### Refined example
+#### Revision
 
 When the behavioral part of the implementation of `CharacterOps::checkMana` (i.e. `assert(mana > 0);`) [is inlined](https://compiler-explorer.com/z/f3q78GYs5) to the `CharacterOps::castSpell` instead of `checkMana(mana);`, the behavior of instance of the derived class changes.
 
@@ -134,10 +140,18 @@ Character with 5 mana casts a spell
 Character with 5 mana casts a spell
 ```
 
-#### False positive
+### EO example
 
 - [ ] TODO
 
 ## Proposed solution (analysis description)
+
+- [ ] TODO
+
+### False positive
+
+- [ ] TODO
+
+### False negative
 
 - [ ] TODO
