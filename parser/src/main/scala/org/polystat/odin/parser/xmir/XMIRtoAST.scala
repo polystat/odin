@@ -121,12 +121,8 @@ private object XMIRtoASTF {
           (XML.loadFile(out.toAbsolutePath.toString) \\ "objects" \ "_")
             .collect { case elem: Elem => elem }
         )
-        objs <- Sync[F].delay(scalaXML)
-
         parsed = combineErrors(
-          objs
-            .collect { case elem: Elem => elem }
-            .map(obj => parseObject(obj).map(bndFromTuple))
+          scalaXML.map(obj => parseObject(obj).map(bndFromTuple))
         )
       } yield parsed.map(_.toVector)
     }
@@ -158,12 +154,12 @@ private object XMIRtoASTF {
       }).leftMap(_.mkString("\n"))
     }
 
-    private[this] def bndFromTuple: ((Option[EONamedBnd], EOExprOnly)) => EOBnd[EOExprOnly] = {
+    private[this] val bndFromTuple: ((Option[EONamedBnd], EOExprOnly)) => EOBnd[EOExprOnly] = {
       case (Some(name), value) => EOBndExpr(name, value)
       case (None, value) => EOAnonExpr(value)
     }
 
-    private[this] def namedBndFromTuple: Either[String, (Option[EONamedBnd], EOExprOnly)] => Either[String, EOBndExpr[EOExprOnly]] = {
+    private[this] val namedBndFromTuple: Either[String, (Option[EONamedBnd], EOExprOnly)] => Either[String, EOBndExpr[EOExprOnly]] = {
       case Right((Some(name), expr)) => Right(EOBndExpr(name, expr))
       case Right((None, _)) => Left("Expected a named binding!")
       case Left(msg) => Left(msg)
