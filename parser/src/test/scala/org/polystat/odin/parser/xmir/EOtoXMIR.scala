@@ -9,15 +9,15 @@ import org.eolang.parser.{Spy, Syntax, Xsline}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 
-private trait ParseXMIRF[F[_]] {
-  def parseXMIR(code: String): F[String]
+private trait EOtoXMIRF[F[_]] {
+  def parseEO(code: String): F[String]
 }
 
-private object ParseXMIRF {
+private object EOtoXMIRF {
 
-  implicit def live[F[_]: Sync]: ParseXMIRF[F] = new ParseXMIRF[F] {
+  implicit def live[F[_]: Sync]: EOtoXMIRF[F] = new EOtoXMIRF[F] {
 
-    override def parseXMIR(code: String): F[String] = for {
+    override def parseEO(code: String): F[String] = for {
       codeFile <- Sync[F].delay(
         Files.createTempFile("eo_code", ".eo")
       )
@@ -54,7 +54,7 @@ private object ParseXMIRF {
 object EOtoXMIR {
 
   def parse[F[_]: Sync](code: String): F[String] = {
-    ParseXMIRF.live[F].parseXMIR(code)
+    EOtoXMIRF.live[F].parseEO(code)
   }
 
 }

@@ -25,7 +25,7 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
   ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
     for {
       xmir <- EOtoXMIR.parse[F](code)
-      parsed <- XMIR.parse(xmir)
+      parsed <- XMIRtoAST.parse(xmir)
     } yield parsed
   }
 
