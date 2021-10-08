@@ -6,23 +6,82 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.xml.sax.InputSource
 
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, StringReader, StringWriter}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
-import javax.xml.transform.TransformerFactory
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.{OutputKeys, TransformerFactory}
+import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.{StreamResult, StreamSource}
 import scala.xml.Elem
+import scala.xml.XML
 
 private trait XMIRtoASTF[F[_]] {
-  def parseXMIR(code: String): F[Either[String, Vector[EOBnd[EOExprOnly]]]]
+  /**
+    * Accepts a Seq of XML elements encoded as UTF-8 strings and parsed them
+    * into a Vector of EOBnd from org.polystat.odin.core.ast
+    *
+    * @param objs
+    *   a sequence of XML XMIR objects encoded as UTF-8 strings
+    * @return
+    *   Either an error message, or a Vector of EOBnds
+    */
+  def parseXMIR(objs: Seq[String]): F[Either[String, Vector[EOBnd[EOExprOnly]]]]
 }
 
 private object XMIRtoASTF {
 
   implicit def live[F[_]: Sync]: XMIRtoASTF[F] = new XMIRtoASTF[F] {
 
-    def applyXSLT(xml: Path): F[Elem] =
+    /**
+      * adapted from
+      * https://stackoverflow.com/questions/2567416/xml-document-to-string
+      *
+      * @param elems
+      *   A sequence of XML elements as UTF-8 strings
+      * @return
+      *   a single XML document as UTF-8 string of format
+      *   <objects>{elems}</objects>
+      */
+    private[this] def buildXML(elems: Seq[String]): String = {
+      val doc = DocumentBuilderFactory
+        .newInstance
+        .newDocumentBuilder
+        .newDocument
+      val root = doc.createElement("objects")
+      elems
+        .map(elem => {
+          DocumentBuilderFactory
+            .newInstance
+            .newDocumentBuilder
+            .parse(new InputSource(new StringReader(elem)))
+            .getFirstChild
+        })
+        .foreach(node => root.appendChild(doc.adoptNode(node)))
+      doc.appendChild(root)
+      val sw: StringWriter = new StringWriter
+      val transformer = TransformerFactory.newInstance.newTransformer
+      transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no")
+      transformer.setOutputProperty(OutputKeys.METHOD, "xml")
+      transformer.setOutputProperty(OutputKeys.INDENT, "yes")
+      transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8")
+      transformer.transform(new DOMSource(doc), new StreamResult(sw))
+      sw.toString
+    }
+
+    /**
+      * adapted from
+      * https://stackoverflow.com/questions/5977846/how-to-apply-xsl-to-xml-in-java
+      *
+      * @param xml
+      *   Path to an XML document which is to be transformed
+      * @return
+      *   Transform the document with `simple-xmir.xsl` and write it back to
+      *   `xml`
+      */
+    private[this] def applyXSLT(xml: Path): F[Unit] =
       for {
         in <- Sync[F].delay(
           new StreamSource(
@@ -31,7 +90,9 @@ private object XMIRtoASTF {
         )
         xsl <- Sync[F].delay(
           new StreamSource(
-            getClass.getClassLoader.getResourceAsStream("simplify-xmir.xsl")
+            getClass
+              .getClassLoader
+              .getResourceAsStream("simplify-xmir.xsl")
           )
         )
         out <- Sync[F].delay(
@@ -39,43 +100,45 @@ private object XMIRtoASTF {
             Files.newOutputStream(xml)
           )
         )
-
         transformer <- Sync[F].delay(
           TransformerFactory.newInstance().newTransformer(xsl)
         )
         _ <- Sync[F].delay(
           transformer.transform(in, out)
         )
-        scalaXML <- Sync[F].delay(
-          scala.xml.XML.loadFile(xml.toAbsolutePath.toString)
-        )
-      } yield scalaXML
+      } yield ()
 
     override def parseXMIR(
-      xmir: String
+      xmir: Seq[String]
     ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
       for {
         out <- Sync[F].delay(Files.createTempFile("xmir", ".xml"))
         _ <- Sync[F].delay(
-          Files.write(out, xmir.getBytes(StandardCharsets.UTF_8))
+          Files.write(out, buildXML(xmir).getBytes(StandardCharsets.UTF_8))
         )
-        scalaXML <- applyXSLT(out)
-        objs <- Sync[F].delay(
-          (scalaXML \\ "objects" \ "_")
+        _ <- applyXSLT(out)
+        scalaXML <- Sync[F].delay(
+          (XML.loadFile(out.toAbsolutePath.toString) \\ "objects" \ "_")
             .collect { case elem: Elem => elem }
         )
+        objs <- Sync[F].delay(scalaXML)
+
         parsed = combineErrors(
-          objs.map(obj => parseObject(obj).map(bndFromTuple))
+          objs
+            .collect { case elem: Elem => elem }
+            .map(obj => parseObject(obj).map(bndFromTuple))
         )
       } yield parsed.map(_.toVector)
     }
 
-    def cleanName(name: String): String = {
+    private[this] def cleanName(name: String): String = {
       val parts = name.split("\\.")
       parts(parts.length - 1)
     }
 
-    def extractName(attrMap: Map[String, String]): Option[EONamedBnd] = {
+    private[this] def extractName(
+      attrMap: Map[String, String]
+    ): Option[EONamedBnd] = {
       (attrMap.get("bound-to"), attrMap.get("const")) match {
         case (Some("@"), _) => Some(EODecoration)
         case (Some(name), Some(_)) =>
@@ -86,7 +149,7 @@ private object XMIRtoASTF {
       }
     }
 
-    def combineErrors[A](
+    private[this] def combineErrors[A](
       eithers: collection.Seq[Either[String, A]]
     ): Either[String, collection.Seq[A]] = {
       (eithers.partitionMap(identity) match {
@@ -95,12 +158,12 @@ private object XMIRtoASTF {
       }).leftMap(_.mkString("\n"))
     }
 
-    def bndFromTuple: ((Option[EONamedBnd], EOExprOnly)) => EOBnd[EOExprOnly] = {
+    private[this] def bndFromTuple: ((Option[EONamedBnd], EOExprOnly)) => EOBnd[EOExprOnly] = {
       case (Some(name), value) => EOBndExpr(name, value)
       case (None, value) => EOAnonExpr(value)
     }
 
-    def namedBndFromTuple: Either[String, (Option[EONamedBnd], EOExprOnly)] => Either[String, EOBndExpr[EOExprOnly]] = {
+    private[this] def namedBndFromTuple: Either[String, (Option[EONamedBnd], EOExprOnly)] => Either[String, EOBndExpr[EOExprOnly]] = {
       case Right((Some(name), expr)) => Right(EOBndExpr(name, expr))
       case Right((None, _)) => Left("Expected a named binding!")
       case Left(msg) => Left(msg)
@@ -240,9 +303,9 @@ private object XMIRtoASTF {
 object XMIRtoAST {
 
   def parse[F[_]: Sync](
-    code: String
+    objs: Seq[String]
   ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
-    XMIRtoASTF.live[F].parseXMIR(code)
+    XMIRtoASTF.live[F].parseXMIR(objs)
   }
 
 }

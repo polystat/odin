@@ -10,6 +10,7 @@ import org.polystat.odin.parser.MutualRecExample
 import org.polystat.odin.parser.fastparse.Parser
 import org.scalatest.Assertion
 import org.scalatest.wordspec.AsyncWordSpec
+import scala.xml.Elem
 
 class ParserTests extends AsyncWordSpec with AsyncIOSpec {
 
@@ -25,14 +26,17 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
   ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
     for {
       xmir <- EOtoXMIR.parse[F](code)
-      parsed <- XMIRtoAST.parse(xmir)
+      scalaXML =
+        (scala.xml.XML.loadString(xmir) \\ "objects" \ "o")
+          .collect { case elem: Elem => elem.toString }
+      parsed <- XMIRtoAST.parse(scalaXML)
     } yield parsed
   }
 
   def compare[F[_]: Sync](code: String): F[Assertion] = {
     for {
       parsedXMIR <- parseXMIR[F](code)
-    } yield assert(parseEO(code) == parsedXMIR)
+    } yield assert(parsedXMIR == parseEO(code))
   }
 
   val code: String =
