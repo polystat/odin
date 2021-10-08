@@ -9,9 +9,9 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.MutualRecExample
 import org.polystat.odin.parser.fastparse.Parser
 import org.scalatest.Assertion
-import org.scalatest.freespec.AsyncFreeSpec
+import org.scalatest.wordspec.AsyncWordSpec
 
-class ParserTests extends AsyncFreeSpec with AsyncIOSpec {
+class ParserTests extends AsyncWordSpec with AsyncIOSpec {
 
   def parseEO(code: String): Either[String, Vector[EOBnd[EOExprOnly]]] = {
     Parser.parse(code) match {
@@ -112,7 +112,7 @@ class ParserTests extends AsyncFreeSpec with AsyncIOSpec {
     """"hello" > world
       |""".stripMargin
 
-  "XMIR parser" - {
+  "XMIR parser" should {
     val tests = List(
       "a lot of code" -> code,
       "very simple" -> verySimple,
