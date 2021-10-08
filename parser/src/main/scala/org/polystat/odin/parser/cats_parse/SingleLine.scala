@@ -71,12 +71,11 @@ object SingleLine {
       val horizontalApplicationArgs: P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] =
         (applicationTarget | parenthesized)
           .repSep(1, wsp)
-          .flatMap(args =>
+          .mapFilter(args =>
             NonEmpty
               .from(args.toList.map(EOAnonExpr(_)).toVector)
-              .map(P.pure)
-              .getOrElse(P.failWith(Common.nonEmptyErrorMsg))
           )
+          .withContext(Common.nonEmptyErrorMsg)
 
       val justApplication: P[EOExprOnly] = (
         ((parenthesized | applicationTarget) <* wsp) ~ horizontalApplicationArgs
