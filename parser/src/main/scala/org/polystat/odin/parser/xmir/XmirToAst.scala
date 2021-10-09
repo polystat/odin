@@ -18,9 +18,9 @@ import javax.xml.transform.stream.{StreamResult, StreamSource}
 import scala.xml.Elem
 import scala.xml.XML
 
-private trait XMIRtoASTF[F[_]] {
+trait XmirToAst[F[_]] {
   /**
-    * Accepts a Seq of XML elements encoded as UTF-8 strings and parsed them
+    * Accepts a Seq of XML elements encoded as UTF-8 strings and parses them
     * into a Vector of EOBnd from org.polystat.odin.core.ast
     *
     * @param objs
@@ -31,9 +31,30 @@ private trait XMIRtoASTF[F[_]] {
   def parseXMIR(objs: Seq[String]): F[Either[String, Vector[EOBnd[EOExprOnly]]]]
 }
 
-private object XMIRtoASTF {
+object XmirToAst {
 
-  implicit def live[F[_]: Sync]: XMIRtoASTF[F] = new XMIRtoASTF[F] {
+  def apply[F[_]: XmirToAst]: XmirToAst[F] = implicitly
+
+  implicit def impl[F[_]: Sync]: XmirToAst[F] = new XmirToAst[F] {
+
+    override def parseXMIR(
+      xmir: Seq[String]
+    ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
+      for {
+        out <- Sync[F].delay(Files.createTempFile("xmir", ".xml"))
+        _ <- Sync[F].delay {
+          Files.write(out, buildXML(xmir).getBytes(StandardCharsets.UTF_8))
+        }
+        _ <- applyXSLT(out)
+        scalaXML <- Sync[F].delay(
+          (XML.loadFile(out.toAbsolutePath.toString) \\ "objects" \ "_")
+            .collect { case elem: Elem => elem }
+        )
+        parsed = combineErrors(
+          scalaXML.map(obj => parseObject(obj).map(bndFromTuple))
+        )
+      } yield parsed.map(_.toVector)
+    }
 
     /**
       * adapted from
@@ -73,6 +94,7 @@ private object XMIRtoASTF {
 
     /**
       * adapted from
+      *
       * https://stackoverflow.com/questions/5977846/how-to-apply-xsl-to-xml-in-java
       *
       * @param xml
@@ -108,28 +130,9 @@ private object XMIRtoASTF {
         )
       } yield ()
 
-    override def parseXMIR(
-      xmir: Seq[String]
-    ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
-      for {
-        out <- Sync[F].delay(Files.createTempFile("xmir", ".xml"))
-        _ <- Sync[F].delay(
-          Files.write(out, buildXML(xmir).getBytes(StandardCharsets.UTF_8))
-        )
-        _ <- applyXSLT(out)
-        scalaXML <- Sync[F].delay(
-          (XML.loadFile(out.toAbsolutePath.toString) \\ "objects" \ "_")
-            .collect { case elem: Elem => elem }
-        )
-        parsed = combineErrors(
-          scalaXML.map(obj => parseObject(obj).map(bndFromTuple))
-        )
-      } yield parsed.map(_.toVector)
-    }
-
-    private[this] def cleanName(name: String): String = {
+    private[this] def cleanName(name: String): Option[String] = {
       val parts = name.split("\\.")
-      parts(parts.length - 1)
+      parts.lastOption
     }
 
     private[this] def extractName(
@@ -165,12 +168,11 @@ private object XMIRtoASTF {
       case Left(msg) => Left(msg)
     }
 
-    def parseObject(
+    private[this] def parseObject(
       obj: Elem
     ): Either[String, (Option[EONamedBnd], EOExprOnly)] = {
-      val filtered = obj
-      filtered match {
-        case Elem(_, "data", attrs, _, _ @_*) => {
+      obj match {
+        case Elem(_, "data", attrs, _, _*) =>
           val attrMap = attrs.asAttrMap
           val name: Option[EONamedBnd] = extractName(attrMap)
           val value: Either[String, EOExprOnly] =
@@ -198,8 +200,7 @@ private object XMIRtoASTF {
                 )
             }
           value.map(expr => (name, expr))
-        }
-        case Elem(_, "copy", attrs, _, children @ _*) => {
+        case Elem(_, "copy", attrs, _, children @ _*) =>
           val name = extractName(attrs.asAttrMap)
           val of = Either
             .fromOption(
@@ -230,18 +231,15 @@ private object XMIRtoASTF {
               (name, Fix[EOExpr](EOCopy(trg, value.map(bndFromTuple))))
             case None => (name, trg)
           }
-
-        }
-        case Elem(_, "simple-app", attrs, _, _ @_*) => {
+        case Elem(_, "simple-app", attrs, _, _*) =>
           val name: Either[String, String] = Either.fromOption(
-            attrs.asAttrMap.get("name").map(cleanName),
+            attrs.asAttrMap.get("name").flatMap(cleanName),
             "\"simple-app\" element has no attribute \"name\"!"
           )
           for {
             name <- name
           } yield (None, Fix[EOExpr](EOSimpleApp(name)))
-        }
-        case Elem(_, "attribute", attrs, _, children @ _*) => {
+        case Elem(_, "attribute", attrs, _, children @ _*) =>
           val name: Either[String, String] = Either.fromOption(
             attrs.asAttrMap.get("name"),
             "\"attribute\" element doesn't have a \"name\" attribute!"
@@ -265,8 +263,7 @@ private object XMIRtoASTF {
             of <- parsedOf
             (_, expr) <- of
           } yield (None, Fix[EOExpr](EODot(expr, name)))
-        }
-        case Elem(_, "abstraction", attrs, _, children @ _*) => {
+        case Elem(_, "abstraction", attrs, _, children @ _*) =>
           val name = extractName(attrs.asAttrMap)
           val (varargSeq, freeSeq) = children
             .collect { case elem: Elem => elem }
@@ -287,21 +284,14 @@ private object XMIRtoASTF {
           for {
             bndAttrs <- boundAttrs
           } yield (name, Fix[EOExpr](EOObj(free, vararg, bndAttrs)))
-        }
         case elem: Elem => Left(s"An unknown element encountered: $elem")
       }
     }
 
   }
 
-}
-
-object XMIRtoAST {
-
-  def parse[F[_]: Sync](
+  def parseXMIR[F[_]: XmirToAst](
     objs: Seq[String]
-  ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
-    XMIRtoASTF.live[F].parseXMIR(objs)
-  }
+  ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = XmirToAst[F].parseXMIR(objs)
 
 }

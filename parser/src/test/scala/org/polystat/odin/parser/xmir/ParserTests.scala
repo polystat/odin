@@ -29,7 +29,7 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
       scalaXML =
         (scala.xml.XML.loadString(xmir) \\ "objects" \ "o")
           .collect { case elem: Elem => elem.toString }
-      parsed <- XMIRtoAST.parse(scalaXML)
+      parsed <- XmirToAst.parseXMIR(scalaXML)
     } yield parsed
   }
 
