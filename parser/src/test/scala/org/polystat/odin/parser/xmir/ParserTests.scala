@@ -21,7 +21,7 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
     }
   }
 
-  def parseXMIR[F[_]: Sync](
+  def parseXMIRFromSeq[F[_]: Sync](
     code: String
   ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
     for {
@@ -33,10 +33,24 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
     } yield parsed
   }
 
+  def parseXMIRFromString[F[_]: Sync](
+    code: String
+  ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
+    for {
+      xmir <- EOtoXMIR.parse[F](code)
+      parsed <- XmirToAst.parseXMIR(xmir)
+    } yield parsed
+  }
+
   def compare[F[_]: Sync](code: String): F[Assertion] = {
     for {
-      parsedXMIR <- parseXMIR[F](code)
-    } yield assert(parsedXMIR == parseEO(code))
+      parsedSeq <- parseXMIRFromSeq(code)
+      parsedString <- parseXMIRFromString(code)
+      parsedEO = parseEO(code)
+    } yield {
+      assert(parsedEO == parsedSeq)
+      assert(parsedEO == parsedString)
+    }
   }
 
   val code: String =
