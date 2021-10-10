@@ -20,6 +20,10 @@ The following examples are implemented in C++ and compiled via gcc 11.2 hosted a
 --std=c++20 -Wall -Werror -Wpedantic -Wextra -Wconversion
 ```
 
+> **Important**
+> 
+> `std::cout` is used to see in the output which methods are called and is assumed to be omitted when reasoning about the behavior of a program.
+
 #### Base example
 
 [Base example](https://compiler-explorer.com/z/Kq4Mb46cc).
@@ -142,7 +146,117 @@ Character with 5 mana casts a spell
 
 ### EO example
 
-- [ ] TODO
+In this section the example is translated to EO and the output shows that the same problem exists under the same conditions.
+
+> **Important**
+>
+> `stdout` is used to see in the output which methods are called and is assumed to be omitted when reasoning about the behavior of a program.
+
+#### Base example
+
+```
++package sandbox
++alias stdout org.eolang.io.stdout
++alias sprintf org.eolang.txt.sprintf
+
+# Since EO does not have assert and
+# we are not able to throw an exception
+# or break the control flow in a similar
+# manner, this wierd construct is used
+# to simulate assert
+[p cont] > assert
+  if. > @
+    p
+    false
+    cont
+
+[] > character
+  [self mana] > checkMana
+    seq > @
+      stdout "Checking character's mana\n"
+      assert (mana.less 0) true
+  [self mana] > castSpell
+    seq > @
+      self.checkMana self mana
+      stdout
+        sprintf
+          "Character with %d mana casts a spell\n"
+          mana
+  [self mana] > attack
+    seq > @
+      stdout
+        sprintf
+          "Character with %d mana attacks\n"
+          mana
+
+[] > god
+  character > @
+  [self mana] > checkMana
+    seq > @
+      stdout
+        sprintf "The God has unlimited mana\n"
+  [self mana] > attack
+    self.castSpell self mana > @
+
+[args...] > app
+  memory > mana
+  character > regular_character
+  god > god_character
+  seq > @
+    mana.write 10
+    stdout
+      sprintf "Regular character:\n"
+    regular_character.castSpell regular_character mana
+    mana.write (mana.sub 5)
+    regular_character.attack regular_character mana
+    stdout
+      sprintf "\nGod character:\n"
+    god_character.castSpell god_character mana
+    god_character.attack god_character mana
+    0
+```
+
+Output (the same as in the C++ example):
+
+```
+Regular character:
+Checking character's mana
+Character with 10 mana casts a spell
+Character with 5 mana attacks
+
+God character:
+The God has unlimited mana
+Character with 5 mana casts a spell
+The God has unlimited mana
+Character with 5 mana casts a spell
+```
+
+#### Revision
+
+```
+[] > character
+  [self mana] > castSpell
+    seq > @
+      assert (mana.less 0) true  # inlined
+      stdout
+        sprintf
+          "Character with %d mana casts a spell\n"
+          mana
+```
+
+Output (the same as in the C++ example):
+
+```
+Regular character:
+Character with 10 mana casts a spell
+Character with 5 mana attacks
+
+God character:
+Character with 5 mana casts a spell
+Character with 5 mana casts a spell
+```
+
+When the implementation of `character.checkMana` is inlined in the `character.castSpell` the behavior of the base class didn't change, while the derived class's behavior is changed. 
 
 ## Proposed solution (analysis description)
 
