@@ -50,7 +50,7 @@ object Dependencies {
   )
 
   val droste = Seq(
-    "io.higherkindness" %% "droste-scalacheck" % V.droste,
+    "io.higherkindness" %% "droste-core" % V.droste
   )
 
   val fs2 = Seq(
