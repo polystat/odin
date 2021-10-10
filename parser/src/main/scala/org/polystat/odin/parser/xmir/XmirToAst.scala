@@ -310,9 +310,7 @@ object XmirToAst {
 
     }
 
-  def parseXMIR[F[_], T](
-    objs: T
-  )(implicit
+  def parseXMIR[F[_], T](objs: T)(implicit
     impl: XmirToAst[F, T]
   ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] =
     XmirToAst[F, T].parseXMIR(objs)
