@@ -20,11 +20,11 @@ import scala.xml.XML
 
 trait XmirToAst[F[_], T] {
   /**
-    * Accepts a Seq of XML elements encoded as UTF-8 strings and parses them
-    * into a Vector of EOBnd from org.polystat.odin.core.ast
+    * Accepts XMIR objects represented as type T and parses them into a Vector
+    * of EOBnd[EOExprOnly] from org.polystat.odin.core.ast
     *
     * @param objs
-    *   a sequence of XML XMIR objects encoded as UTF-8 strings
+    *   XMIR objects
     * @return
     *   Either an error message, or a Vector of EOBnds
     */
