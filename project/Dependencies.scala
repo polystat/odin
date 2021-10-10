@@ -16,7 +16,7 @@ object Dependencies {
     val pprint = "0.6.6"
     val fs2 = "3.1.4"
     val newTypes = "0.0.1"
-    val eoParser = "0.10.1"
+    val eoParser = "0.10.7"
     val catsEffectScalatest = "1.3.0"
   }
 
@@ -50,7 +50,7 @@ object Dependencies {
   )
 
   val droste = Seq(
-    "io.higherkindness" %% "droste-scalacheck" % V.droste,
+    "io.higherkindness" %% "droste-core" % V.droste
   )
 
   val fs2 = Seq(
