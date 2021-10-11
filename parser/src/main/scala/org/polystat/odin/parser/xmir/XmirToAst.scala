@@ -6,17 +6,13 @@ import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.xml.sax.InputSource
 
-import java.io.{ByteArrayInputStream, StringReader, StringWriter}
+import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
-import javax.xml.parsers.DocumentBuilderFactory
-import javax.xml.transform.{OutputKeys, TransformerFactory}
-import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.TransformerFactory
 import javax.xml.transform.stream.{StreamResult, StreamSource}
-import scala.xml.Elem
-import scala.xml.XML
+import scala.xml.{Elem, XML}
 
 trait XmirToAst[F[_], T] {
   /**
@@ -63,7 +59,11 @@ object XmirToAst {
         for {
           out <- Sync[F].delay(Files.createTempFile("xmir", ".xml"))
           _ <- Sync[F].delay {
-            Files.write(out, buildXML(xmir).getBytes(StandardCharsets.UTF_8))
+            Files.write(
+              out,
+              s"<objects>${xmir.mkString}</objects>"
+                .getBytes(StandardCharsets.UTF_8)
+            )
           }
           _ <- applyXSLT(out)
           scalaXML <- Sync[F].delay(
@@ -74,42 +74,6 @@ object XmirToAst {
             scalaXML.map(obj => parseObject(obj).map(bndFromTuple))
           )
         } yield parsed.map(_.toVector)
-      }
-
-      /**
-        * adapted from
-        * https://stackoverflow.com/questions/2567416/xml-document-to-string
-        *
-        * @param elems
-        *   A sequence of XML elements as UTF-8 strings
-        * @return
-        *   a single XML document as UTF-8 string of format
-        *   <objects>{elems}</objects>
-        */
-      private[this] def buildXML(elems: Seq[String]): String = {
-        val doc = DocumentBuilderFactory
-          .newInstance
-          .newDocumentBuilder
-          .newDocument
-        val root = doc.createElement("objects")
-        elems
-          .map(elem => {
-            DocumentBuilderFactory
-              .newInstance
-              .newDocumentBuilder
-              .parse(new InputSource(new StringReader(elem)))
-              .getFirstChild
-          })
-          .foreach(node => root.appendChild(doc.adoptNode(node)))
-        doc.appendChild(root)
-        val sw: StringWriter = new StringWriter
-        val transformer = TransformerFactory.newInstance.newTransformer
-        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no")
-        transformer.setOutputProperty(OutputKeys.METHOD, "xml")
-        transformer.setOutputProperty(OutputKeys.INDENT, "yes")
-        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8")
-        transformer.transform(new DOMSource(doc), new StreamResult(sw))
-        sw.toString
       }
 
       /**
