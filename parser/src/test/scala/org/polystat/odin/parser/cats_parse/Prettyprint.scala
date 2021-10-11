@@ -2,16 +2,17 @@ package org.polystat.odin.parser.cats_parse
 
 import cats.parse.Parser.Expectation
 import cats.parse._
+import org.polystat.odin.parser.cats_parse.JsonStringUtil.escape
 
 class Prettyprint(filename: String = "", input: String) {
   private val locmap = LocationMap(input)
 
   def description(x: Parser.Expectation): String = x match {
     case Expectation.OneOfStr(_, strs) =>
-      val strList = strs.map { x => s"'$x'" }.mkString(", ")
+      val strList = strs.map { x => s"'${escape('\'', x)}'" }.mkString(", ")
       s"expected one of $strList"
     case Expectation.InRange(_, lower, upper) =>
-      if (lower == upper) s"expected '$lower'"
+      if (lower == upper) s"expected '${escape('\'', lower.toString)}'"
       else s"expected '$lower' ~ '$upper'"
     case Expectation.StartOfString(_) =>
       "expected beginning of file"
@@ -26,7 +27,7 @@ class Prettyprint(filename: String = "", input: String) {
     case Expectation.FailWith(_, message) =>
       message
     case Expectation.WithContext(contextStr, _) =>
-      s"expected $contextStr"
+      s"expected ${escape('\'', contextStr)}"
   }
 
   def prettyprint(x: Parser.Expectation): String = {

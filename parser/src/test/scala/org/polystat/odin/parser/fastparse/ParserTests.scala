@@ -102,7 +102,7 @@ class ParserTests extends EOParserTestSuite {
         TestCase("[...]", "[...]", None)
       )
 
-    runTests(
+    runParserTests(
       argsAllInput(_),
       correctTests = correctArgsTests,
       incorrectTests = incorrectArgsTests
@@ -169,7 +169,7 @@ class ParserTests extends EOParserTestSuite {
       )
     )
 
-    runTests(
+    runParserTests(
       anonymousAbstractionAllInput(_),
       correctTests,
       incorrectTests
@@ -252,7 +252,7 @@ class ParserTests extends EOParserTestSuite {
             |        d > d-""".stripMargin
       )
     )
-    runTests(
+    runParserTests(
       namedApplicationAllInput(_),
       correctTests = correctTests
     )
@@ -310,7 +310,7 @@ class ParserTests extends EOParserTestSuite {
       )
     )
 
-    runTests(programParser, correctTests)
+    runParserTests(programParser, correctTests)
   }
 
 }

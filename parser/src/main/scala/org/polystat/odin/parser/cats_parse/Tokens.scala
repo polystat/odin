@@ -6,8 +6,8 @@ import cats.parse.{Parser => P, _}
 object Tokens {
 
   val wsp: P[Unit] = Rfc5234.wsp.rep(1).void
-  val optWsp: Parser0[Unit] = wsp.?.void
-  val eol: P[Unit] = (wsp.rep0.with1 ~ (crlf | lf)).void
+  val optWsp: Parser0[Unit] = Rfc5234.wsp.rep0.void
+  val eol: P[Unit] = (optWsp.with1 ~ (crlf | lf)).void
 
   val emptyLinesOrComments: Parser0[Unit] = (
     (wsp.rep0 *> (P.char('#') *> P.charsWhile0(_ != '\n')).?).with1 *>

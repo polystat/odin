@@ -1,31 +1,28 @@
 package org.polystat.odin.parser.cats_parse
 
-import cats.parse.{Parser, Parser0}
+import cats.parse.{Parser => P, Parser0 => P0}
+import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.SingleLineExamples
+import org.polystat.odin.parser.{EOParserTestSuite, SingleLineExamples}
 import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
 import org.scalatest.Assertion
-import org.scalatest.Inspectors.forAll
-import org.scalatest.wordspec.AnyWordSpec
 
-class ParserTests extends AnyWordSpec {
+class ParserTests extends EOParserTestSuite {
 
-  type ParserType[A] = Either[Parser0[A], Parser[A]]
+  override type Success[A] = A
+  override type Error = P.Error
 
-  def runTests[A](parser: ParserType[A], tests: List[TestCase[A]]): Unit = {
-    tests.foreach {
-      case TestCase(label, code, Some(value)) => registerTest(label) {
-          shouldProduce[A](value)(parser, code)
-        }
-      case TestCase(label, code, None) => registerTest(label) {
-          shouldParse(parser, code)
-        }
-    }
-  }
+  override def programParser: ParserT[EOProg[EOExprOnly]] =
+    Left(Parser.program(0, 2))
+
+  override def singleLineApplicationParser: ParserT[EOExprOnly] =
+    Right(SingleLine.singleLineApplication)
+
+  type ParserT[A] = Either[P0[A], P[A]]
 
   def checkParser[A](
-    check: Either[Parser.Error, A] => Boolean
-  )(parser: ParserType[A], input: String): Assertion = {
+    check: ParserResultT[A] => Boolean
+  )(parser: ParserT[A], input: String): Assertion = {
     val pp = new Prettyprint(input = input)
     val parsed = parser match {
       case Left(value) => value.parseAll(input)
@@ -36,21 +33,6 @@ class ParserTests extends AnyWordSpec {
       case Right(value) => astPrinter.pprintln(value)
     }
     assert(check(parsed))
-  }
-
-  def shouldParse[A]: (ParserType[A], String) => Assertion = {
-    checkParser[A](_.isRight)
-  }
-
-  def shouldFailParsing[A]: (ParserType[A], String) => Assertion = {
-    checkParser(_.isLeft)
-  }
-
-  def shouldProduce[AST](ast: AST): (ParserType[AST], String) => Assertion = {
-    checkParser[AST] {
-      case Left(_) => false
-      case Right(value) => value == ast
-    }
   }
 
   "tokens" should {
@@ -94,7 +76,7 @@ class ParserTests extends AnyWordSpec {
           ast = Some("惣流·明日香·兰格雷")
         )
       )
-      runTests(Right(Tokens.string), stringTests)
+      runParserTests(Right(Tokens.string), stringTests)
     }
 
     "chars" should {
@@ -106,7 +88,7 @@ class ParserTests extends AnyWordSpec {
         TestCase(label = "Ж (literal)", code = "'Ж'", Some('Ж')),
         TestCase(label = "香 (escaped)", code = "\'\\u9999\'", Some('香')),
       )
-      runTests(Right(Tokens.char), charTests)
+      runParserTests(Right(Tokens.char), charTests)
     }
 
   }
@@ -217,37 +199,46 @@ class ParserTests extends AnyWordSpec {
   }
 
   "binding name" should {
-    val correctTests = List(
-      "just name" -> " > name  ",
-      "decoration" -> ">@",
-      "const name" -> " > name!",
-      "another const name" -> " > name ! ",
-      "const decoration" -> "> @!"
+    val correctTests = List[TestCase[EONamedBnd]](
+      TestCase("just name", " > name  "),
+      TestCase("decoration", ">@"),
+      TestCase("const name", " > name!"),
+      TestCase("another const name", " > name ! "),
+      TestCase("const decoration", "> @!"),
     )
 
-    val incorrectTests = List(
-      "incorrect symbol" -> " < name",
-      "no name" -> " > !"
+    val incorrectTests = List[TestCase[EONamedBnd]](
+      TestCase("incorrect symbol", " < name"),
+      TestCase("no name", " > !"),
     )
 
-    forAll(correctTests) { case (label, example) =>
-      label in {
-        shouldParse(Right(SingleLine.bndName), example)
-      }
-    }
-
-    forAll(incorrectTests) { case (label, example) =>
-      label in {
-        shouldFailParsing(Right(SingleLine.bndName), example)
-      }
-    }
+    runParserTests[EONamedBnd](Right(Named.name), correctTests, incorrectTests)
   }
 
   "single line application" should {
-    runTests[EOExprOnly](
+    runParserTests[EOExprOnly](
       Right(SingleLine.singleLineApplication),
       SingleLineExamples.correct
     )
   }
 
+  //  "program" should {
+  //
+  //    def parser = Left(Parser.program(0, 2))
+  //
+  //    val correctTests = List(
+  //      TestCase(
+  //        label = "empty program",
+  //        code = "",
+  //        ast = Some(
+  //          EOProg[EOExprOnly](
+  //            metas = EOMetas(pack = None, metas = Vector()),
+  //            bnds = Vector()
+  //          )
+  //        )
+  //      )
+  //    )
+  //
+  //    runParserTests(parser, correctTests)
+  //  }
 }

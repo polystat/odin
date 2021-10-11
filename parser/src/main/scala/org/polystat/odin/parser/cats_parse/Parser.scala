@@ -9,19 +9,18 @@ object Parser {
 
   def `object`(indent: Int, indentationStep: Int): P[EOBnd[EOExprOnly]] = {
     P.defer(
-      Named.`object`(indent, indentationStep) |
-        Anon.`object`(indent, indentationStep)
+      Anon.`object`(indent, indentationStep).backtrack |
+        Named.`object`(indent, indentationStep)
     )
   }
 
   def program(indent: Int, indentationStep: Int): P0[EOProg[EOExprOnly]] = (
-    (emptyLinesOrComments *> Metas.metas) ~
-      (emptyLinesOrComments *>
-        `object`(indent, indentationStep)
-          .repSep0(emptyLinesOrComments)) <*
-      emptyLinesOrComments
-  ).map { case (metas, value) =>
-    EOProg(metas, value.toVector)
+    Metas.metas ~
+      `object`(indent, indentationStep)
+        .repSep0(emptyLinesOrComments)
+        .surroundedBy(emptyLinesOrComments)
+  ).map { case (metas, objs) =>
+    EOProg(metas, objs.toVector)
   }
 
 }

@@ -16,7 +16,7 @@ object Anon {
     indentationStep: Int
   ): P[EOAnonExpr[EOExprOnly]] = {
 
-    val anonymousRegularApplication: P[EOAnonExpr[EOExprOnly]] = (
+    val regularApplication: P[EOAnonExpr[EOExprOnly]] = (
       singleLineApplication ~
         verticalApplicationArgs(indent, indentationStep).?
     ).map {
@@ -26,24 +26,24 @@ object Anon {
       case (trg, None) => EOAnonExpr(trg)
     }
 
-    val anonymousInverseDotApplication: P[EOAnonExpr[EOExprOnly]] = (
+    val inverseDotApplication: P[EOAnonExpr[EOExprOnly]] = (
       (identifier <* P.char('.')) ~
         verticalApplicationArgs(indent, indentationStep)
     ).map { case (id, args) =>
       EOAnonExpr(createInverseDot(id, args))
     }
 
-    val anonymousApplication: P[EOAnonExpr[EOExprOnly]] =
-      anonymousInverseDotApplication | anonymousRegularApplication
+    val application: P[EOAnonExpr[EOExprOnly]] =
+      inverseDotApplication.backtrack | regularApplication
 
-    val anonymousVerticalArray: P[EOAnonExpr[EOExprOnly]] = (
+    val verticalArray: P[EOAnonExpr[EOExprOnly]] = (
       P.char('*') *>
         verticalApplicationArgs(indent, indentationStep).?
     ).map { args =>
       EOAnonExpr(createArrayFromNonEmpty(args))
     }
 
-    val anonymousAbstraction: P[EOAnonExpr[EOExprOnly]] = (
+    val abstraction: P[EOAnonExpr[EOExprOnly]] = (
       params ~ boundAttributes(indent, indentationStep)
     ).map { case ((params, vararg), attrs) =>
       EOAnonExpr(
@@ -52,9 +52,9 @@ object Anon {
     }
 
     P.defer(
-      anonymousAbstraction |
-        anonymousApplication |
-        anonymousVerticalArray
+      application.backtrack |
+        abstraction |
+        verticalArray
     )
   }
 

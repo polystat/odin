@@ -8,7 +8,11 @@ import scala.jdk.CollectionConverters._
 
 object TestUtils {
 
-  case class TestCase[AST](label: String, code: String, ast: Option[AST] = None)
+  case class TestCase[AST](
+    label: String,
+    code: String,
+    ast: Option[AST] = Option.empty[AST]
+  )
 
   val astPrinter: PPrinter = pprint.copy(
     additionalHandlers = {

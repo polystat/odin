@@ -49,7 +49,7 @@ object Metas {
 
   val metas: Parser0[EOMetas] = (
     (emptyLinesOrComments *> (packageMeta <* eol).?) ~
-      (emptyLinesOrComments.with1 *> ((rtMeta | aliasMeta) <* eol)).rep0
+      (emptyLinesOrComments.with1.soft *> ((rtMeta | aliasMeta) <* eol)).rep0
   ).map { case (pkg, metas) =>
     EOMetas(pkg, metas.toVector)
   }

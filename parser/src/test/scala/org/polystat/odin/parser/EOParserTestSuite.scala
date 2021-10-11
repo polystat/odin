@@ -34,7 +34,7 @@ trait EOParserTestSuite extends AnyWordSpec {
 
   type Tests[A] = List[TestCase[A]]
 
-  def runTests[A](
+  def runParserTests[A](
     parser: ParserT[A],
     correctTests: Tests[A] = Nil,
     incorrectTests: Tests[A] = Nil
@@ -69,14 +69,14 @@ trait EOParserTestSuite extends AnyWordSpec {
     )
   )
 
-  runTests(programParser, correctTests = examplesFromSources)
+  runParserTests(programParser, correctTests = examplesFromSources)
 
-  runTests[EOExprOnly](
+  runParserTests[EOExprOnly](
     singleLineApplicationParser,
     correctTests = SingleLineExamples.correct
   )
 
-  runTests[EOProg[EOExprOnly]](
+  runParserTests[EOProg[EOExprOnly]](
     programParser,
     correctTests = mutualRecursionExample
   )
