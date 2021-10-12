@@ -24,4 +24,15 @@ object Parser {
     EOProg(metas, objs.toVector)
   }
 
+  def parse(
+    code: String,
+    indentationStep: Int = 2
+  ): Either[String, EOProg[EOExprOnly]] = {
+    val pp = new Prettyprint(input = code)
+    program(0, indentationStep).parseAll(code) match {
+      case Left(value) => Left(pp.prettyprint(value))
+      case Right(value) => Right(value)
+    }
+  }
+
 }
