@@ -14,42 +14,35 @@ object Common {
   def deeper(
     indent: Int,
     indentationStep: Int
-  ): P[Unit] = (
-    P.string(" " * (indent + indentationStep))
-  )
+  ): P[Unit] = P.string(" " * (indent + indentationStep))
 
   def wspBetweenObjs(
     indent: Int,
     indentationStep: Int
-  ): P[Unit] =
-    //    emptyLinesOrComments.with1.soft*>
-    eol *> deeper(indent, indentationStep)
+  ): P[Unit] = {
+    (eol *> emptyLinesOrComments *>
+      deeper(indent, indentationStep)).backtrack
+  }
 
   def boundAttributes(
     indent: Int,
     indentationStep: Int
   ): P[Vector[EOBndExpr[EOExprOnly]]] = P.defer(
-    (eol.soft *> emptyLinesOrComments *> deeper(
-      indent,
-      indentationStep
-    )).soft *>
-      Named
+    wspBetweenObjs(indent, indentationStep)
+      *> Named
         .`object`(indent + indentationStep, indentationStep)
-        .repSep0(sep = wspBetweenObjs(indent, indentationStep))
-        .map(_.toVector)
+        .repSep(1, sep = wspBetweenObjs(indent, indentationStep))
+        .map(_.toList.toVector)
   )
 
   def verticalApplicationArgs(
     indent: Int,
     indentationStep: Int
   ): P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = P.defer(
-    (eol.soft *> emptyLinesOrComments *> deeper(
-      indent,
-      indentationStep
-    )).soft *>
-      Parser
+    wspBetweenObjs(indent, indentationStep)
+      *> Parser
         .`object`(indent + indentationStep, indentationStep)
-        .repSep(min = 1, sep = wspBetweenObjs(indent, indentationStep))
+        .repSep(1, wspBetweenObjs(indent, indentationStep))
         .mapFilter(objs => NonEmpty.from(objs.toList.toVector))
   )
 

@@ -9,16 +9,17 @@ object Parser {
 
   def `object`(indent: Int, indentationStep: Int): P[EOBnd[EOExprOnly]] = {
     P.defer(
-      Anon.`object`(indent, indentationStep).backtrack |
-        Named.`object`(indent, indentationStep)
+      Named.`object`(indent, indentationStep) |
+        Anon.`object`(indent, indentationStep)
     )
   }
 
   def program(indent: Int, indentationStep: Int): P0[EOProg[EOExprOnly]] = (
     Metas.metas ~
-      `object`(indent, indentationStep)
-        .repSep0(emptyLinesOrComments)
-        .surroundedBy(emptyLinesOrComments)
+      (emptyLinesOrComments *>
+        `object`(indent, indentationStep)
+          .repSep0(emptyLinesOrComments)) <*
+      emptyLinesOrComments
   ).map { case (metas, objs) =>
     EOProg(metas, objs.toVector)
   }

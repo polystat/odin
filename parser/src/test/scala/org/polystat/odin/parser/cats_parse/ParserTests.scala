@@ -37,18 +37,27 @@ class ParserTests extends EOParserTestSuite {
 
   "tokens" should {
 
-    "comments or empty lines" in {
-      shouldParse(
-        Left(Tokens.emptyLinesOrComments),
-        """
-          |
-          |
-          |
-          |
-          |
-          |  # 32434123
-          |""".stripMargin
+    "comments or empty lines" should {
+      val correctTests = List[TestCase[Unit]](
+        TestCase(
+          label = "some whitespace",
+          code =
+            """
+              |
+              |
+              |# 213213
+              |
+              |
+              |  # 32434123
+              |""".stripMargin
+        ),
+        TestCase(
+          label = "no whitespace",
+          code = ""
+        )
       )
+
+      runParserTests(Left(Tokens.emptyLinesOrComments), correctTests)
     }
 
     "strings" should {

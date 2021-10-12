@@ -44,10 +44,10 @@ object Anon {
     }
 
     val abstraction: P[EOAnonExpr[EOExprOnly]] = (
-      params ~ boundAttributes(indent, indentationStep)
+      params ~ boundAttributes(indent, indentationStep).?
     ).map { case ((params, vararg), attrs) =>
       EOAnonExpr(
-        Fix[EOExpr](EOObj(params, vararg, attrs))
+        Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
       )
     }
 

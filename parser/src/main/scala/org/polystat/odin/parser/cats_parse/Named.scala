@@ -31,21 +31,27 @@ object Named {
 
     val abstraction =
       (
-        SingleLine.params ~ name ~
-          boundAttributes(indent, indentationStep)
-      ).map { case (((params, vararg), name), args) =>
-        EOBndExpr(name, Fix[EOExpr](EOObj(params, vararg, args)))
+        params.soft ~ name ~
+          boundAttributes(indent, indentationStep).?
+      ).map { case (((params, vararg), name), attrs) =>
+        EOBndExpr(
+          name,
+          Fix[EOExpr](EOObj(params, vararg, attrs.getOrElse(Vector())))
+        )
       }
 
     val inverseDotApplication = (
-      (identifier.soft <* P.char('.').surroundedBy(optWsp)) ~ name ~
+      (identifier <* P.char('.').surroundedBy(optWsp)).backtrack.soft ~ name ~
         verticalApplicationArgs(indent, indentationStep)
     ).map { case ((attr, name), args) =>
       EOBndExpr(name, createInverseDot(attr, args))
     }
 
     val verticalArray = (
-      (P.char('*') *> name) ~ verticalApplicationArgs(indent, indentationStep).?
+      (P.char('*').soft *> name) ~ verticalApplicationArgs(
+        indent,
+        indentationStep
+      ).?
     ).map { case (name, args) =>
       EOBndExpr(name, createArrayFromNonEmpty(args))
     }
@@ -59,7 +65,7 @@ object Named {
       case ((trg, name), None) => EOBndExpr(name, trg)
     }
 
-    val application = inverseDotApplication.backtrack | regularApplication
+    val application = inverseDotApplication | regularApplication
 
     P.defer(
       abstraction |

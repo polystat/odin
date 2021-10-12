@@ -10,8 +10,9 @@ object Tokens {
   val eol: P[Unit] = (optWsp.with1 ~ (crlf | lf)).void
 
   val emptyLinesOrComments: Parser0[Unit] = (
-    (wsp.rep0 *> (P.char('#') *> P.charsWhile0(_ != '\n')).?).with1 *>
-      eol
+    (optWsp *>
+      (P.char('#') *> P.charsWhile0(_ != '\n')).?).with1.soft
+      *> eol
   ).rep0.void
 
   val digit: P[Char] = P.charIn('0' to '9')
