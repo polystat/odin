@@ -17,9 +17,8 @@
   c. > inverseDotExample
     b.
       a
-# random comment
+  # random comment
   # some more text
-
   [@ b] > @
     [ad...] > one2!
   [a @...] > another

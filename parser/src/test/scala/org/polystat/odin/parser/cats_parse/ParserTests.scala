@@ -3,7 +3,7 @@ package org.polystat.odin.parser.cats_parse
 import cats.parse.{Parser => P, Parser0 => P0}
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.{EOParserTestSuite, SingleLineExamples}
+import org.polystat.odin.parser.EOParserTestSuite
 import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
 import org.scalatest.Assertion
 
@@ -23,13 +23,13 @@ class ParserTests extends EOParserTestSuite {
   def checkParser[A](
     check: ParserResultT[A] => Boolean
   )(parser: ParserT[A], input: String): Assertion = {
-    val pp = new Prettyprint(input = input)
     val parsed = parser match {
       case Left(value) => value.parseAll(input)
       case Right(value) => value.parseAll(input)
     }
     parsed match {
-      case Left(value) => println(pp.prettyprint(value))
+      case Left(value) =>
+        println(new Prettyprint(input = input).prettyprint(value))
       case Right(value) => astPrinter.pprintln(value)
     }
     assert(check(parsed))
@@ -224,30 +224,4 @@ class ParserTests extends EOParserTestSuite {
     runParserTests[EONamedBnd](Right(Named.name), correctTests, incorrectTests)
   }
 
-  "single line application" should {
-    runParserTests[EOExprOnly](
-      Right(SingleLine.singleLineApplication),
-      SingleLineExamples.correct
-    )
-  }
-
-  //  "program" should {
-  //
-  //    def parser = Left(Parser.program(0, 2))
-  //
-  //    val correctTests = List(
-  //      TestCase(
-  //        label = "empty program",
-  //        code = "",
-  //        ast = Some(
-  //          EOProg[EOExprOnly](
-  //            metas = EOMetas(pack = None, metas = Vector()),
-  //            bnds = Vector()
-  //          )
-  //        )
-  //      )
-  //    )
-  //
-  //    runParserTests(parser, correctTests)
-  //  }
 }

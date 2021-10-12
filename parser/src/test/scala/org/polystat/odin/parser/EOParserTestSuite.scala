@@ -69,16 +69,17 @@ trait EOParserTestSuite extends AnyWordSpec {
     )
   )
 
-  runParserTests(programParser, correctTests = examplesFromSources)
+  "existing programs" should {
+    runParserTests(programParser, correctTests = examplesFromSources)
+    runParserTests(programParser, correctTests = mutualRecursionExample)
 
-  runParserTests[EOExprOnly](
-    singleLineApplicationParser,
-    correctTests = SingleLineExamples.correct
-  )
+  }
 
-  runParserTests[EOProg[EOExprOnly]](
-    programParser,
-    correctTests = mutualRecursionExample
-  )
+  "single line application" should {
+    runParserTests[EOExprOnly](
+      singleLineApplicationParser,
+      correctTests = SingleLineExamples.correct
+    )
+  }
 
 }

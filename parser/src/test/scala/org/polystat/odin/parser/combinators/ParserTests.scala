@@ -10,12 +10,7 @@ import org.polystat.odin.parser.combinators.errors.{
   ParsingError
 }
 import higherkindness.droste.data.Fix
-import org.polystat.odin.parser.TestUtils.{
-  fileNameOf,
-  getListOfFiles,
-  readCodeFrom
-}
-import org.scalatest.Inspectors.forAll
+import org.polystat.odin.parser.TestUtils._
 import org.scalatest.funspec.AnyFunSpec
 
 import scala.reflect.ClassTag
@@ -181,8 +176,8 @@ class ParserTests extends AnyFunSpec {
         )
       }
 
-      forAll(getListOfFiles("/eo_sources")) { src =>
-        it(fileNameOf(src)) {
+      getListOfFiles("/eo_sources").foreach { src =>
+        registerTest(fileNameOf(src)) {
           @annotation.nowarn
           val ast = Parser(readCodeFrom(src))
           assert(ast.isRight)
