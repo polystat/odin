@@ -2,14 +2,19 @@ package org.polystat.odin.interop.java
 
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
-import org.polystat.odin.interop.java.OdinAnalysisErrorInterop.fromOdinAnalysisError
 import org.polystat.odin.analysis
+import org.polystat.odin.interop.java.OdinAnalysisErrorInterop.fromOdinAnalysisError
 
 import java.util
 import scala.jdk.CollectionConverters._
 
 trait EOOdinAnalyzer[R] {
-  def analyze(eoRepr: R): java.util.List[OdinAnalysisErrorInterop]
+
+  @throws[Exception]
+  def analyze(
+    eoRepr: R
+  ): java.util.List[OdinAnalysisErrorInterop]
+
 }
 
 object EOOdinAnalyzer {
@@ -26,6 +31,7 @@ object EOOdinAnalyzer {
 
     implicit private val runtime: IORuntime = IORuntime.global
 
+    @throws[Exception]
     override def analyze(
       eoRepr: String
     ): java.util.List[OdinAnalysisErrorInterop] =
@@ -41,11 +47,11 @@ object EOOdinAnalyzer {
 
   class EOOdinXmirAnalyzer() extends EOOdinAnalyzer[String] {
 
-    import org.polystat.odin.parser.xmir.XmirToAst.string
     import org.polystat.odin.parser.EoParser.{
       xmirToEoBndEoParser,
       xmirToEoProgEoParser
     }
+    import org.polystat.odin.parser.xmir.XmirToAst.string
 
     private val delegate = analysis
       .EOOdinAnalyzer
@@ -53,6 +59,7 @@ object EOOdinAnalyzer {
 
     implicit private val runtime: IORuntime = IORuntime.global
 
+    @throws[Exception]
     override def analyze(
       eoRepr: String
     ): util.List[OdinAnalysisErrorInterop] =
