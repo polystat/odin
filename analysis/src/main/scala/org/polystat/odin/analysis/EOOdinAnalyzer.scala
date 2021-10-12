@@ -8,26 +8,26 @@ import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.combinators.Parser
+import org.polystat.odin.parser.EoParser
+import org.polystat.odin.parser.EoParser.parse
 
-trait EOOdinAnalyzer[F[_]] {
-  def analyzeSourceCode(code: String): Stream[F, OdinAnalysisError]
+trait EOOdinAnalyzer[EORepr, F[_]] {
+  def analyzeSourceCode(eoRepr: EORepr): Stream[F, OdinAnalysisError]
 }
 
 object EOOdinAnalyzer {
   type OdinAnalysisError = OdinAnalysisError.Type
-
   object OdinAnalysisError extends NewtypeWrapped[String]
 
-  def impl[F[_]: Sync]: EOOdinAnalyzer[F] = new EOOdinAnalyzer[F] {
+  def impl[EORepr, F[_]: Sync](implicit
+    parser: EoParser[EORepr, F, EOProg[EOExprOnly]]
+  ): EOOdinAnalyzer[EORepr, F] = new EOOdinAnalyzer[EORepr, F] {
 
-    def analyzeSourceCode(code: String): Stream[F, OdinAnalysisError] =
+    override def analyzeSourceCode(
+      eoRepr: EORepr
+    ): Stream[F, OdinAnalysisError] =
       for {
-        programAst <- Stream.eval(
-          Sync[F].fromEither(
-            Parser(code).left.map(e => new IllegalArgumentException(e.msg))
-          )
-        )
+        programAst <- Stream.eval(parse(eoRepr))
         mutualRecursionErrors <- findMutualRecursion(programAst)
       } yield mutualRecursionErrors
 
@@ -51,7 +51,8 @@ object EOOdinAnalyzer {
           .mkString_(" -> ")
 
         val errorMessage =
-          mutualRecString ++ " through the following possible code path:\n" ++ dependencyChainString
+          mutualRecString ++ " through the following possible code path:\n" ++
+            dependencyChainString
         OdinAnalysisError(errorMessage)
       })
     } yield odinError

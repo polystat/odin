@@ -1,31 +1,46 @@
 package org.polystat.odin.sandbox
 
-import cats.effect.{ ExitCode, IO, IOApp, Resource, Sync }
+import cats.effect.{ExitCode, IO, IOApp, Resource, Sync}
 import cats.implicits._
+import org.polystat.odin.parser.fastparse.Parser
 import org.polystat.odin.analysis.EOOdinAnalyzer
-import org.polystat.odin.analysis.mutualrec.naive.{ findMutualRecursionInTopLevelObjects, resolveMethodsReferencesForEOProgram }
+import org.polystat.odin.analysis.mutualrec.naive.{
+  findMutualRecursionInTopLevelObjects,
+  resolveMethodsReferencesForEOProgram
+}
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.backend.eolang.inlineorlines.ops._
-import org.polystat.odin.parser.combinators.Parser
-import org.polystat.odin.parser.combinators.errors.{ LexerError, ParserError }
 
 import scala.io.Source
 import scala.util.chaining._
 
 object Sandbox extends IOApp {
+
   override def run(args: List[String]): IO[ExitCode] = for {
     exitCode <- IO.pure(ExitCode.Success)
     //    mutualRecEORepr: String = mutualRecursionExample.toEO.allLinesToString
     //    _ <- IO(mutualRecEORepr.tap(println))
 
     fileName = "mutual_rec_example.eo"
-    fileSourceResource = Resource.make(IO(Source.fromResource(fileName)))(src => IO(src.close()))
-    fileContents <- fileSourceResource.use(src => IO(src.getLines().toVector.mkString("\n")))
-    program <- IO.fromEither(Parser(fileContents).leftMap {
-      case LexerError(msg) => new IllegalArgumentException(msg)
-      case ParserError(msg) => new IllegalArgumentException(msg)
-    })
+    fileSourceResource =
+      Resource.make(IO(Source.fromResource(fileName)))(src => IO(src.close()))
+    fileContents <-
+      fileSourceResource.use(src => IO(src.getLines().toVector.mkString("\n")))
+    program <- IO.fromEither(
+      Parser
+        .parse(fileContents)
+        .fold(
+          onFailure = (label, index, extra) =>
+            Left(
+              new IllegalArgumentException(
+                s"""[$index] Parsing failed with error: $label. Extra:
+                   |$extra""".stripMargin
+              )
+            ),
+          onSuccess = (ast, _) => Right(ast)
+        )
+    )
     programText = program.toEO.allLinesToString
     _ <- IO(programText.tap(println))
 
@@ -48,9 +63,14 @@ object Sandbox extends IOApp {
             s"is mutually recursive with method " ++
             s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
 
-        val dependencyChainString = depChain.append(method).map(m => s"${m.parentObject.objName}.${m.name}").mkString_(" -> ")
+        val dependencyChainString = depChain
+          .append(method)
+          .map(m => s"${m.parentObject.objName}.${m.name}")
+          .mkString_(" -> ")
 
-        println(mutualRecString ++ " through the following possible code path:\n" ++ dependencyChainString)
+        println(
+          mutualRecString ++ " through the following possible code path:\n" ++ dependencyChainString
+        )
       }
     )
   } yield exitCode
@@ -63,4 +83,5 @@ object Sandbox extends IOApp {
     errors <- EOOdinAnalyzer.impl.analyzeSourceCode(code).compile.toVector
     _ <- Sync[F].delay(errors.map(_.tap(println)))
   } yield ()
+
 }
