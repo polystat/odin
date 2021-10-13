@@ -256,16 +256,43 @@ Character with 5 mana casts a spell
 Character with 5 mana casts a spell
 ```
 
-When the implementation of `character.checkMana` is inlined in the `character.castSpell` the behavior of the base class didn't change, while the derived class's behavior is changed. 
+When the implementation of `character.checkMana` is inlined in the `character.castSpell` the behavior of the base class didn't change, while the derived class behavior is changed. 
+
+## Reflexing on the examples
+
+Usually, inheritance in OOP is used, when one wants to reuse the existing code. If we look at the relations between methods and how inheritance is used before revisiting the base class, we can notice the following facts:
+
+1. `checkSpell` (`m`) calls `checkMana` (`l`) in `character` (`C`)
+2. `checkSpell` (`m`) is not redefined by `god` (`M`)
+3. `checkMana` (`l`) is redefined by `god` (`M`)
+
+From these facts we can draw a conclusion, that in the modifier `god` (`M`), the method that is not redefined, i.e. `castSpell` (`m`) either:
+1. refers to the method that is redefined, in which case the simple "inlining refactoring" will change the behavior of the method in the derived class, because the method will no longer call the redefined version
+2. does not refer to any method that is redefined, in which case the revisiting of the method in base class in such a way that it will reference a method redefined in the derived class will change the behavior of the method in the derived class, because now it will call the redefined method
+
+We will focus on the 1-st case only and propose a solution for it.
 
 ## Proposed solution (analysis description)
 
-- [ ] TODO
+Having the class hierarchy in the state before revisiting the base class, the analyzer is able to perform the "implementation inlining refactoring" and compare how the derived class will look after refactoring with how it looks now and if the structure is different report that the program is designed poorly, because the inlining refactoring can change the derived class behaviour. 
+
+### In terms of original problem formulation from the paper
+
+1. Get `(M mod C)` by:
+   1. substituting only non-overwritten members of `M` with those from `C`
+   2. (recursively? No, because in case of recursion we will loop forever) substitute the self references to their bodies
+2. Substitute all self calls (again problem with recursion) in `C` to the actual implementation to get `C'`
+3. Get `(M mode C')`
+4. Compare `(M mod C)` with `(M mod C')` by structure:
+   - If the structure is the same => everything is ok
+   - If the structure is different => report this fact
+
+To cope with the recursion problem the analyzer needs to find the recursion first, which is not implemented yet for all cases. When this will be implemented the functions which are recursive are not subject to implementation inlining. For now the following heuristics will be used: the maximum number of substitutions will be equal to them number of methods in the "class".
 
 ### False positive
 
-- [ ] TODO
+- If it is assumed that the base class will never be refactored in such way, then the report of the poor design can be considered a false positive
 
 ### False negative
 
-- [ ] TODO
+Under the specified conditions in this document we are not able to come up with a counterexample that will result in not detecting such a bug. The contribution is encouraged!
