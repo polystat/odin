@@ -102,12 +102,14 @@ trait EOParserTestSuite extends AnyWordSpec with Checkers {
 
 object EOParserTestSuite {
 
+  private val numberOfTests = 10000
+
   val scalacheckParams: Test.Parameters = Test
     .Parameters
     .default
-    .withMinSuccessfulTests(1000)
-    .withMaxSize(1000)
-    .withMinSize(1000)
+    .withMinSuccessfulTests(numberOfTests)
+    .withMaxSize(numberOfTests)
+    .withMinSize(numberOfTests)
     .withTestCallback(new Test.TestCallback {
 
       override def onTestResult(name: String, result: Test.Result): Unit = {
@@ -223,7 +225,7 @@ object EOParserTestSuite {
     eol <- eolGen
     metas <- between(
       0,
-      3,
+      5,
       for {
         comments <- emptyLinesOrCommentsGen
         meta <- Gen.oneOf(rtMetaGen, aliasMetaGen)

@@ -4,8 +4,8 @@ import cats.parse.{Parser => P, Parser0 => P0}
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite
-import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
-import EOParserTestSuite._
+import org.polystat.odin.parser.EOParserTestSuite._
+import org.polystat.odin.parser.TestUtils.TestCase
 
 class ParserTests extends EOParserTestSuite {
 
@@ -23,15 +23,9 @@ class ParserTests extends EOParserTestSuite {
   def checkParser[A](
     check: ParserResultT[A] => Boolean
   )(parser: ParserT[A], input: String): Boolean = {
-    println(input)
     val parsed = parser match {
       case Left(value) => value.parseAll(input)
       case Right(value) => value.parseAll(input)
-    }
-    parsed match {
-      case Left(value) =>
-        println(new Prettyprint(input = input).prettyprint(value))
-      case Right(value) => astPrinter.pprintln(value)
     }
     check(parsed)
   }
