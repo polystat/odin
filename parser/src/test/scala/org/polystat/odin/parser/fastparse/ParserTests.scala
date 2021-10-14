@@ -6,7 +6,6 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite
 import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
 import org.polystat.odin.parser.fastparse.IgnoreEmptyLinesOrComments._
-import org.scalatest.Assertion
 
 class ParserTests extends EOParserTestSuite {
 
@@ -18,7 +17,7 @@ class ParserTests extends EOParserTestSuite {
 
   override def checkParser[A](
     check: ParserResultT[A] => Boolean
-  )(parser: ParserT[A], input: String): Assertion = {
+  )(parser: ParserT[A], input: String): Boolean = {
     val parsed = parse(input, parser) match {
       case Parsed.Success(value, _) => Right(value)
       case failure: Parsed.Failure => Left(failure)
@@ -27,7 +26,7 @@ class ParserTests extends EOParserTestSuite {
       case Right(value) => astPrinter.pprintln(value)
       case Left(failure) => println(failure.trace())
     }
-    assert(check(parsed))
+    check(parsed)
   }
 
   override def programParser: ParserT[EOProg[EOExprOnly]] =

@@ -5,6 +5,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import TestUtils._
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.scalacheck.{Gen, Test}
 
 trait EOParserTestSuite extends AnyWordSpec {
 
@@ -13,16 +14,20 @@ trait EOParserTestSuite extends AnyWordSpec {
   type Error
   type ParserResultT[A] = Either[Error, Success[A]]
 
+  implicit def bool2Assertion(b: Boolean): Assertion = {
+    assert(b)
+  }
+
   def checkParser[A](
     check: ParserResultT[A] => Boolean
-  )(parser: ParserT[A], input: String): Assertion
+  )(parser: ParserT[A], input: String): Boolean
 
-  def shouldFailParsing[A]: (ParserT[A], String) => Assertion =
+  def shouldFailParsing[A]: (ParserT[A], String) => Boolean =
     checkParser(_.isLeft)
 
-  def shouldParse[A]: (ParserT[A], String) => Assertion = checkParser(_.isRight)
+  def shouldParse[A]: (ParserT[A], String) => Boolean = checkParser(_.isRight)
 
-  def shouldProduceAST[AST](ast: AST): (ParserT[AST], String) => Assertion =
+  def shouldProduceAST[AST](ast: AST): (ParserT[AST], String) => Boolean =
     checkParser {
       case Left(_) => false
       case Right(value) => value == ast
@@ -81,5 +86,50 @@ trait EOParserTestSuite extends AnyWordSpec {
       correctTests = SingleLineExamples.correct
     )
   }
+
+}
+
+object EOParserTestSuite {
+
+  val scalacheckParams: Test.Parameters = Test
+    .Parameters
+    .default
+    .withMinSuccessfulTests(1000)
+    .withMaxSize(1000)
+    .withMinSize(1000)
+    .withTestCallback(new Test.TestCallback {
+
+      override def onTestResult(name: String, result: Test.Result): Unit = {
+        println(
+          s"""
+             |Finished with
+             |Status: ${result.status}
+             |Tests passed: ${result.succeeded}
+             |Tests discarded: ${result.discarded}
+             |Time: ${result.time}ms
+             |""".stripMargin
+        )
+      }
+
+    })
+    .withLegacyShrinking(false)
+
+  val smallLetterGen: Gen[Char] = Gen.alphaLowerChar
+  val letterGen: Gen[Char] = Gen.alphaChar
+
+  val identifierCharGen: Gen[Char] =
+    Gen.frequency[Char](
+      (5, smallLetterGen),
+      (5, letterGen),
+      (2, Gen.numChar),
+      (1, '_'),
+      (1, '-')
+    )
+
+  val identifierGen: Gen[String] = for {
+    fst <- smallLetterGen
+    len <- Gen.choose(0, 5)
+    rest <- Gen.listOfN(len, identifierCharGen)
+  } yield (fst :: rest).mkString
 
 }

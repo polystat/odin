@@ -5,9 +5,11 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite
 import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
-import org.scalatest.Assertion
+import org.scalacheck.Prop
+import org.scalatestplus.scalacheck.Checkers
+import EOParserTestSuite._
 
-class ParserTests extends EOParserTestSuite {
+class ParserTests extends EOParserTestSuite with Checkers {
 
   override type Success[A] = A
   override type Error = P.Error
@@ -22,7 +24,7 @@ class ParserTests extends EOParserTestSuite {
 
   def checkParser[A](
     check: ParserResultT[A] => Boolean
-  )(parser: ParserT[A], input: String): Assertion = {
+  )(parser: ParserT[A], input: String): Boolean = {
     val parsed = parser match {
       case Left(value) => value.parseAll(input)
       case Right(value) => value.parseAll(input)
@@ -32,7 +34,7 @@ class ParserTests extends EOParserTestSuite {
         println(new Prettyprint(input = input).prettyprint(value))
       case Right(value) => astPrinter.pprintln(value)
     }
-    assert(check(parsed))
+    check(parsed)
   }
 
   "tokens" should {
@@ -100,6 +102,16 @@ class ParserTests extends EOParserTestSuite {
       runParserTests(Right(Tokens.char), charTests)
     }
 
+    "identifiers" should {
+      "pass auto-generated tests" in {
+        check(
+          Prop.forAll(identifierGen) { id =>
+            shouldProduceAST[String](id)(Right(Tokens.identifier), id)
+          },
+          scalacheckParams
+        )
+      }
+    }
   }
 
   "metas" should {
@@ -200,7 +212,7 @@ class ParserTests extends EOParserTestSuite {
     }
     "fail" in {
       shouldFailParsing(Right(SingleLine.params), "[...]")
-//      shouldFailParsing(Right(SingleLine.params), "[" )
+      shouldFailParsing(Right(SingleLine.params), "[")
       shouldFailParsing(Right(SingleLine.params), "[a..]")
       shouldFailParsing(Right(SingleLine.params), "[a a a a a a a..]")
       shouldFailParsing(Right(SingleLine.params), "[a  ...]")
@@ -222,6 +234,16 @@ class ParserTests extends EOParserTestSuite {
     )
 
     runParserTests[EONamedBnd](Right(Named.name), correctTests, incorrectTests)
+  }
+
+}
+
+object ParserTests {
+
+  import EOParserTestSuite._
+
+  def main(args: Array[String]): Unit = {
+    println(identifierGen.sample)
   }
 
 }
