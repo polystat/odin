@@ -5,11 +5,9 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite
 import org.polystat.odin.parser.TestUtils.{astPrinter, TestCase}
-import org.scalacheck.Prop
-import org.scalatestplus.scalacheck.Checkers
 import EOParserTestSuite._
 
-class ParserTests extends EOParserTestSuite with Checkers {
+class ParserTests extends EOParserTestSuite {
 
   override type Success[A] = A
   override type Error = P.Error
@@ -25,6 +23,7 @@ class ParserTests extends EOParserTestSuite with Checkers {
   def checkParser[A](
     check: ParserResultT[A] => Boolean
   )(parser: ParserT[A], input: String): Boolean = {
+    println(input)
     val parsed = parser match {
       case Left(value) => value.parseAll(input)
       case Right(value) => value.parseAll(input)
@@ -39,27 +38,11 @@ class ParserTests extends EOParserTestSuite with Checkers {
 
   "tokens" should {
 
-    "comments or empty lines" should {
-      val correctTests = List[TestCase[Unit]](
-        TestCase(
-          label = "some whitespace",
-          code =
-            """
-              |
-              |
-              |# 213213
-              |
-              |
-              |  # 32434123
-              |""".stripMargin
-        ),
-        TestCase(
-          label = "no whitespace",
-          code = ""
-        )
+    "comments or empty lines" in {
+      runParserTestsGen(
+        Left(Tokens.emptyLinesOrComments),
+        emptyLinesOrCommentsGen
       )
-
-      runParserTests(Left(Tokens.emptyLinesOrComments), correctTests)
     }
 
     "strings" should {
@@ -102,95 +85,26 @@ class ParserTests extends EOParserTestSuite with Checkers {
       runParserTests(Right(Tokens.char), charTests)
     }
 
-    "identifiers" should {
-      "pass auto-generated tests" in {
-        check(
-          Prop.forAll(identifierGen) { id =>
-            shouldProduceAST[String](id)(Right(Tokens.identifier), id)
-          },
-          scalacheckParams
-        )
-      }
+    "identifiers" in {
+      runParserTestsGen(Right(Tokens.identifier), identifierGen)
     }
   }
 
   "metas" should {
     "package meta" in {
-      shouldParse(Right(Metas.packageMeta), "+package sandbox")
-      shouldParse(Right(Metas.packageMeta), "+package org.eolang.stuff")
+      runParserTestsGen(Right(Metas.packageMeta), packageMetaGen)
     }
 
     "alias meta" in {
-      shouldParse(Right(Metas.aliasMeta), "+alias biba boba")
-      shouldParse(Right(Metas.aliasMeta), "+alias stdout org.eolang.io.stdout")
+      runParserTestsGen(Right(Metas.aliasMeta), aliasMetaGen)
     }
 
     "rt meta" in {
-      shouldParse(Right(Metas.rtMeta), "+rt jvm org.eolang:eo-runtime:0.1.24")
-      shouldParse(
-        Right(Metas.rtMeta),
-        "+rt   jvm\t  org.eolang:eo-runtime:0.1.24"
-      )
+      runParserTestsGen(Right(Metas.rtMeta), rtMetaGen)
     }
 
-    "all metas (with package)" in {
-      shouldParse(
-        Left(Metas.metas),
-        """
-          |
-          |+package sandbox
-          |+rt jvm org.eolang:eo-runtime:0.1.24
-          |+alias stdout org.eolang.io.stdout
-          |
-          |
-          |# some comment here
-          |# some comment
-          |
-          |
-          |
-          |+alias sprintf org.eolang.txt.sprintf
-          |
-          |+alias biba boba
-          |""".stripMargin
-      )
-    }
-
-    "all metas (no package)" in {
-      shouldParse(
-        Left(Metas.metas),
-        """+rt jvm org.eolang:eo-runtime:0.1.24
-          |# alias meta
-          |  # used to rename imported artifacts
-          |+alias stdout org.eolang.io.stdout
-          |+alias sprintf org.eolang.txt.sprintf
-          |
-          |+alias biba boba
-          |""".stripMargin
-      )
-    }
-
-    "just package" in {
-      shouldParse(
-        Left(Metas.metas),
-        """
-          |# package meta
-          |+package sandbox
-          |""".stripMargin
-      )
-    }
-
-    "no metas" in {
-      shouldParse(
-        Left(Metas.metas),
-        """
-          |
-          | # no metas here
-          |""".stripMargin
-      )
-    }
-
-    "nothing" in {
-      shouldParse(Left(Metas.metas), "")
+    "all metas" in {
+      runParserTestsGen(Left(Metas.metas), metasGen)
     }
   }
 
@@ -243,7 +157,7 @@ object ParserTests {
   import EOParserTestSuite._
 
   def main(args: Array[String]): Unit = {
-    println(identifierGen.sample)
+    println(metasGen.sample)
   }
 
 }
