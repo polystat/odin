@@ -155,7 +155,29 @@ class ParserTests extends EOParserTestSuite {
     "pass" in {
       runParserTestsGen(
         singleLineApplicationParser,
-        Gens.singleLineApplication(0)
+        Gens.singleLineApplication(recDepthMax = 4)
+      )
+    }
+  }
+
+  "object" should {
+    "pass" in {
+      runParserTestsGen(
+        Right(Parser.`object`(0, 4)),
+        Gens.`object`(
+          named = true,
+          indentationStep = 4,
+          recDepthMax = 2
+        )
+      )
+    }
+  }
+
+  "program" should {
+    "pass" in {
+      runParserTestsGen(
+        Left(Parser.program(0, indentationStep = 2)),
+        Gens.program(indentationStep = 2, recDepthMax = 2)
       )
     }
   }
@@ -166,7 +188,12 @@ object ParserTests {
 
   def main(args: Array[String]): Unit = {
     for (_ <- 1 to 1) {
-      println(Gens.singleLineApplication(0).sample.get)
+      println(
+        Gens
+          .program(indentationStep = 4, recDepthMax = 2)
+          .sample
+          .get
+      )
     }
   }
 

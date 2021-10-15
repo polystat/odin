@@ -13,7 +13,7 @@ import org.polystat.odin.parser.cats_parse.Tokens._
 object Named {
 
   val name: P[EONamedBnd] = (
-    (P.char('>').surroundedBy(optWsp) *>
+    (optWsp.with1.soft *> (P.char('>') *> optWsp) *>
       (identifier | P.stringIn("@" :: Nil))) ~
       (optWsp *> P.char('!').?) <* optWsp
   ).map {
@@ -48,12 +48,10 @@ object Named {
     }
 
     val verticalArray = (
-      (P.char('*').soft *> name) ~ verticalApplicationArgs(
-        indent,
-        indentationStep
-      ).?
+      (P.char('*').soft *> name).soft ~
+        verticalApplicationArgs(indent, indentationStep)
     ).map { case (name, args) =>
-      EOBndExpr(name, createArrayFromNonEmpty(args))
+      EOBndExpr(name, createArrayFromNonEmpty(Some(args)))
     }
 
     val regularApplication = (

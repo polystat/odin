@@ -33,7 +33,15 @@ object Gens {
       )
     ).map(_.mkString)
 
-  val optWsp: Gen[String] = between(0, 2, wsp)
+  val optWsp: Gen[String] = between(
+    0,
+    2,
+    Gen.frequency(
+      (1, "\t"),
+      (9, " ")
+    )
+  )
+
   val eol: Gen[String] = Gen.oneOf("\n", "\r\n")
   val smallLetter: Gen[Char] = Gen.alphaLowerChar
   val letter: Gen[Char] = Gen.alphaChar
@@ -192,8 +200,8 @@ object Gens {
   )
 
   def singleLineApplication(
-    recDepth: Int,
-    recDepthMax: Int = 4
+    recDepthMax: Int,
+    recDepth: Int = 0,
   ): Gen[String] = {
 
     val simpleApplicationTarget = Gen.oneOf(
@@ -212,7 +220,10 @@ object Gens {
     )
 
     val parenthesized = Gen.lzy(
-      singleLineApplication(recDepth + 1)
+      singleLineApplication(
+        recDepth = recDepth + 1,
+        recDepthMax = recDepthMax
+      )
         .map(s => s"($s)")
     )
 
@@ -251,5 +262,152 @@ object Gens {
       singleLineArray
     )
   }
+
+  val nothing: Gen[String] = Gen.oneOf("" :: Nil)
+
+  def wspBetweenObjs(
+    recDepth: Int,
+    indentationStep: Int
+  ): Gen[String] = for {
+    le <- eol
+    comments <- emptyLinesOrComments
+  } yield (le :: comments :: (" " * (recDepth * indentationStep)) :: Nil).mkString
+
+  def `object`(
+    named: Boolean,
+    indentationStep: Int,
+    recDepthMax: Int,
+    recDepth: Int = 0,
+    includeInverseDot: Boolean = true,
+  ): Gen[String] = {
+    val abstraction = for {
+      params <- abstractionParams
+      name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
+      ifAttrs <- Gen.oneOf(true, false)
+      attrs <-
+        Option
+          .when(recDepth < recDepthMax && ifAttrs)(
+            boundAttributes(
+              recDepth = recDepth + 1,
+              indentationStep = indentationStep,
+              recDepthMax = recDepthMax,
+            )
+          )
+          .getOrElse(nothing)
+    } yield (params :: name :: attrs :: Nil).mkString
+
+    val inverseDotApplication = for {
+      id <- identifier
+      dot <- surroundedBy(".", optWsp)
+      name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
+      attrs <- verticalApplicationArgs(
+        recDepth = recDepth + 1,
+        indentationStep = indentationStep,
+        recDepthMax = recDepthMax,
+        includeInverseDot = recDepth < recDepthMax
+      )
+    } yield (id :: dot :: name :: attrs :: Nil).mkString
+
+    val regularApplication = for {
+      trg <- singleLineApplication(recDepthMax = recDepthMax)
+      name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
+      ifArgs <- Gen.oneOf(true, false)
+      args <- Option
+        .when(recDepth < recDepthMax && ifArgs)(
+          verticalApplicationArgs(
+            recDepth = recDepth + 1,
+            indentationStep = indentationStep,
+            recDepthMax = recDepthMax,
+          )
+        )
+        .getOrElse(nothing)
+    } yield (trg :: name :: args :: Nil).mkString
+
+    val verticalArray = for {
+      name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
+      ifHasItems <- Gen.oneOf(true, false)
+      items <- Option
+        .when(recDepth < recDepthMax && ifHasItems)(
+          verticalApplicationArgs(
+            recDepth = recDepth + 1,
+            indentationStep = indentationStep,
+            recDepthMax = recDepthMax,
+          )
+        )
+        .getOrElse(nothing)
+    } yield ("*" :: name :: items :: Nil).mkString
+
+    Gen.oneOf(
+      abstraction,
+      regularApplication,
+      Option
+        .when(includeInverseDot)(inverseDotApplication)
+        .getOrElse(regularApplication),
+      verticalArray,
+    )
+
+  }
+
+  def verticalApplicationArgs(
+    recDepth: Int,
+    indentationStep: Int,
+    recDepthMax: Int,
+    includeInverseDot: Boolean = true,
+  ): Gen[String] = for {
+    before <- wspBetweenObjs(recDepth, indentationStep)
+    named <- Gen.oneOf(true, false)
+    objs <- between(
+      1,
+      5,
+      `object`(
+        recDepth = recDepth,
+        named = named,
+        indentationStep = indentationStep,
+        recDepthMax = recDepthMax,
+        includeInverseDot = includeInverseDot
+      ),
+      sep = wspBetweenObjs(recDepth, indentationStep)
+    )
+  } yield (before :: objs :: Nil).mkString
+
+  def boundAttributes(
+    recDepth: Int,
+    indentationStep: Int,
+    recDepthMax: Int,
+  ): Gen[String] = for {
+    before <- wspBetweenObjs(recDepth, indentationStep)
+    objs <- between(
+      1,
+      5,
+      `object`(
+        recDepth = recDepth,
+        named = true,
+        indentationStep = indentationStep,
+        recDepthMax = recDepthMax
+      ),
+      sep = wspBetweenObjs(recDepth, indentationStep)
+    )
+  } yield (before :: objs :: Nil).mkString
+
+  def program(
+    indentationStep: Int,
+    recDepthMax: Int,
+  ): Gen[String] = for {
+    metas <- metas
+    objs <- between(
+      0,
+      3,
+      Gen
+        .oneOf(true, false)
+        .flatMap(named =>
+          `object`(
+            named = named,
+            indentationStep = indentationStep,
+            recDepthMax = recDepthMax
+          )
+        ),
+      sep = wspBetweenObjs(0, indentationStep = indentationStep)
+    )
+  } yield (metas :: objs :: Nil).mkString
 
 }
