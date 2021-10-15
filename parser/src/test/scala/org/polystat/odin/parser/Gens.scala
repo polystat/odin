@@ -8,7 +8,7 @@ object Gens {
     between(1, 3, Gen.oneOf(' ', '\t'))
       .map(_.mkString)
 
-  val optWsp: Gen[String] = between(0, 2, wsp).map(_.mkString)
+  val optWsp: Gen[String] = between(0, 2, wsp)
   val eol: Gen[String] = Gen.oneOf("\n", "\r\n")
 
   val smallLetter: Gen[Char] = Gen.alphaLowerChar
@@ -21,18 +21,22 @@ object Gens {
     } yield s"$wsp$eol"
     val comment = for {
       before <- optWsp
-      comment <- between(0, 15, Gen.alphaLowerChar).map(_.mkString)
+      comment <- between(0, 15, Gen.alphaLowerChar)
       eol <- eol
     } yield s"$before#$comment$eol"
-    between(0, 3, Gen.oneOf(emptyLine, comment)).map(_.mkString)
+    between(0, 3, Gen.oneOf(emptyLine, comment))
   }
 
-  def between[T](min: Int, max: Int, gen: Gen[T]): Gen[List[T]] = {
+  def between[T](
+    min: Int,
+    max: Int,
+    gen: Gen[T],
+    sep: String = ""
+  ): Gen[String] = {
     for {
       len <- Gen.choose(min, max)
       gens <- Gen.listOfN(len, gen)
-      lst <- gens
-    } yield lst
+    } yield gens.mkString(sep)
   }
 
   def surroundedBy[T, S](gen: Gen[T], sur: Gen[S]): Gen[String] = for {
@@ -45,7 +49,6 @@ object Gens {
 
   val digits: Gen[String] =
     between(1, 5, digit)
-      .map(_.mkString)
 
   val integer: Gen[String] = for {
     sign <- Gen.frequency(
@@ -68,11 +71,10 @@ object Gens {
   val identifier: Gen[String] = for {
     fst <- smallLetter
     rest <- between(0, 3, identifierChar)
-  } yield (fst :: rest).mkString
+  } yield fst +: rest
 
   val packageName: Gen[String] =
-    between(1, 3, identifier)
-      .map(_.mkString("."))
+    between(1, 3, identifier, sep = ".")
 
   val packageMeta: Gen[String] = for {
     name <- packageName
@@ -87,8 +89,8 @@ object Gens {
   val artifactName: Gen[String] = for {
     pkgName <- packageName
     artifactName <- identifier
-    version <- between(3, 3, digits.suchThat(s => !s.startsWith("0")))
-      .map(_.mkString("."))
+    version <-
+      between(3, 3, digits.suchThat(s => !s.startsWith("0")), sep = ".")
   } yield s"$pkgName:$artifactName:$version"
 
   val rtMeta: Gen[String] = for {
@@ -98,7 +100,7 @@ object Gens {
 
   val metas: Gen[String] = for {
     header <- emptyLinesOrComments
-    pkg <- between(0, 1, packageMeta).map(_.mkString)
+    pkg <- between(0, 1, packageMeta)
     pkgEol <- eol
     metas <- between(
       0,
@@ -107,8 +109,33 @@ object Gens {
         comments <- emptyLinesOrComments
         meta <- Gen.oneOf(rtMeta, aliasMeta)
         metaEol <- eol
-      } yield s"$comments$meta$metaEol"
-    ).map(_.map(_.mkString).mkString)
-  } yield s"$header$pkg$pkgEol$metas"
+      } yield (comments :: meta :: metaEol :: Nil).mkString
+    ).map(_.mkString)
+  } yield (header :: pkg :: pkgEol :: metas :: Nil).mkString
+
+  val idOrPhi: Gen[String] = Gen.frequency(
+    (9, identifier),
+    (1, "@")
+  )
+
+  val bndName: Gen[String] = for {
+    op <- surroundedBy(">", optWsp)
+    id <- idOrPhi
+    before <- optWsp
+    exclamationMark <- between(0, 1, "!")
+    after <- optWsp
+  } yield (op :: id :: before :: exclamationMark :: after :: Nil).mkString
+
+  val abstractionParams: Gen[String] = for {
+    params <- between(0, 4, idOrPhi, " ")
+    vararg <- between(0, 1, if (params.nonEmpty) "..." else "")
+  } yield s"[$params$vararg]"
+
+  val attributeName: Gen[String] = Gen.frequency(
+    (1, "@"),
+    (1, "$"),
+    (1, "^"),
+    (10, identifier)
+  )
 
 }

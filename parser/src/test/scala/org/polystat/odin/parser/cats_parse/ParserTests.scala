@@ -108,20 +108,8 @@ class ParserTests extends EOParserTestSuite {
   }
 
   "abstraction params" should {
-    "empty" in {
-      shouldParse(Right(SingleLine.params), "[]")
-    }
-    "no varargs" in {
-      shouldParse(Right(SingleLine.params), "[a-a b c]")
-    }
-    "only phi" in {
-      shouldParse(Right(SingleLine.params), "[@]")
-    }
-    "varargs" in {
-      shouldParse(Right(SingleLine.params), "[a b c...]")
-    }
-    "vararg phi" in {
-      shouldParse(Right(SingleLine.params), "[@...]")
+    "pass" in {
+      runParserTestsGen(Right(SingleLine.params), Gens.abstractionParams)
     }
     "fail" in {
       shouldFailParsing(Right(SingleLine.params), "[...]")
@@ -133,20 +121,19 @@ class ParserTests extends EOParserTestSuite {
   }
 
   "binding name" should {
-    val correctTests = List[TestCase[EONamedBnd]](
-      TestCase("just name", " > name  "),
-      TestCase("decoration", ">@"),
-      TestCase("const name", " > name!"),
-      TestCase("another const name", " > name ! "),
-      TestCase("const decoration", "> @!"),
-    )
+    "pass" in {
+      runParserTestsGen(Right(Named.name), Gens.bndName)
+    }
 
     val incorrectTests = List[TestCase[EONamedBnd]](
       TestCase("incorrect symbol", " < name"),
       TestCase("no name", " > !"),
     )
 
-    runParserTests[EONamedBnd](Right(Named.name), correctTests, incorrectTests)
+    runParserTests[EONamedBnd](
+      Right(Named.name),
+      incorrectTests = incorrectTests
+    )
   }
 
 }
