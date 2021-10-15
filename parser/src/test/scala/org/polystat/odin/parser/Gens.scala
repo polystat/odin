@@ -5,8 +5,14 @@ import org.scalacheck.Gen
 object Gens {
 
   val wsp: Gen[String] =
-    between(1, 3, Gen.oneOf(' ', '\t'))
-      .map(_.mkString)
+    between(
+      1,
+      3,
+      Gen.frequency(
+        (1, "\t"),
+        (19, " ")
+      )
+    ).map(_.mkString)
 
   val optWsp: Gen[String] = between(0, 2, wsp)
   val eol: Gen[String] = Gen.oneOf("\n", "\r\n")
@@ -31,11 +37,12 @@ object Gens {
     min: Int,
     max: Int,
     gen: Gen[T],
-    sep: String = ""
+    sep: Gen[String] = ""
   ): Gen[String] = {
     for {
       len <- Gen.choose(min, max)
       gens <- Gen.listOfN(len, gen)
+      sep <- sep
     } yield gens.mkString(sep)
   }
 
@@ -121,13 +128,11 @@ object Gens {
   val bndName: Gen[String] = for {
     op <- surroundedBy(">", optWsp)
     id <- idOrPhi
-    before <- optWsp
-    exclamationMark <- between(0, 1, "!")
-    after <- optWsp
-  } yield (op :: id :: before :: exclamationMark :: after :: Nil).mkString
+    exclamationMark <- surroundedBy(between(0, 1, "!"), optWsp)
+  } yield (op :: id :: exclamationMark :: Nil).mkString
 
   val abstractionParams: Gen[String] = for {
-    params <- between(0, 4, idOrPhi, " ")
+    params <- between(0, 5, idOrPhi, wsp)
     vararg <- between(0, 1, if (params.nonEmpty) "..." else "")
   } yield s"[$params$vararg]"
 

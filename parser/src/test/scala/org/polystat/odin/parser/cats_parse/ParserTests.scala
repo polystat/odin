@@ -141,8 +141,8 @@ class ParserTests extends EOParserTestSuite {
 object ParserTests {
 
   def main(args: Array[String]): Unit = {
-    for (_ <- 1 to 1) {
-      println(Gens.metas.sample.get)
+    for (_ <- 1 to 10) {
+      println(Gens.abstractionParams.sample.get)
     }
   }
 
