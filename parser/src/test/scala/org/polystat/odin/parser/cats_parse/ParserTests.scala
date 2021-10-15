@@ -4,8 +4,8 @@ import cats.parse.{Parser => P, Parser0 => P0}
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite
-import org.polystat.odin.parser.EOParserTestSuite._
 import org.polystat.odin.parser.TestUtils.TestCase
+import org.polystat.odin.parser.Gens
 
 class ParserTests extends EOParserTestSuite {
 
@@ -27,6 +27,11 @@ class ParserTests extends EOParserTestSuite {
       case Left(value) => value.parseAll(input)
       case Right(value) => value.parseAll(input)
     }
+    parsed match {
+      case Left(value) =>
+        println(new Prettyprint(input = input).prettyprint(value))
+      case Right(_) => ()
+    }
     check(parsed)
   }
 
@@ -35,7 +40,7 @@ class ParserTests extends EOParserTestSuite {
     "comments or empty lines" in {
       runParserTestsGen(
         Left(Tokens.emptyLinesOrComments),
-        emptyLinesOrCommentsGen
+        Gens.emptyLinesOrComments
       )
     }
 
@@ -80,25 +85,25 @@ class ParserTests extends EOParserTestSuite {
     }
 
     "identifiers" in {
-      runParserTestsGen(Right(Tokens.identifier), identifierGen)
+      runParserTestsGen(Right(Tokens.identifier), Gens.identifier)
     }
   }
 
   "metas" should {
     "package meta" in {
-      runParserTestsGen(Right(Metas.packageMeta), packageMetaGen)
+      runParserTestsGen(Right(Metas.packageMeta), Gens.packageMeta)
     }
 
     "alias meta" in {
-      runParserTestsGen(Right(Metas.aliasMeta), aliasMetaGen)
+      runParserTestsGen(Right(Metas.aliasMeta), Gens.aliasMeta)
     }
 
     "rt meta" in {
-      runParserTestsGen(Right(Metas.rtMeta), rtMetaGen)
+      runParserTestsGen(Right(Metas.rtMeta), Gens.rtMeta)
     }
 
     "all metas" in {
-      runParserTestsGen(Left(Metas.metas), metasGen)
+      runParserTestsGen(Left(Metas.metas), Gens.metas)
     }
   }
 
@@ -148,10 +153,10 @@ class ParserTests extends EOParserTestSuite {
 
 object ParserTests {
 
-  import EOParserTestSuite._
-
   def main(args: Array[String]): Unit = {
-    println(metasGen.sample)
+    for (_ <- 1 to 1) {
+      println(Gens.metas.sample.get)
+    }
   }
 
 }
