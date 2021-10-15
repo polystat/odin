@@ -70,9 +70,16 @@ class ParserTests extends EOParserTestSuite {
         )
       )
       runParserTests(Right(Tokens.string), stringTests)
+
+      "pass" in {
+        runParserTestsGen(Right(Tokens.string), Gens.string)
+      }
     }
 
     "chars" should {
+      "pass" in {
+        runParserTestsGen(Right(Tokens.char), Gens.char)
+      }
       val charTests = List(
         TestCase(label = "new line", code = "\'\\n\'", Some('\n')),
         TestCase(label = "tab", code = "\'\\t\'", Some('\t')),
@@ -86,6 +93,14 @@ class ParserTests extends EOParserTestSuite {
 
     "identifiers" in {
       runParserTestsGen(Right(Tokens.identifier), Gens.identifier)
+    }
+
+    "integers" in {
+      runParserTestsGen(Right(Tokens.integer), Gens.integer)
+    }
+
+    "floats" in {
+      runParserTestsGen(Right(Tokens.float), Gens.float)
     }
   }
 
@@ -142,7 +157,7 @@ object ParserTests {
 
   def main(args: Array[String]): Unit = {
     for (_ <- 1 to 10) {
-      println(Gens.abstractionParams.sample.get)
+      println(Gens.float.sample.get)
     }
   }
 
