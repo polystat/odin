@@ -43,8 +43,8 @@ object SingleLine {
       P.stringIn("^" :: Nil)
 
   val data: P[EOExprOnly] = (
-    integer.backtrack.map(EOIntData(_)) |
-      float.map(EOFloatData(_)) |
+    float.backtrack.map(EOFloatData(_)) |
+      integer.map(EOIntData(_)) |
       char.map(EOCharData(_)) |
       string.map(EOStrData(_))
   ).map(Fix[EOExpr](_))

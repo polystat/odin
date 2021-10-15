@@ -173,7 +173,7 @@ object Gens {
   } yield (op :: id :: exclamationMark :: Nil).mkString
 
   val abstractionParams: Gen[String] = for {
-    params <- between(0, 5, paramName, wsp)
+    params <- between(0, 5, paramName, sep = wsp)
     vararg <- between(0, 1, if (params.nonEmpty) "..." else "")
   } yield s"[$params$vararg]"
 
@@ -183,5 +183,73 @@ object Gens {
     (1, "^"),
     (10, identifier)
   )
+
+  val data: Gen[String] = Gen.oneOf(
+    integer,
+    float,
+    string,
+    char
+  )
+
+  def singleLineApplication(
+    recDepth: Int,
+    recDepthMax: Int = 4
+  ): Gen[String] = {
+
+    val simpleApplicationTarget = Gen.oneOf(
+      data,
+      attributeName
+    )
+
+    val attributeChain = for {
+      trg <- simpleApplicationTarget
+      attrs <- between(1, 3, attributeName, sep = ".")
+    } yield s"$trg.$attrs"
+
+    val applicationTarget = Gen.oneOf(
+      simpleApplicationTarget,
+      attributeChain
+    )
+
+    val parenthesized = Gen.lzy(
+      singleLineApplication(recDepth + 1)
+        .map(s => s"($s)")
+    )
+
+    val horizontalApplicationArgs = {
+      val arg =
+        if (recDepth < recDepthMax)
+          Gen.oneOf(parenthesized, applicationTarget)
+        else {
+          applicationTarget
+        }
+      between(1, 5, arg, sep = wsp)
+    }
+
+    val justApplication = for {
+      trg <-
+        if (recDepth < recDepthMax)
+          Gen.oneOf(parenthesized, applicationTarget)
+        else applicationTarget
+      sep <- wsp
+      args <- horizontalApplicationArgs
+    } yield (trg :: sep :: args :: Nil).mkString
+
+    val singleLineArray = for {
+      sep <- wsp
+      elem =
+        if (recDepth < recDepthMax)
+          Gen.oneOf(parenthesized, applicationTarget)
+        else applicationTarget
+      elems <- between(0, 4, elem, sep = wsp)
+    } yield s"*$sep$elems"
+
+    Gen.oneOf(
+      justApplication,
+      applicationTarget,
+      parenthesized,
+      singleLineArray
+    )
+  }
 
 }

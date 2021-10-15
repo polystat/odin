@@ -151,13 +151,22 @@ class ParserTests extends EOParserTestSuite {
     )
   }
 
+  "single line application" should {
+    "pass" in {
+      runParserTestsGen(
+        singleLineApplicationParser,
+        Gens.singleLineApplication(0)
+      )
+    }
+  }
+
 }
 
 object ParserTests {
 
   def main(args: Array[String]): Unit = {
-    for (_ <- 1 to 10) {
-      println(Gens.float.sample.get)
+    for (_ <- 1 to 1) {
+      println(Gens.singleLineApplication(0).sample.get)
     }
   }
 
