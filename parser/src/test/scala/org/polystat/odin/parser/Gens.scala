@@ -286,23 +286,21 @@ object Gens {
   ): Gen[String] = {
     val abstraction = for {
       params <- abstractionParams
-      name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
+      name <- bndName.map(name => if (named) name else "")
       ifAttrs <- Gen.oneOf(true, false)
       attrs <-
-        Option
-          .when(recDepth < recDepthMax && ifAttrs)(
-            boundAttributes(
-              recDepth = recDepth + 1,
-              indentationStep = indentationStep,
-              recDepthMax = recDepthMax,
-            )
+        if (recDepth < recDepthMax && ifAttrs)
+          boundAttributes(
+            recDepth = recDepth + 1,
+            indentationStep = indentationStep,
+            recDepthMax = recDepthMax,
           )
-          .getOrElse(nothing)
+        else nothing
     } yield (params :: name :: attrs :: Nil).mkString
 
     val inverseDotApplication = for {
       id <- identifier
-      name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
+      name <- bndName.map(name => if (named) name else "")
       attrs <- verticalApplicationArgs(
         recDepth = recDepth + 1,
         indentationStep = indentationStep,
@@ -313,39 +311,35 @@ object Gens {
 
     val regularApplication = for {
       trg <- singleLineApplication(recDepthMax = recDepthMax)
-      name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
+      name <- bndName.map(name => if (named) name else "")
       ifArgs <- Gen.oneOf(true, false)
-      args <- Option
-        .when(recDepth < recDepthMax && ifArgs)(
+      args <-
+        if (recDepth < recDepthMax && ifArgs)
           verticalApplicationArgs(
             recDepth = recDepth + 1,
             indentationStep = indentationStep,
             recDepthMax = recDepthMax,
           )
-        )
-        .getOrElse(nothing)
+        else nothing
     } yield (trg :: name :: args :: Nil).mkString
 
     val verticalArray = for {
-      name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
+      name <- bndName.map(name => if (named) name else "")
       ifHasItems <- Gen.oneOf(true, false)
-      items <- Option
-        .when(recDepth < recDepthMax && ifHasItems)(
+      items <-
+        if (recDepth < recDepthMax && ifHasItems)
           verticalApplicationArgs(
             recDepth = recDepth + 1,
             indentationStep = indentationStep,
             recDepthMax = recDepthMax,
           )
-        )
-        .getOrElse(nothing)
+        else nothing
     } yield ("*" :: name :: items :: Nil).mkString
 
     Gen.oneOf(
       abstraction,
       regularApplication,
-      Option
-        .when(includeInverseDot)(inverseDotApplication)
-        .getOrElse(regularApplication),
+      if (includeInverseDot) inverseDotApplication else regularApplication,
       verticalArray,
     )
 
