@@ -41,7 +41,7 @@ object Named {
       }
 
     val inverseDotApplication = (
-      (identifier <* P.char('.').surroundedBy(optWsp)).backtrack.soft ~ name ~
+      (identifier.soft <* P.char('.')).soft ~ name ~
         verticalApplicationArgs(indent, indentationStep)
     ).map { case ((attr, name), args) =>
       EOBndExpr(name, createInverseDot(attr, args))

@@ -42,7 +42,11 @@ object Gens {
     )
   )
 
-  val eol: Gen[String] = Gen.oneOf("\n", "\r\n")
+  val eol: Gen[String] = for {
+    before <- optWsp
+    le <- Gen.oneOf("\n", "\r\n")
+  } yield (before :: le :: Nil).mkString
+
   val smallLetter: Gen[Char] = Gen.alphaLowerChar
   val letter: Gen[Char] = Gen.alphaChar
 
@@ -298,7 +302,6 @@ object Gens {
 
     val inverseDotApplication = for {
       id <- identifier
-      dot <- surroundedBy(".", optWsp)
       name <- bndName.map(name => Option.when(named)(name).getOrElse(""))
       attrs <- verticalApplicationArgs(
         recDepth = recDepth + 1,
@@ -306,7 +309,7 @@ object Gens {
         recDepthMax = recDepthMax,
         includeInverseDot = recDepth < recDepthMax
       )
-    } yield (id :: dot :: name :: attrs :: Nil).mkString
+    } yield (id :: "." :: name :: attrs :: Nil).mkString
 
     val regularApplication = for {
       trg <- singleLineApplication(recDepthMax = recDepthMax)

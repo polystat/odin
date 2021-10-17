@@ -27,14 +27,14 @@ object Anon {
     }
 
     val inverseDotApplication: P[EOAnonExpr[EOExprOnly]] = (
-      (identifier <* P.char('.').surroundedBy(optWsp)).soft ~
+      (identifier.soft <* P.char('.')).soft ~
         verticalApplicationArgs(indent, indentationStep)
     ).map { case (id, args) =>
       EOAnonExpr(createInverseDot(id, args))
     }
 
     val application: P[EOAnonExpr[EOExprOnly]] =
-      inverseDotApplication.backtrack | regularApplication
+      inverseDotApplication | regularApplication
 
     val verticalArray: P[EOAnonExpr[EOExprOnly]] = (
       P.char('*').soft *>

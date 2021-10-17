@@ -56,36 +56,33 @@ object SingleLine {
         data | attributeName.map(name => Fix[EOExpr](EOSimpleApp(name)))
 
       val attributeChain: P[EOExprOnly] = (
-        (simpleApplicationTarget <* P.char('.')) ~
+        (simpleApplicationTarget.soft <* P.char('.')).soft ~
           attributeName.repSep(1, P.char('.'))
       ).map { case (trg, attrs) =>
         attrs.foldLeft(trg)((acc, id) => Fix[EOExpr](EODot(acc, id)))
       }
 
-      val applicationTarget: P[EOExprOnly] =
-        attributeChain.backtrack | simpleApplicationTarget
-
       val parenthesized: P[EOExprOnly] =
         recurse.between(P.char('('), P.char(')'))
 
-      val horizontalApplicationArgs: P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] =
-        (applicationTarget | parenthesized)
-          .repSep(1, wsp)
-          .mapFilter(args =>
-            NonEmpty
-              .from(args.toList.map(EOAnonExpr(_)).toVector)
-          )
-          .withContext(Common.nonEmptyErrorMsg)
+      val applicationTarget: P[EOExprOnly] =
+        parenthesized | attributeChain | simpleApplicationTarget
 
       val justApplication: P[EOExprOnly] = (
-        ((parenthesized | applicationTarget) <* wsp) ~ horizontalApplicationArgs
+        (applicationTarget.soft <* wsp) ~
+          applicationTarget.repSep0(0, wsp)
       ).map { case (trg, args) =>
-        Fix[EOExpr](EOCopy(trg, args))
+        NonEmpty
+          .from(args)
+          .map(args =>
+            Fix[EOExpr](EOCopy(trg, args.map(EOAnonExpr(_)).toVector))
+          )
+          .getOrElse(trg)
       }
 
       val singleLineArray: P[EOExprOnly] = (
         P.char('*') *> optWsp *>
-          (parenthesized | applicationTarget).repSep0(0, wsp)
+          applicationTarget.repSep0(0, wsp)
       ).map { elems =>
         Fix[EOExpr](
           EOArray(
@@ -94,10 +91,9 @@ object SingleLine {
         )
       }
 
-      justApplication.backtrack |
-        applicationTarget |
-        parenthesized |
-        singleLineArray
+      singleLineArray |
+        justApplication |
+        applicationTarget
 
     })
 
