@@ -26,7 +26,7 @@ object Gens {
   val wsp: Gen[String] =
     between(
       1,
-      3,
+      2,
       Gen.frequency(
         (1, "\t"),
         (19, " ")
@@ -60,7 +60,7 @@ object Gens {
       comment <- between(0, 15, Gen.alphaLowerChar)
       eol <- eol
     } yield s"$before#$comment$eol"
-    between(0, 3, Gen.oneOf(emptyLine, comment))
+    between(0, 2, Gen.oneOf(emptyLine, comment))
   }
 
   val digit: Gen[Char] = Gen.numChar
@@ -121,11 +121,11 @@ object Gens {
 
   val identifierChar: Gen[Char] =
     Gen.frequency(
-      (5, smallLetter),
-      (5, letter),
-      (2, Gen.numChar),
+      (15, smallLetter),
+      (15, letter),
+      (8, Gen.numChar),
       (1, '_'),
-      (1, '-')
+      (1, '-'),
     )
 
   val identifier: Gen[String] = for {
@@ -251,7 +251,7 @@ object Gens {
     } yield (trg :: sep :: args :: Nil).mkString
 
     val singleLineArray = for {
-      sep <- wsp
+      sep <- optWsp
       elem =
         if (recDepth < recDepthMax)
           Gen.oneOf(parenthesized, applicationTarget)
@@ -355,7 +355,7 @@ object Gens {
     named <- Gen.oneOf(true, false)
     objs <- between(
       1,
-      5,
+      3,
       `object`(
         recDepth = recDepth,
         named = named,
@@ -375,7 +375,7 @@ object Gens {
     before <- wspBetweenObjs(recDepth, indentationStep)
     objs <- between(
       1,
-      5,
+      3,
       `object`(
         recDepth = recDepth,
         named = true,
@@ -393,7 +393,7 @@ object Gens {
     metas <- metas
     objs <- between(
       0,
-      3,
+      4,
       Gen
         .oneOf(true, false)
         .flatMap(named =>
