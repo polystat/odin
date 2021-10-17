@@ -85,13 +85,11 @@ object SingleLine {
 
       val singleLineArray: P[EOExprOnly] = (
         P.char('*') *> optWsp *>
-          (parenthesized | applicationTarget).repSep(1, wsp).?
+          (parenthesized | applicationTarget).repSep0(0, wsp)
       ).map { elems =>
         Fix[EOExpr](
           EOArray(
-            elems
-              .map(_.map(EOAnonExpr(_)).toList.toVector)
-              .getOrElse(Vector.empty)
+            elems.map(EOAnonExpr(_)).toVector
           )
         )
       }

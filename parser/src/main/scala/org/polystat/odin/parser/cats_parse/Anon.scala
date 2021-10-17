@@ -27,7 +27,7 @@ object Anon {
     }
 
     val inverseDotApplication: P[EOAnonExpr[EOExprOnly]] = (
-      (identifier <* P.char('.').surroundedBy(optWsp)).backtrack ~
+      (identifier <* P.char('.').surroundedBy(optWsp)).soft ~
         verticalApplicationArgs(indent, indentationStep)
     ).map { case (id, args) =>
       EOAnonExpr(createInverseDot(id, args))
@@ -52,7 +52,7 @@ object Anon {
     }
 
     P.defer(
-      application.backtrack |
+      application |
         abstraction |
         verticalArray
     )
