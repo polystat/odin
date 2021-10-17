@@ -7,18 +7,43 @@ import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.scalacheck.{Gen, Prop, Test}
 import org.scalatestplus.scalacheck.Checkers
-import EOParserTestSuite._
 
 trait EOParserTestSuite extends AnyWordSpec with Checkers {
+
+  private val numberOfTests = 10000
+
+  val scalacheckParams: Test.Parameters = Test
+    .Parameters
+    .default
+    .withMinSuccessfulTests(numberOfTests)
+    .withMaxSize(numberOfTests)
+    .withMinSize(numberOfTests)
+    .withWorkers(8)
+    .withTestCallback(new Test.TestCallback {
+
+      override def onTestResult(name: String, result: Test.Result): Unit = {
+        println(
+          s"""
+             |Finished with
+             |Status: ${result.status}
+             |Tests passed: ${result.succeeded}
+             |Tests discarded: ${result.discarded}
+             |Time: ${result.time}ms
+             |""".stripMargin
+        )
+      }
+
+    })
+    .withLegacyShrinking(false)
+
+  implicit def bool2Assertion(b: Boolean): Assertion = {
+    assert(b)
+  }
 
   type ParserT[A]
   type Success[A]
   type Error
   type ParserResultT[A] = Either[Error, Success[A]]
-
-  implicit def bool2Assertion(b: Boolean): Assertion = {
-    assert(b)
-  }
 
   def checkParser[A](
     check: ParserResultT[A] => Boolean
@@ -97,35 +122,5 @@ trait EOParserTestSuite extends AnyWordSpec with Checkers {
       correctTests = SingleLineExamples.correct
     )
   }
-
-}
-
-object EOParserTestSuite {
-
-  private val numberOfTests = 10000
-
-  val scalacheckParams: Test.Parameters = Test
-    .Parameters
-    .default
-    .withMinSuccessfulTests(numberOfTests)
-    .withMaxSize(numberOfTests)
-    .withMinSize(numberOfTests)
-    .withWorkers(8)
-    .withTestCallback(new Test.TestCallback {
-
-      override def onTestResult(name: String, result: Test.Result): Unit = {
-        println(
-          s"""
-             |Finished with
-             |Status: ${result.status}
-             |Tests passed: ${result.succeeded}
-             |Tests discarded: ${result.discarded}
-             |Time: ${result.time}ms
-             |""".stripMargin
-        )
-      }
-
-    })
-    .withLegacyShrinking(false)
 
 }
