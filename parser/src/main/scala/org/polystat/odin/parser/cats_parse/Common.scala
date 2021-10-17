@@ -20,8 +20,8 @@ object Common {
     indent: Int,
     indentationStep: Int
   ): P[Unit] = {
-    (eol *> emptyLinesOrComments *>
-      deeper(indent, indentationStep)).backtrack
+    (eol *> emptyLinesOrComments).soft *>
+      deeper(indent, indentationStep)
   }
 
   def boundAttributes(
