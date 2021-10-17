@@ -110,6 +110,7 @@ object EOParserTestSuite {
     .withMinSuccessfulTests(numberOfTests)
     .withMaxSize(numberOfTests)
     .withMinSize(numberOfTests)
+    .withWorkers(8)
     .withTestCallback(new Test.TestCallback {
 
       override def onTestResult(name: String, result: Test.Result): Unit = {
