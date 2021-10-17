@@ -1,5 +1,10 @@
 package org.polystat.odin.parser.cats_parse
 
+// Borrowed from:
+// https://github.com/typelevel/cats-parse/issues/239
+// In particular, from:
+// https://gist.github.com/re-xyr/b0f1988e744c93d4c83a5f17f58484ea
+
 import cats.parse.Parser.Expectation
 import cats.parse._
 import org.polystat.odin.parser.cats_parse.JsonStringUtil.escape
