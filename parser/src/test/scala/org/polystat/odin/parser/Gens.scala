@@ -286,7 +286,7 @@ object Gens {
   ): Gen[String] = {
     val abstraction = for {
       params <- abstractionParams
-      name <- bndName.map(name => if (named) name else "")
+      name <- if (named) bndName else nothing
       ifAttrs <- Gen.oneOf(true, false)
       attrs <-
         if (recDepth < recDepthMax && ifAttrs)
@@ -300,7 +300,7 @@ object Gens {
 
     val inverseDotApplication = for {
       id <- identifier
-      name <- bndName.map(name => if (named) name else "")
+      name <- if (named) bndName else nothing
       attrs <- verticalApplicationArgs(
         recDepth = recDepth + 1,
         indentationStep = indentationStep,
@@ -311,7 +311,7 @@ object Gens {
 
     val regularApplication = for {
       trg <- singleLineApplication(recDepthMax = recDepthMax)
-      name <- bndName.map(name => if (named) name else "")
+      name <- if (named) bndName else nothing
       ifArgs <- Gen.oneOf(true, false)
       args <-
         if (recDepth < recDepthMax && ifArgs)
@@ -324,7 +324,7 @@ object Gens {
     } yield (trg :: name :: args :: Nil).mkString
 
     val verticalArray = for {
-      name <- bndName.map(name => if (named) name else "")
+      name <- if (named) bndName else nothing
       ifHasItems <- Gen.oneOf(true, false)
       items <-
         if (recDepth < recDepthMax && ifHasItems)
