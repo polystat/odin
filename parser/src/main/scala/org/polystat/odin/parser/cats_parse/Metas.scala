@@ -10,7 +10,7 @@ object Metas {
   private val packageName =
     identifier
       .repSep(1, P.char('.'))
-      .map(_.toList.mkString("."))
+      .string
 
   val packageMeta: P[String] =
     P.string("+package") *> wsp *> packageName
@@ -34,9 +34,7 @@ object Metas {
       packageName ~
         artifactName.surroundedBy(P.char(':')) ~
         artifactVersion
-    ).map { case ((pkgName, id), version) =>
-      (pkgName :: id :: version :: Nil).mkString(":")
-    }
+    ).string
   }
 
   val rtMeta: P[EORTMeta] = (

@@ -22,9 +22,7 @@ object Tokens {
   val identifier: P[String] = (
     lowercase ~
       (letter | digit | P.charIn('-') | P.charIn('_')).rep0
-  ).map { case (c, value) =>
-    (c :: value).mkString
-  }
+  ).string
 
   val float: P[Float] = Numbers.jsonNumber.map(_.toFloat)
   val integer: P[Int] = Numbers.signedIntString.map(_.toInt)

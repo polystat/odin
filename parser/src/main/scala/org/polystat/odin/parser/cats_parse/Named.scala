@@ -14,7 +14,7 @@ object Named {
 
   val name: P[EONamedBnd] = (
     (optWsp.with1.soft *> (P.char('>') *> optWsp) *>
-      (identifier | P.stringIn("@" :: Nil))) ~
+      (identifier | P.string("@").string)) ~
       (optWsp *> P.char('!').?) <* optWsp
   ).map {
     case ("@", None) => EODecoration

@@ -10,7 +10,7 @@ import com.github.tarao.nonempty.collection.NonEmpty
 object SingleLine {
 
   val parameterName: P[LazyName] = (
-    Tokens.identifier | P.stringIn("@" :: Nil)
+    Tokens.identifier | P.string("@").string
   ).map(LazyName)
 
   val params: P[(Vector[LazyName], Option[LazyName])] = (
@@ -28,7 +28,7 @@ object SingleLine {
 
   val bndName: P[EONamedBnd] = (
     P.char('>').surroundedBy(optWsp) *>
-      ((identifier | P.stringIn("@" :: Nil)) <* optWsp) ~
+      ((identifier | P.string("@").string) <* optWsp) ~
       (P.charIn('!') <* optWsp).?
   ).map {
     case ("@", _) => EODecoration
@@ -38,9 +38,9 @@ object SingleLine {
 
   val attributeName: P[String] =
     identifier |
-      P.stringIn("@" :: Nil) |
-      P.stringIn("$" :: Nil) |
-      P.stringIn("^" :: Nil)
+      P.string("@").string |
+      P.string("$").string |
+      P.string("^").string
 
   val data: P[EOExprOnly] = (
     float.backtrack.map(EOFloatData(_)) |
