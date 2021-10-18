@@ -24,7 +24,13 @@ object Tokens {
       (letter | digit | P.charIn('-') | P.charIn('_')).rep0
   ).string
 
-  val float: P[Float] = Numbers.jsonNumber.map(_.toFloat)
+  val float: P[Float] = {
+    val digits: P[String] = digit.rep.string
+    val exp: P[Unit] = (P.charIn("eE") ~ P.charIn("+-").? ~ digits).void
+
+    ((Numbers.signedIntString.soft ~ P.char('.')).soft ~ digits ~ exp.?).string
+  }.map(_.toFloat)
+
   val integer: P[Int] = Numbers.signedIntString.map(_.toInt)
   val string: P[String] = JsonStringUtil.escapedString('\"')
 

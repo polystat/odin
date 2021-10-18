@@ -43,7 +43,7 @@ object SingleLine {
       P.string("^").string
 
   val data: P[EOExprOnly] = (
-    float.backtrack.map(EOFloatData(_)) |
+    float.map(EOFloatData(_)) |
       integer.map(EOIntData(_)) |
       char.map(EOCharData(_)) |
       string.map(EOStrData(_))
