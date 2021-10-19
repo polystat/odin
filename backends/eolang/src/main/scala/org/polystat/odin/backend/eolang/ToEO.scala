@@ -26,6 +26,15 @@ object ToEO {
 
     implicit class ToEOOps[T, R](private val node: T) extends AnyVal {
       def toEO(implicit toEO: ToEO[T, R]): R = ToEO[T, R].toEO(node)
+
+      def toEOPretty(implicit toEO: ToEO[T, InlineOrLines]): String =
+        ToEO[T, InlineOrLines]
+          .toEO(node)
+          .fold[String](
+            identity,
+            _.mkString("\n")
+          )
+
     }
 
   }
@@ -39,10 +48,10 @@ object ToEO {
 
     // Program
     // ///////////////////////////////////////////////////////////////////
-    implicit val progToEO: ToEO[EOProg[EOExprOnly], Lines] =
-      new ToEO[EOProg[EOExprOnly], Lines] {
+    implicit val progToEO: ToEO[EOProg[EOExprOnly], InlineOrLines] =
+      new ToEO[EOProg[EOExprOnly], InlineOrLines] {
 
-        override def toEO(node: EOProg[EOExprOnly]): Lines = {
+        override def toEO(node: EOProg[EOExprOnly]): InlineOrLines = {
           val metas = node.metas.toEO.toIterable
           val program = node.bnds.flatMap(_.toEO.toIterable)
 
