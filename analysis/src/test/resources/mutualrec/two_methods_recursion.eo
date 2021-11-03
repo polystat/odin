@@ -1,0 +1,18 @@
++package sandbox.mutualrec
++alias org.eolang.io.stdout
++alias org.eolang.txt.sprintf
+
+# An object containing 2 mutually-recursive methods - f, g
+# This example should not trigger the analysis, because the mutual recursion
+# does not occur as a result of overriding
+
+[] > two_methods_recursion
+  [self a] > f
+    self.g self a > @
+  [self a] > g
+    self.f self a > @
+
+[] > app
+  two_methods_recursion > m
+  stdout > @
+    m.f m 1
