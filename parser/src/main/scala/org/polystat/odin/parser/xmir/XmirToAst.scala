@@ -3,6 +3,7 @@ package org.polystat.odin.parser.xmir
 import cats.effect.Sync
 import cats.implicits._
 import cats.Traverse
+import cats.data.Validated
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
@@ -136,7 +137,11 @@ object XmirToAst {
       private[this] def combineErrors[A](
         eithers: Seq[Either[String, A]]
       ): Either[String, Seq[A]] = {
-        Traverse[Seq].sequence(eithers)
+        Traverse[Seq]
+          .traverse(eithers)(either =>
+            Validated.fromEither(either.leftMap(_ + "\n"))
+          )
+          .toEither
       }
 
       private[this] val bndFromTuple: ((Option[EONamedBnd], EOExprOnly)) => EOBnd[EOExprOnly] = {
