@@ -39,7 +39,7 @@
             </with>
         </copy>
     </xsl:template>
-    <xsl:template match="o[not(@base)]">
+    <xsl:template match="o[not(@base)]" priority="1">
         <abstraction>
             <xsl:if test="@name">
                 <xsl:attribute name="bound-to">
@@ -50,12 +50,12 @@
             <xsl:apply-templates select="*"/>
         </abstraction>
     </xsl:template>
-    <xsl:template match="o[not(@base) and @name and @line = parent::o/@line]">
+    <xsl:template match="o[not(@base) and @name and @line = parent::o/@line]" priority="2">
         <free name="{@name}">
             <xsl:apply-templates select="@vararg"/>
         </free>
     </xsl:template>
-    <xsl:template match="o[@data]">
+    <xsl:template match="o[@data]" priority="3">
         <data type="{@data}" value="{text()}">
             <xsl:if test="@name">
                 <xsl:attribute name="bound-to">
