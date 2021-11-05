@@ -2,6 +2,7 @@ package org.polystat.odin.parser.xmir
 
 import cats.effect.Sync
 import cats.implicits._
+import cats.Traverse
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
@@ -133,12 +134,9 @@ object XmirToAst {
       }
 
       private[this] def combineErrors[A](
-        eithers: collection.Seq[Either[String, A]]
-      ): Either[String, collection.Seq[A]] = {
-        (eithers.partitionMap(identity) match {
-          case (Nil, rights) => Right(rights)
-          case (lefts, _) => Left(lefts)
-        }).leftMap(_.mkString("\n"))
+        eithers: Seq[Either[String, A]]
+      ): Either[String, Seq[A]] = {
+        Traverse[Seq].sequence(eithers)
       }
 
       private[this] val bndFromTuple: ((Option[EONamedBnd], EOExprOnly)) => EOBnd[EOExprOnly] = {
@@ -163,7 +161,7 @@ object XmirToAst {
               (attrMap.get("type"), attrMap.get("value")) match {
                 case (Some("int"), Some(value)) =>
                   Right(Fix[EOExpr](EOIntData(value.toInt)))
-                case (Some("bool"), Some(value)) => {
+                case (Some("bool"), Some(value)) =>
                   val bool: Either[String, Boolean] = value match {
                     case "true" => Right(true)
                     case "false" => Right(false)
@@ -172,7 +170,6 @@ object XmirToAst {
                       )
                   }
                   bool.map(value => Fix[EOExpr](EOBoolData(value)))
-                }
                 case (Some("string"), Some(value)) =>
                   Right(Fix[EOExpr](EOStrData(value)))
                 case (Some("char"), Some(value)) =>
@@ -208,7 +205,7 @@ object XmirToAst {
               eitherOf <- parsedOf
               (_, trg) <- eitherOf
               eitherWith <- parsedWith
-              combineWith = combineErrors(eitherWith)
+              combineWith = combineErrors(eitherWith.toSeq)
               wth <- combineWith
             } yield NonEmpty.from(wth.toVector) match {
               case Some(value) =>
