@@ -1,4 +1,4 @@
-package org.polystat.odin.analysis
+package org.polystat.odin.sandbox
 
 import org.scalacheck.{Gen, Prop, Test}
 
@@ -16,9 +16,9 @@ case class Method(name: String, calls: List[MethodCall]) {
     val methodBody = calls match {
       case Nil => ""
       case head :: Nil => s"""  $head > @""".stripMargin
-      case head :: tail =>
+      case lst =>
         s"""  seq > @
-           |      ${(head :: tail).mkString("\n      ")}""".stripMargin
+           |      ${lst.mkString("\n      ")}""".stripMargin
     }
 
     s"""[self] > $name
