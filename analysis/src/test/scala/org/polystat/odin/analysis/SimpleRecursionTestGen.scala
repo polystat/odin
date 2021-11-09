@@ -1,6 +1,6 @@
 package org.polystat.odin.analysis
 
-import org.scalacheck.Gen
+import org.scalacheck.{Gen, Prop, Test}
 
 case class MethodCall(name: String) {
 
@@ -57,26 +57,40 @@ object SimpleRecursionTestGen {
     )
   )
 
-  val method: Gen[Method] = for {
-    name <- Gen.oneOf(methods)
+  def method(name: String): Gen[Method] = for {
     calls <- Gen
-      .atLeastOne(methods)
-      .retryUntil(calls => !calls.contains(name)) // method shouldn't call itself
+      .atLeastOne(methods.filter(_ != name)) // method shouldn't call itself
   } yield Method(name, calls.map(MethodCall).toList)
 
-  val topLevelObj: Gen[TopLevelObj] = for {
-    name <- Gen.oneOf(toplevelObjs)
-    methods <- Gen.containerOfN[Set, Method](2, method) // methods should have different names
-  } yield TopLevelObj(name, methods.toList)
+  def topLevelObj(name: String): Gen[TopLevelObj] = for {
+    names <- Gen.atLeastOne(methods)
+    methods <- Gen.sequence[List[Method], Method](names.map(method)) // methods should have different names
+  } yield TopLevelObj(name, methods)
 
-  val objs: Gen[List[TopLevelObj]] = Gen.listOfN(2, topLevelObj)
+  val objs: Gen[List[TopLevelObj]] = for {
+    names <- Gen.atLeastOne(toplevelObjs)
+    objs <- Gen.sequence[List[TopLevelObj], TopLevelObj](names.map(topLevelObj))
+  } yield objs
+
+  def containsUnique[T](s: Seq[T]): Boolean = {
+    Set.from(s).size == s.length
+  }
 
   def main(args: Array[String]): Unit = {
-    objs
-      .retryUntil(_ == exampleAst, maxTries = 1e7.toInt)
-      .sample
-      .map(_.mkString("\n"))
-      .foreach(println)
+    Prop
+      .forAll[List[TopLevelObj], Boolean](objs)(objs => {
+        val objNames: List[String] = objs.map(_.name)
+        val objNamesUnique: Boolean = containsUnique(objNames)
+        val methodNamesUnique: List[Boolean] = for {
+          obj <- objs
+          methodNames = obj.defines.map(_.name)
+        } yield containsUnique(methodNames)
+
+        (objNamesUnique :: methodNamesUnique).forall(p => p)
+      })
+      .check(Test.Parameters.default.withMinSuccessfulTests(1e5.toInt))
+
+    objs.sample.map(_.mkString("\n")).foreach(println)
   }
 
 }
