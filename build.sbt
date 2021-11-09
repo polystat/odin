@@ -133,7 +133,8 @@ lazy val analysis = project
     core
   )
   .settings(
-    name := "analysis"
+    name := "analysis",
+    libraryDependencies ++= Dependencies.scalaTest
   )
 
 val backendsBaseDirectory: File = file("backends")
