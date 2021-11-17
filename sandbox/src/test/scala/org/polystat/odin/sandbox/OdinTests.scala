@@ -20,7 +20,7 @@ class OdinTests extends AsyncWordSpec with AsyncIOSpec with Checkers {
   "odin" should {
     "find mutual recursion" in {
       val prop = Prop
-        .forAll(objs(methods)) { obj =>
+        .forAllNoShrink(objs(methods)) { obj =>
           val code = obj.mkString("\n")
           EOOdinAnalyzer
             .impl[String, IO](
