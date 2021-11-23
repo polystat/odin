@@ -104,7 +104,7 @@ lazy val utils = project
   .settings(publishSettings)
   .settings(
     name := "utils",
-    libraryDependencies ++= Dependencies.common,
+    libraryDependencies ++= Dependencies.utils,
   )
 
 lazy val core = project

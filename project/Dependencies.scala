@@ -14,9 +14,10 @@ object Dependencies {
     val droste = "0.8.0"
     val fastparse = "2.3.3"
     val pprint = "0.6.6"
-    val fs2 = "3.1.4"
+    val fs2 = "3.2.2"
+    val fs2io = "3.2.2"
     val newTypes = "0.0.1"
-    val eoParser = "0.10.7"
+    val eoParser = "0.16.7"
     val catsEffectScalatest = "1.3.0"
   }
 
@@ -57,6 +58,10 @@ object Dependencies {
     "co.fs2" %% "fs2-core" % V.fs2,
   )
 
+  val fs2io = Seq(
+    "co.fs2" %% "fs2-io" % V.fs2io,
+  )
+
   val newTypes = Seq(
     "io.monix" %% "newtypes-core" % V.newTypes,
   )
@@ -77,6 +82,8 @@ object Dependencies {
 
   val common: Seq[ModuleID] = allCats ++ scalaTest ++ nonEmpty ++ monocle ++
     newTypes
+
+  val utils: Seq[ModuleID] = common ++ fs2io
 
   val core: Seq[ModuleID] = common ++ droste ++ fs2
 
