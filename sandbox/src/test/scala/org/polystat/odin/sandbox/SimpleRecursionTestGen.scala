@@ -1,9 +1,7 @@
 package org.polystat.odin.sandbox
 
-import cats.Eq
 import cats.effect.IO
-import cats.syntax.eq._
-import org.scalacheck.{Gen, Prop, Test}
+import org.scalacheck.Gen
 import fs2.Stream
 
 case class MethodCall(name: String) {
