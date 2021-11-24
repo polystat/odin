@@ -7,7 +7,6 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 
 trait MethodAttribute[F[_]] {
   import MethodAttribute.MethodInfo
-
   def name: String
   def params: Vector[String]
   def parentObject: TopLevelObject[F]

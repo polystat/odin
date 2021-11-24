@@ -1,0 +1,18 @@
+[] > a
+  [self] > i
+    if. > @
+      false
+      self.h self
+      self.i self
+
+  [self] > g
+    if. > @
+      false
+      self.h self
+      self.i self
+[] > b
+  a > @
+  [self] > f
+    self.g self > @
+  [self] > h
+    self.g self > @

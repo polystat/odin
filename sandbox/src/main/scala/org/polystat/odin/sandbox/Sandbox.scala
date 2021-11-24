@@ -75,13 +75,4 @@ object Sandbox extends IOApp {
     )
   } yield exitCode
 
-  // Easy way to run all available analysis and print the results for EO source
-  // code
-  private def analyzeEoSourceCodeAndPrintErrors[F[_]: Sync](
-    code: String
-  ): F[Unit] = for {
-    errors <- EOOdinAnalyzer.impl.analyzeSourceCode(code).compile.toVector
-    _ <- Sync[F].delay(errors.map(_.tap(println)))
-  } yield ()
-
 }

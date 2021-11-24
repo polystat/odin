@@ -1,4 +1,4 @@
-package org.polystat.odin.sandbox
+package org.polystat.odin.analysis
 
 import cats.effect.IO
 import org.scalacheck.Gen
