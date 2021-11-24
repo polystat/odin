@@ -5,6 +5,9 @@ import fs2.text
 import fs2.Stream
 import fs2.io.file.{Files, Path}
 
+import java.io.FileNotFoundException
+import java.nio.file.Paths
+
 object files {
 
   def readCodeFrom[F[_]: Sync: Files](fileName: String): F[String] = {
@@ -23,12 +26,29 @@ object files {
       .string
   }
 
-  def readCodeFromDir[F[_]: Sync: Files](
+  def resourceAsPath[F[_]: Sync](
+    classPathResource: String
+  ): Stream[F, Path] =
+    Stream.fromEither[F](
+      Option(getClass.getResource(classPathResource))
+        .map(p => Path.fromNioPath(Paths.get(p.toURI)))
+        .toRight(
+          new FileNotFoundException(
+            s"No file '$classPathResource' in test resources for package ${getClass.getPackage.getName}"
+          )
+        )
+    )
+
+  def readCodeFromResources[F[_]: Sync: Files](
     dir: String
   ): F[List[(String, String)]] =
-    Files[F]
-      .list(Path(dir))
-      .flatMap(p => readCodeStreamFrom(p).map(code => (p.toString, code)))
+    files
+      .resourceAsPath[F](dir)
+      .flatMap(Files[F].walk)
+      .filter(p => p.extName == ".eo")
+      .flatMap(p =>
+        readCodeStreamFrom(p).map(code => (p.fileName.toString, code))
+      )
       .compile
       .toList
 
