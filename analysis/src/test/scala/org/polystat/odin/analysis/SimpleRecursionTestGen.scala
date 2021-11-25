@@ -78,6 +78,9 @@ object SimpleRecursionTestGen {
         Gen.sequence[List[Method], Method](names.map(method(methodCallPool))) // methods should have different names
     } yield TopLevelObj(name, methods)
 
+  // TODO: take decoration into account
+  // As of now, this generator doesn't produce programs with
+  // the kind of mutual recursion we are looking for
   def objs(methodDeclPool: List[String]): Gen[List[TopLevelObj]] = for {
     aMethods <- Gen.pick(2, methodDeclPool).map(_.toList)
     bMethods = methodDeclPool.filter(name => !aMethods.contains(name))
