@@ -1,0 +1,18 @@
+[] > base
+  memory > i
+  [self v] > b
+    self.i.add 1 > @
+  [self v] > c
+    self.b self v > @
+
+[] > derived
+  base > @
+  [self v] > b
+    [self v] > @
+      self.c self v > @
+
+
+[] > app
+  (derived.b derived 1) derived 1 > @
+
+

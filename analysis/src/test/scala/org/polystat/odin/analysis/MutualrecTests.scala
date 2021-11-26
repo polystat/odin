@@ -1,13 +1,13 @@
 package org.polystat.odin.analysis
 
+import cats.effect.unsafe.implicits.global
+import cats.effect.{IO, Sync}
+import org.polystat.odin.analysis.SimpleRecursionTestGen.{methods, objs}
+import org.polystat.odin.parser.EoParser.sourceCodeEoParser
+import org.polystat.odin.utils.files
+import org.scalacheck.{Prop, Test}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.Checkers
-import org.scalacheck.{Prop, Test}
-import org.polystat.odin.parser.EoParser.sourceCodeEoParser
-import cats.effect.{ExitCode, IO, IOApp, Sync}
-import cats.effect.unsafe.implicits.global
-import org.polystat.odin.utils.files
-import org.polystat.odin.analysis.SimpleRecursionTestGen.{methods, objs}
 
 class MutualrecTests extends AnyWordSpec with Checkers {
 
@@ -51,19 +51,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
         }
       }).unsafeRunSync()
     }
-  }
 
-}
-
-object MutualrecTests extends IOApp {
-
-  override def run(args: List[String]): IO[ExitCode] = {
-    for {
-      code <- files.readCodeFromResources[IO](
-        "sandbox/src/test/resources/mutualrec"
-      )
-      _ <- IO.println(code)
-    } yield ExitCode.Success
   }
 
 }
