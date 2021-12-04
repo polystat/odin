@@ -1,8 +1,8 @@
 package org.polystat.odin.analysis.gens
 
 import cats.Show
-import Program._
 import cats.syntax.show._
+import Program._
 import scala.annotation.tailrec
 
 object CallGraph {
@@ -18,8 +18,9 @@ object CallGraph {
 
   implicit final class CallGraphOps(cg: CallGraph) {
 
+    type CallGraphEntry = (MethodName, Set[MethodName])
+
     def extendWith(other: CallGraph): CallGraph = {
-      type CallGraphEntry = (MethodName, Set[MethodName])
 
       @tailrec
       def extendWithRec(rem: List[CallGraphEntry], acc: CallGraph): CallGraph =
@@ -42,6 +43,31 @@ object CallGraph {
         }
 
       extendWithRec(other.toList, cg)
+    }
+
+    def containsCycles: Boolean = {
+
+      def traversalFrom(
+        start: MethodName,
+        path: List[MethodName]
+      ): Boolean = {
+        cg
+          .get(start)
+          .fold(false)(calls =>
+            calls.toList match {
+              case Nil => false
+              case calls if calls.exists(call => path.contains(call)) => true
+              case calls => calls.foldLeft(false) { (acc, call) =>
+                  acc || traversalFrom(call, call :: path)
+                }
+            }
+          )
+      }
+
+      cg.keys
+        .foldLeft(false)((acc, start) =>
+          acc || traversalFrom(start, start :: Nil)
+        )
     }
 
     def replaceCallsTo(

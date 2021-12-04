@@ -26,7 +26,15 @@ object MutualRecursionTestGen {
     "b" % "f" -> Set("a" % "c"),
   )
 
+  val exampleNoCycles: CallGraph =
+    exampleCgBefore.updated("a" % "d", Set("a" % "f"))
+
   def main(args: Array[String]): Unit = {
+    println(exampleNoCycles.containsCycles)
+    println(exampleCgBefore.containsCycles)
+    println(exampleCgExtends.containsCycles)
+    println(exampleCgAfter.containsCycles)
+
     println(exampleCgBefore.extendWith(exampleCgExtends).size)
     println(exampleCgBefore.extendWith(exampleCgExtends).show)
     println(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
