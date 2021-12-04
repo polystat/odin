@@ -2,14 +2,14 @@ package org.polystat.odin.analysis.gens
 
 import cats.Show
 import cats.syntax.show._
-import Program._
 import scala.annotation.tailrec
 
 object CallGraph {
 
   type CallGraph = Map[MethodName, Set[MethodName]]
+  type CallGraphEntry = (MethodName, Set[MethodName])
 
-  implicit val show: Show[CallGraph] = (g: CallGraph) =>
+  implicit val showForCallGraph: Show[CallGraph] = (g: CallGraph) =>
     g
       .foldLeft(List.empty[String]) { case (acc, (m, calls)) =>
         s"${m.show} -> ${calls.map(_.show).mkString(", ")}" :: acc
@@ -17,8 +17,6 @@ object CallGraph {
       .mkString("\n")
 
   implicit final class CallGraphOps(cg: CallGraph) {
-
-    type CallGraphEntry = (MethodName, Set[MethodName])
 
     def extendWith(other: CallGraph): CallGraph = {
 

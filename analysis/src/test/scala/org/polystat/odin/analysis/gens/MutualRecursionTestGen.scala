@@ -2,7 +2,9 @@ package org.polystat.odin.analysis.gens
 
 import cats.syntax.show._
 import CallGraph._
-import Program._
+import MethodName._
+// import cats.Show
+import org.scalacheck.Gen
 
 object MutualRecursionTestGen {
 
@@ -26,6 +28,44 @@ object MutualRecursionTestGen {
     "b" % "f" -> Set("a" % "c"),
   )
 
+  def genTopLvlObjectName(p: Program): Gen[ObjectName] =
+    Gen
+      .listOfN(1, Gen.alphaLowerChar)
+      .map(_.mkString)
+      .retryUntil(!p.containsObjectWithName(_))
+      .map(ObjectName(None, _))
+
+  def genMethodName: Gen[String] =
+    Gen
+      .listOfN(1, Gen.alphaLowerChar)
+      .map(_.mkString)
+
+  def genCallGraph(objName: ObjectName, names: List[String]): Gen[CallGraph] = {
+    val methodNames = names.map(MethodName(objName, _))
+    for {
+      calls <- Gen.sequence[CallGraph, CallGraphEntry](
+        methodNames.map(method =>
+          Gen
+            .pick(1, methodNames.filter(_ != method))
+            .map(calls => (method, calls.toSet))
+        )
+      )
+
+    } yield calls
+  }
+
+  def genTopLvlObj(p: Program): Gen[Object] =
+    for {
+      name <- genTopLvlObjectName(p)
+      methods <- Gen.listOfN(4, genMethodName)
+      cg <- genCallGraph(name, methods)
+    } yield Object(
+      where = None,
+      name = name,
+      ext = None,
+      callGraph = cg
+    )
+
   val exampleNoCycles: CallGraph =
     exampleCgBefore.updated("a" % "d", Set("a" % "f"))
 
@@ -35,6 +75,9 @@ object MutualRecursionTestGen {
     println(exampleCgExtends.containsCycles)
     println(exampleCgAfter.containsCycles)
 
+    genCallGraph(ObjectName(None, "a"), List("s", "b", "c", "d"))
+      .sample
+      .foreach(cg => println(cg.show))
     println(exampleCgBefore.extendWith(exampleCgExtends).size)
     println(exampleCgBefore.extendWith(exampleCgExtends).show)
     println(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
