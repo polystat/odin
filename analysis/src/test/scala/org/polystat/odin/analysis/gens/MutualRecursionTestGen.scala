@@ -3,8 +3,10 @@ package org.polystat.odin.analysis.gens
 import cats.syntax.show._
 import CallGraph._
 import MethodName._
-// import cats.Show
+import Object._
 import org.scalacheck.Gen
+
+import scala.util.Try
 
 object MutualRecursionTestGen {
 
@@ -35,33 +37,79 @@ object MutualRecursionTestGen {
       .retryUntil(!p.containsObjectWithName(_))
       .map(ObjectName(None, _))
 
+  def between[T](min: Int, max: Int, g: Gen[T]): Gen[List[T]] =
+    for {
+      n <- Gen.choose(min, max)
+      lst <- Gen.listOfN(n, g)
+    } yield lst
+
+  def randomlySplit[T](list: List[T]): Gen[(List[T], List[T])] =
+    for {
+      part1 <- Gen.atLeastOne(list).map(_.toList)
+      part2 = list.filter(!part1.contains(_))
+    } yield (part1, part2)
+
   def genMethodName: Gen[String] =
     Gen
       .listOfN(1, Gen.alphaLowerChar)
       .map(_.mkString)
 
-  def genCallGraph(objName: ObjectName, names: List[String]): Gen[CallGraph] = {
-    val methodNames = names.map(MethodName(objName, _))
+  def genCallGraph(
+    methodNamesToDefine: List[MethodName],
+    methodNamesToCall: List[MethodName]
+  ): Gen[CallGraph] = {
     for {
       calls <- Gen.sequence[CallGraph, CallGraphEntry](
-        methodNames.map(method =>
-          Gen
-            .pick(1, methodNames.filter(_ != method))
-            .map(calls => (method, calls.toSet))
+        methodNamesToDefine.map(method =>
+          Try(
+            Gen
+              .pick(1, methodNamesToCall.filter(_ != method))
+          )
+            .fold(
+              _ => (method, Set.empty[MethodName]),
+              calls => calls.map(calls => (method, calls.toSet))
+            )
         )
       )
 
     } yield calls
   }
 
+  def genExtendTopLvlObj(obj: Object, p: Program): Gen[Object] = for {
+    // name for new object
+    name <- genTopLvlObjectName(p)
+
+    // new method definitions
+    newMethodNames <-
+      between(1, 2, genMethodName).map(_.map(MethodName(name, _)))
+
+    // redefined methods, e.g. methods with the same name as those from the
+    // parent object
+    (redefinedMethodNames, otherMethodNames) <-
+      randomlySplit(
+        obj.callGraph.keys.toList
+      )
+
+    methodNamesToDefine = newMethodNames ++ redefinedMethodNames.map(method =>
+      // replacing the object part of the method name with the new object
+      // so, method 'a.s' becomes 'name.s'
+      MethodName(name, method.name)
+    )
+
+    // new methods may call any other method, both new and old
+    methodNamesToCall = methodNamesToDefine ++ otherMethodNames
+    callGraph <- genCallGraph(methodNamesToDefine, methodNamesToCall)
+
+  } yield obj.extended(name, callGraph)
+
   def genTopLvlObj(p: Program): Gen[Object] =
     for {
-      name <- genTopLvlObjectName(p)
-      methods <- Gen.listOfN(4, genMethodName)
-      cg <- genCallGraph(name, methods)
+      objectName <- genTopLvlObjectName(p)
+      methods <-
+        between(1, 4, genMethodName).map(_.map(MethodName(objectName, _)))
+      cg <- genCallGraph(methods, methods)
     } yield Object(
-      where = None,
-      name = name,
+      name = objectName,
       ext = None,
       callGraph = cg
     )
@@ -70,18 +118,22 @@ object MutualRecursionTestGen {
     exampleCgBefore.updated("a" % "d", Set("a" % "f"))
 
   def main(args: Array[String]): Unit = {
-    println(exampleNoCycles.containsCycles)
-    println(exampleCgBefore.containsCycles)
-    println(exampleCgExtends.containsCycles)
-    println(exampleCgAfter.containsCycles)
+    //    println(exampleNoCycles.containsCycles)
+    //    println(exampleCgBefore.containsCycles)
+    //    println(exampleCgExtends.containsCycles)
+    //    println(exampleCgAfter.containsCycles)
+    //
+    val obj = genTopLvlObj(Program(Nil)).sample.get
+    println(obj.show)
 
-    genCallGraph(ObjectName(None, "a"), List("s", "b", "c", "d"))
+    genExtendTopLvlObj(obj, Program(Nil))
       .sample
-      .foreach(cg => println(cg.show))
-    println(exampleCgBefore.extendWith(exampleCgExtends).size)
-    println(exampleCgBefore.extendWith(exampleCgExtends).show)
-    println(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
-    println(exampleCgExtends.extendWith(exampleCgBefore).show)
+      .map(_.show)
+      .foreach(println)
+    //    println(exampleCgBefore.extendWith(exampleCgExtends).size)
+    //    println(exampleCgBefore.extendWith(exampleCgExtends).show)
+    // println(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
+    //    println(exampleCgExtends.extendWith(exampleCgBefore).show)
   }
 
 }

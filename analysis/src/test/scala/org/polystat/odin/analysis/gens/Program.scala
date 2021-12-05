@@ -13,23 +13,48 @@ case class Program(objs: List[Object]) {
 }
 
 case class Object(
-  where: Option[Object], // None for top-level objects
   name: ObjectName, // full object name
   ext: Option[Object], // the object extended by this object
   callGraph: CallGraph, // the call graph for methods of this object
 ) {
 
   def extended(
-    where: Option[Object], // the object where the new object is defined
-    name: String, // name of the extending object
+    name: ObjectName, // name of the extending object
     cg: CallGraph // call graph containing method (re-)definitions
   ): Object =
     Object(
-      where = where,
-      name = ObjectName(where.map(_.name), name),
+      name = name,
       ext = Some(this.copy()),
       callGraph = callGraph.extendWith(cg),
     )
+
+}
+
+object Object {
+
+  implicit val showForObject: Show[Object] = new Show[Object] {
+
+    val renderMethod: CallGraphEntry => String = { case (name, calls) =>
+      s"""[self] > ${name.name}
+         |    ${if (calls.nonEmpty)
+        calls
+          .map(call => s"self.${call.name} self > @")
+          .mkString("\n    ")
+      else
+        "self > @"}""".stripMargin
+    }
+
+    override def show(t: Object): String =
+      s"""[] > ${t.name.name}
+         |  ${t.ext.fold("")(ext => s"${ext.name.name} > @")}${t
+        .callGraph
+        .filter { case (method, _) =>
+          method.whereDefined.name == t.name.name
+        }
+        .map(renderMethod)
+        .mkString("\n  ")}""".stripMargin
+
+  }
 
 }
 
