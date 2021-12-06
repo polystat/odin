@@ -2,7 +2,9 @@ package org.polystat.odin.analysis.gens
 
 import cats.Show
 import cats.syntax.show._
+
 import scala.annotation.tailrec
+import org.scalatest.wordspec.AnyWordSpec
 
 object CallGraph {
 
@@ -85,4 +87,55 @@ object CallGraph {
 
   }
 
+}
+
+class CallGraphTests extends AnyWordSpec {
+
+  import CallGraph._
+  import MethodName._
+
+  val exampleCgBefore: CallGraph = Map(
+    "a" % "s" -> Set("a" % "b"),
+    "a" % "b" -> Set("a" % "d"),
+    "a" % "c" -> Set("a" % "b"),
+    "a" % "d" -> Set("a" % "s"),
+  )
+
+  val exampleCgExtends: CallGraph = Map(
+    "b" % "s" -> Set("b" % "f"),
+    "b" % "f" -> Set("a" % "c"),
+  )
+
+  val exampleCgAfter: CallGraph = Map(
+    "b" % "s" -> Set("b" % "f"),
+    "a" % "b" -> Set("a" % "d"),
+    "a" % "c" -> Set("a" % "b"),
+    "a" % "d" -> Set("b" % "s"),
+    "b" % "f" -> Set("a" % "c"),
+  )
+
+  val exampleNoCycles: CallGraph =
+    exampleCgBefore.updated("a" % "d", Set("a" % "f"))
+
+  "call graph" should {
+    "correctly detect cycles" in {
+      assert(!exampleNoCycles.containsCycles)
+      assert(exampleCgBefore.containsCycles)
+      assert(!exampleCgExtends.containsCycles)
+      assert(exampleCgAfter.containsCycles)
+    }
+
+    "correctly extend another call graph" in {
+
+      assert(exampleCgBefore.extendWith(exampleCgExtends).size == 5)
+      assert(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
+      assert(
+        exampleCgBefore.extendWith(exampleCgExtends) !=
+          exampleCgExtends.extendWith(exampleCgBefore)
+      )
+
+    }
+  }
+
+  //
 }

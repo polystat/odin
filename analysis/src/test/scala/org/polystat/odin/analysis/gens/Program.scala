@@ -46,7 +46,7 @@ object Object {
 
     override def show(t: Object): String =
       s"""[] > ${t.name.name}
-         |  ${t.ext.fold("")(ext => s"${ext.name.name} > @")}${t
+         |  ${t.ext.fold("")(ext => s"${ext.name.name} > @\n  ")}${t
         .callGraph
         .filter { case (method, _) =>
           method.whereDefined.name == t.name.name

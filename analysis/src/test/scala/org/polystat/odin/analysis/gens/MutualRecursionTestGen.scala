@@ -2,33 +2,12 @@ package org.polystat.odin.analysis.gens
 
 import cats.syntax.show._
 import CallGraph._
-import MethodName._
 import Object._
 import org.scalacheck.Gen
 
 import scala.util.Try
 
 object MutualRecursionTestGen {
-
-  val exampleCgBefore: CallGraph = Map(
-    "a" % "s" -> Set("a" % "b"),
-    "a" % "b" -> Set("a" % "d"),
-    "a" % "c" -> Set("a" % "b"),
-    "a" % "d" -> Set("a" % "s"),
-  )
-
-  val exampleCgExtends: CallGraph = Map(
-    "b" % "s" -> Set("b" % "f"),
-    "b" % "f" -> Set("a" % "c"),
-  )
-
-  val exampleCgAfter: CallGraph = Map(
-    "b" % "s" -> Set("b" % "f"),
-    "a" % "b" -> Set("a" % "d"),
-    "a" % "c" -> Set("a" % "b"),
-    "a" % "d" -> Set("b" % "s"),
-    "b" % "f" -> Set("a" % "c"),
-  )
 
   def genTopLvlObjectName(p: Program): Gen[ObjectName] =
     Gen
@@ -45,7 +24,9 @@ object MutualRecursionTestGen {
 
   def randomlySplit[T](list: List[T]): Gen[(List[T], List[T])] =
     for {
-      part1 <- Gen.atLeastOne(list).map(_.toList)
+      part1 <- Gen
+        .atLeastOne(list)
+        .map(_.toList)
       part2 = list.filter(!part1.contains(_))
     } yield (part1, part2)
 
@@ -61,13 +42,10 @@ object MutualRecursionTestGen {
     for {
       calls <- Gen.sequence[CallGraph, CallGraphEntry](
         methodNamesToDefine.map(method =>
-          Try(
-            Gen
-              .pick(1, methodNamesToCall.filter(_ != method))
-          )
+          Try(Gen.pick(1, methodNamesToCall.filter(_ != method)))
             .fold(
               _ => (method, Set.empty[MethodName]),
-              calls => calls.map(calls => (method, calls.toSet))
+              callsGen => callsGen.map(calls => (method, calls.toSet))
             )
         )
       )
@@ -106,7 +84,8 @@ object MutualRecursionTestGen {
     for {
       objectName <- genTopLvlObjectName(p)
       methods <-
-        between(1, 4, genMethodName).map(_.map(MethodName(objectName, _)))
+        between(1, 4, genMethodName)
+          .map(_.map(MethodName(objectName, _)))
       cg <- genCallGraph(methods, methods)
     } yield Object(
       name = objectName,
@@ -114,15 +93,8 @@ object MutualRecursionTestGen {
       callGraph = cg
     )
 
-  val exampleNoCycles: CallGraph =
-    exampleCgBefore.updated("a" % "d", Set("a" % "f"))
-
   def main(args: Array[String]): Unit = {
-    //    println(exampleNoCycles.containsCycles)
-    //    println(exampleCgBefore.containsCycles)
-    //    println(exampleCgExtends.containsCycles)
-    //    println(exampleCgAfter.containsCycles)
-    //
+
     val obj = genTopLvlObj(Program(Nil)).sample.get
     println(obj.show)
 
@@ -130,10 +102,6 @@ object MutualRecursionTestGen {
       .sample
       .map(_.show)
       .foreach(println)
-    //    println(exampleCgBefore.extendWith(exampleCgExtends).size)
-    //    println(exampleCgBefore.extendWith(exampleCgExtends).show)
-    // println(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
-    //    println(exampleCgExtends.extendWith(exampleCgBefore).show)
   }
 
 }
