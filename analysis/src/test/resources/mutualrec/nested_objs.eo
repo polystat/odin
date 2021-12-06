@@ -1,0 +1,16 @@
++package sandbox.mutualrec
+
+# nestedB.a.g -> nestedB.f -> nestedB.a.g
+
+[] > nestedA
+  [] > a
+    [self] > g
+      self.f self > @
+  [self] > f
+    self > @
+[] > nestedB
+  nestedA > @
+  [self] > f
+    self.a.g self > @
+[] > nested
+  nestedB.f nestedB > @
