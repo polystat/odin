@@ -2,7 +2,6 @@ package org.polystat.odin.analysis.gens
 
 import cats.syntax.show._
 import CallGraph._
-import Object._
 import org.scalacheck.Gen
 
 import scala.util.Try
@@ -93,15 +92,30 @@ object MutualRecursionTestGen {
       callGraph = cg
     )
 
+  def genProgram: Gen[Program] =
+    for {
+      initObj <- genTopLvlObj(Program(Nil))
+      init = Gen.const(Program(List(initObj)))
+      max <- Gen.choose(2, 5)
+      program <- (1 to max).foldLeft(init) { case (acc, _) =>
+        for {
+          extend <- Gen.oneOf(true, false)
+          prog <- acc.flatMap(p =>
+            (
+              if (extend)
+                Gen.oneOf(p.objs).flatMap(genExtendTopLvlObj(_, p))
+              else
+                genTopLvlObj(p)
+            ).map(newObj => Program(newObj :: p.objs))
+          )
+        } yield prog
+      }
+
+    } yield program
+
   def main(args: Array[String]): Unit = {
 
-    val obj = genTopLvlObj(Program(Nil)).sample.get
-    println(obj.show)
-
-    genExtendTopLvlObj(obj, Program(Nil))
-      .sample
-      .map(_.show)
-      .foreach(println)
+    genProgram.sample.map(_.show).foreach(println)
   }
 
 }

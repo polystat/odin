@@ -12,6 +12,18 @@ case class Program(objs: List[Object]) {
 
 }
 
+object Program {
+
+  implicit val showForProgram: Show[Program] = new Show[Program] {
+
+    override def show(p: Program): String = {
+      p.objs.map(_.show).mkString("\n")
+    }
+
+  }
+
+}
+
 case class Object(
   name: ObjectName, // full object name
   ext: Option[Object], // the object extended by this object
