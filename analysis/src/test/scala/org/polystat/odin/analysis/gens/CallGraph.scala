@@ -11,12 +11,14 @@ object CallGraph {
   type CallGraph = Map[MethodName, Set[MethodName]]
   type CallGraphEntry = (MethodName, Set[MethodName])
 
-  implicit val showForCallGraph: Show[CallGraph] = (g: CallGraph) =>
-    g
-      .foldLeft(List.empty[String]) { case (acc, (m, calls)) =>
+  implicit val showForCallGraph: Show[CallGraph] = new Show[CallGraph] {
+
+    override def show(g: CallGraph): String =
+      g.foldLeft(List.empty[String]) { case (acc, (m, calls)) =>
         s"${m.show} -> ${calls.map(_.show).mkString(", ")}" :: acc
-      }
-      .mkString("\n")
+      }.mkString("\n")
+
+  }
 
   implicit final class CallGraphOps(cg: CallGraph) {
 

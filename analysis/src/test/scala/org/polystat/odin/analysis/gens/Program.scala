@@ -87,8 +87,12 @@ case class MethodName(whereDefined: ObjectName, name: String)
 
 object MethodName {
 
-  implicit val showForMethodName: Show[MethodName] =
-    (t: MethodName) => s"${t.whereDefined.show}.${t.name}"
+  implicit val showForMethodName: Show[MethodName] = new Show[MethodName] {
+
+    override def show(t: MethodName): String =
+      s"${t.whereDefined.show}.${t.name}"
+
+  }
 
   implicit final class MethodNameOps(obj: String) {
 
