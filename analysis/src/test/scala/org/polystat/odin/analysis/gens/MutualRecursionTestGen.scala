@@ -21,6 +21,15 @@ object MutualRecursionTestGen {
       lst <- Gen.listOfN(n, g)
     } yield lst
 
+  def pickOneOrZero[T](lst: List[T]): Gen[Set[T]] =
+    for {
+      n <- Gen.oneOf(0, 1)
+      lst <- Try(Gen.pick(n, lst)).fold(
+        _ => Gen.const(Set.empty[T]),
+        gen => gen.map(_.toSet)
+      )
+    } yield lst
+
   def randomlySplit[T](list: List[T]): Gen[(List[T], List[T])] =
     for {
       part1 <- Gen
@@ -41,11 +50,8 @@ object MutualRecursionTestGen {
     for {
       calls <- Gen.sequence[CallGraph, CallGraphEntry](
         methodNamesToDefine.map(method =>
-          Try(Gen.pick(1, methodNamesToCall.filter(_ != method)))
-            .fold(
-              _ => (method, Set.empty[MethodName]),
-              callsGen => callsGen.map(calls => (method, calls.toSet))
-            )
+          pickOneOrZero(methodNamesToCall.filter(_ != method))
+            .map(calls => (method, calls))
         )
       )
 
@@ -89,24 +95,28 @@ object MutualRecursionTestGen {
     } yield Object(
       name = objectName,
       ext = None,
-      callGraph = cg
+      callGraph = cg,
     )
 
-  def genProgram: Gen[Program] =
+  def genProgram(size: Int): Gen[Program] =
     for {
-      initObj <- genTopLvlObj(Program(Nil))
+      initObj <- genTopLvlObj(Program(Nil)).retryUntil(obj =>
+        !obj.callGraph.containsCycles
+      )
       init = Gen.const(Program(List(initObj)))
-      max <- Gen.choose(2, 5)
-      program <- (1 to max).foldLeft(init) { case (acc, _) =>
+      program <- (1 until size).foldLeft(init) { case (acc, _) =>
         for {
-          extend <- Gen.oneOf(true, false)
+          extend <- Gen.frequency(
+            (3, true),
+            (1, false)
+          )
           prog <- acc.flatMap(p =>
             (
               if (extend)
                 Gen.oneOf(p.objs).flatMap(genExtendTopLvlObj(_, p))
               else
                 genTopLvlObj(p)
-            ).map(newObj => Program(newObj :: p.objs))
+            ).map(newObj => Program(p.objs ++ List(newObj)))
           )
         } yield prog
       }
@@ -114,8 +124,7 @@ object MutualRecursionTestGen {
     } yield program
 
   def main(args: Array[String]): Unit = {
-
-    genProgram.sample.map(_.show).foreach(println)
+    genProgram(10).sample.map(_.show).foreach(println)
   }
 
 }
