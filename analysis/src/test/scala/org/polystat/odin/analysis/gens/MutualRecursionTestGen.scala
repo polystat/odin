@@ -124,7 +124,11 @@ object MutualRecursionTestGen {
     } yield program
 
   def main(args: Array[String]): Unit = {
-    genProgram(10).sample.map(_.show).foreach(println)
+    genProgram(2)
+      .sample
+      .tapEach(p => println(p.objs.map(_.show).mkString("\n")))
+      .map(_.objs.flatMap(_.callGraph.findCycles).mkString("\n"))
+      .foreach(println)
   }
 
 }

@@ -10,6 +10,18 @@ object CallGraph {
 
   type CallGraph = Map[MethodName, Set[MethodName]]
   type CallGraphEntry = (MethodName, Set[MethodName])
+  type CallChain = List[MethodName]
+
+  implicit final class CallChainOps(cc: CallChain) {
+
+    def isShiftOf(other: CallChain): Boolean = {
+      other
+        .indices
+        .map(i => other.drop(i) ++ other.take(i))
+        .contains(cc)
+    }
+
+  }
 
   implicit val showForCallGraph: Show[CallGraph] = new Show[CallGraph] {
 
@@ -47,11 +59,38 @@ object CallGraph {
       extendWithRec(other.toList, cg)
     }
 
+    def findCycles: List[CallChain] = {
+      def findCyclesRec(
+        start: MethodName,
+        path: CallChain,
+      ): List[CallChain] = {
+        cg
+          .get(start)
+          .fold[List[CallChain]](Nil)(calls =>
+            calls.toList match {
+              case Nil => Nil
+              case calls if calls.exists(call => path.contains(call)) =>
+                List(path ++ calls.find(call => path.contains(call)))
+              case calls => calls.foldLeft[List[CallChain]](Nil) {
+                  (acc, call) =>
+                    acc ++ findCyclesRec(call, path ++ List(call))
+                }
+            }
+          )
+      }
+
+      cg.foldLeft[List[CallChain]](Nil) { case (acc, (start, _)) =>
+        acc ++
+          findCyclesRec(start, List(start))
+      // .filterNot(newChain => acc.exists(cc => newChain isShiftOf cc))
+      }
+    }
+
     def containsCycles: Boolean = {
 
       def traversalFrom(
         start: MethodName,
-        path: List[MethodName]
+        path: CallChain
       ): Boolean = {
         cg
           .get(start)
@@ -68,7 +107,7 @@ object CallGraph {
 
       cg.keys
         .foldLeft(false)((acc, start) =>
-          acc || traversalFrom(start, start :: Nil)
+          acc || traversalFrom(start, List(start))
         )
     }
 
@@ -95,6 +134,9 @@ class CallGraphTests extends AnyWordSpec {
 
   import CallGraph._
   import MethodName._
+
+  val cc1: CallChain = List("a" % "s", "a" % "b", "a" % "d")
+  val cc2: CallChain = List("a" % "b", "a" % "d", "a" % "s")
 
   val exampleCgBefore: CallGraph = Map(
     "a" % "s" -> Set("a" % "b"),
@@ -136,6 +178,44 @@ class CallGraphTests extends AnyWordSpec {
           exampleCgExtends.extendWith(exampleCgBefore)
       )
 
+    }
+    "correctly find cycles" in {
+      val cycles: Set[CallChain] = Set(
+        List(
+          MethodName(ObjectName(None, "a"), "s"),
+          MethodName(ObjectName(None, "a"), "b"),
+          MethodName(ObjectName(None, "a"), "d"),
+          MethodName(ObjectName(None, "a"), "s")
+        ),
+        List(
+          MethodName(ObjectName(None, "a"), "b"),
+          MethodName(ObjectName(None, "a"), "d"),
+          MethodName(ObjectName(None, "a"), "s"),
+          MethodName(ObjectName(None, "a"), "b")
+        ),
+        List(
+          MethodName(ObjectName(None, "a"), "c"),
+          MethodName(ObjectName(None, "a"), "b"),
+          MethodName(ObjectName(None, "a"), "d"),
+          MethodName(ObjectName(None, "a"), "s"),
+          MethodName(ObjectName(None, "a"), "b")
+        ),
+        List(
+          MethodName(ObjectName(None, "a"), "d"),
+          MethodName(ObjectName(None, "a"), "s"),
+          MethodName(ObjectName(None, "a"), "b"),
+          MethodName(ObjectName(None, "a"), "d")
+        )
+      )
+
+      assert(exampleCgBefore.findCycles.toSet == cycles)
+    }
+  }
+
+  "call chain" should {
+    "be shift-equivalent" in {
+      assert(cc1 isShiftOf cc2)
+      assert(cc2 isShiftOf cc1)
     }
   }
 
