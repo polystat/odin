@@ -1,0 +1,78 @@
+
+# f.t -> o.y -> f.t
+# o.y -> f.t -> o.y
+# f.j -> o.y -> f.t -> o.y
+
+[] > v
+  [self] > y
+    self > @
+[] > q
+  [self] > o
+    self.f self > @
+  [self] > f
+    self.j self > @
+  [self] > j
+    self > @
+  [self] > a
+    self > @
+[] > x
+  q > @
+  [self] > o
+    self > @
+  [self] > f
+    self.j self > @
+  [self] > j
+    self > @
+  [self] > a
+    self > @
+  [self] > l
+    self.a self > @
+[] > j
+  [self] > u
+    self.p self > @
+  [self] > p
+    self > @
+[] > s
+  x > @
+  [self] > j
+    self.l self > @
+  [self] > s
+    self.f self > @
+  [self] > g
+    self.l self > @
+[] > r
+  s > @
+  [self] > o
+    self.g self > @
+  [self] > z
+    self.g self > @
+  [self] > l
+    self > @
+  [self] > h
+    self > @
+  [self] > f
+    self.g self > @
+[] > m
+  j > @
+  [self] > e
+    self > @
+  [self] > u
+    self.e self > @
+  [self] > p
+    self > @
+[] > i
+  s > @
+  [self] > l
+    self.j self > @
+  [self] > f
+    self.j self > @
+  [self] > u
+    self.j self > @
+  [self] > o
+    self.j self > @
+  [self] > s
+    self.j self > @
+  [self] > g
+    self > @
+  [self] > a
+    self.j self > @

@@ -1,0 +1,57 @@
+
+# a.z -> j.b -> a.z
+# j.b -> a.z -> j.b
+# p.o -> a.z -> p.b -> a.z
+# p.q -> p.o -> a.z -> p.b -> a.z
+# p.b -> a.z -> p.b
+# a.z -> p.b -> a.z
+
+[] > h
+  [self] > l
+    self > @
+  [self] > r
+    self.l self > @
+[] > g
+  h > @
+  [self] > d
+    self.r self > @
+  [self] > p
+    self > @
+  [self] > l
+    self.r self > @
+[] > r
+  h > @
+  [self] > h
+    self > @
+  [self] > l
+    self.r self > @
+  [self] > r
+    self.h self > @
+[] > c
+  [self] > w
+    self.q self > @
+  [self] > q
+    self > @
+[] > o
+  [self] > g
+    self > @
+[] > w
+  [self] > b
+    self > @
+  [self] > v
+    self > @
+  [self] > i
+    self > @
+[] > k
+  [self] > q
+    self > @
+  [self] > i
+    self > @
+[] > f
+  r > @
+  [self] > l
+    self > @
+  [self] > p
+    self.h self > @
+  [self] > o
+    self > @
