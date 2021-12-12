@@ -21,6 +21,8 @@ object CallGraph {
         .contains(cc)
     }
 
+    def show: String = cc.map(_.show).mkString(" -> ")
+
   }
 
   implicit val showForCallGraph: Show[CallGraph] = new Show[CallGraph] {
@@ -33,6 +35,10 @@ object CallGraph {
   }
 
   implicit final class CallGraphOps(cg: CallGraph) {
+
+    def containsMethodWithName(name: String): Boolean = {
+      cg.keySet.map(_.name).contains(name)
+    }
 
     def extendWith(other: CallGraph): CallGraph = {
 
@@ -84,6 +90,20 @@ object CallGraph {
           findCyclesRec(start, List(start))
       // .filterNot(newChain => acc.exists(cc => newChain isShiftOf cc))
       }
+    }
+
+    def containsMultiObjectCycles: Boolean = {
+      cg
+        .findCycles
+        .map(cc => cc.map(_.whereDefined).toSet.size)
+        .exists(_ > 1)
+    }
+
+    def containsSingleObjectCycles: Boolean = {
+      cg
+        .findCycles
+        .map(cc => cc.map(_.whereDefined).toSet.size)
+        .contains(1)
     }
 
     def containsCycles: Boolean = {

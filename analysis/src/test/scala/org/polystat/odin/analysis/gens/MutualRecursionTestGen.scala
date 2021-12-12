@@ -2,18 +2,27 @@ package org.polystat.odin.analysis.gens
 
 import cats.syntax.show._
 import CallGraph._
+import cats.effect.IO
+import cats.effect.kernel.Sync
+import cats.effect.unsafe.implicits.global
+import fs2.io.file.{Files, Path}
 import org.scalacheck.Gen
+import fs2.Stream
+import fs2.text.utf8
+import cats.syntax.flatMap._
 
 import scala.util.Try
 
 object MutualRecursionTestGen {
 
-  def genTopLvlObjectName(p: Program): Gen[ObjectName] =
+  // TODO: allow this to generate programs with more than 26 objects
+  def genTopLvlObjectName(p: Program): Gen[ObjectName] = {
     Gen
       .listOfN(1, Gen.alphaLowerChar)
       .map(_.mkString)
       .retryUntil(!p.containsObjectWithName(_))
       .map(ObjectName(None, _))
+  }
 
   def between[T](min: Int, max: Int, g: Gen[T]): Gen[List[T]] =
     for {
@@ -60,11 +69,15 @@ object MutualRecursionTestGen {
 
   def genExtendTopLvlObj(obj: Object, p: Program): Gen[Object] = for {
     // name for new object
-    name <- genTopLvlObjectName(p)
+    objName <- genTopLvlObjectName(p)
 
     // new method definitions
     newMethodNames <-
-      between(1, 2, genMethodName).map(_.map(MethodName(name, _)))
+      between(1, 2, genMethodName)
+        .retryUntil(names =>
+          names.forall(n => !obj.callGraph.containsMethodWithName(n))
+        )
+        .map(_.map(MethodName(objName, _)))
 
     // redefined methods, e.g. methods with the same name as those from the
     // parent object
@@ -76,14 +89,14 @@ object MutualRecursionTestGen {
     methodNamesToDefine = newMethodNames ++ redefinedMethodNames.map(method =>
       // replacing the object part of the method name with the new object
       // so, method 'a.s' becomes 'name.s'
-      MethodName(name, method.name)
+      MethodName(objName, method.name)
     )
 
     // new methods may call any other method, both new and old
     methodNamesToCall = methodNamesToDefine ++ otherMethodNames
     callGraph <- genCallGraph(methodNamesToDefine, methodNamesToCall)
 
-  } yield obj.extended(name, callGraph)
+  } yield obj.extended(objName, callGraph)
 
   def genTopLvlObj(p: Program): Gen[Object] =
     for {
@@ -107,15 +120,18 @@ object MutualRecursionTestGen {
       program <- (1 until size).foldLeft(init) { case (acc, _) =>
         for {
           extend <- Gen.frequency(
-            (3, true),
+            (1, true),
             (1, false)
           )
           prog <- acc.flatMap(p =>
             (
               if (extend)
-                Gen.oneOf(p.objs).flatMap(genExtendTopLvlObj(_, p))
+                Gen
+                  .oneOf(p.objs)
+                  .flatMap(genExtendTopLvlObj(_, p))
+                  .retryUntil(obj => !obj.callGraph.containsSingleObjectCycles)
               else
-                genTopLvlObj(p)
+                genTopLvlObj(p).retryUntil(obj => !obj.callGraph.containsCycles)
             ).map(newObj => Program(p.objs ++ List(newObj)))
           )
         } yield prog
@@ -123,12 +139,68 @@ object MutualRecursionTestGen {
 
     } yield program
 
+  def generateProgramFiles[F[_]: Files: Sync](
+    n: Int,
+    dir: Path,
+    programGen: Gen[String]
+  ): Stream[F, Unit] =
+    Stream
+      .range(1, n + 1)
+      .evalMap(i =>
+        Stream
+          .eval(retryUntilComplete(programGen))
+          .map(p => p.show)
+          .through(utf8.encode)
+          .through(
+            Files[F].writeAll(dir.resolve(s"$i.eo"))
+          )
+          .compile
+          .drain
+      )
+
+  def retryUntilComplete[F[_]: Sync, T](g: Gen[T]): F[T] =
+    Sync[F]
+      .attempt(
+        Sync[F].delay(g.sample.get)
+      )
+      .flatMap {
+        case Left(_) => retryUntilComplete(g)
+        case Right(value) => Sync[F].pure(value)
+      }
+
+  def generateProgramFile(size: Int): Gen[String] = {
+    val prog = genProgram(size)
+      .retryUntil(p => p.objs.exists(_.callGraph.containsMultiObjectCycles))
+
+    val cycles = prog
+      .map(p =>
+        p.objs
+          .flatMap(_.callGraph.findCycles.map(cc => "# " + cc.show))
+          .mkString("\n")
+      )
+
+    cycles.flatMap(cycles =>
+      prog
+        .map(p => p.objs.map(_.show).mkString("\n"))
+        .map(body => s"""
+                        |$cycles
+                        |
+                        |$body
+                        |""".stripMargin)
+    )
+
+  }
+
   def main(args: Array[String]): Unit = {
-    genProgram(2)
-      .sample
-      .tapEach(p => println(p.objs.map(_.show).mkString("\n")))
-      .map(_.objs.flatMap(_.callGraph.findCycles).mkString("\n"))
-      .foreach(println)
+    generateProgramFile(10).sample.foreach(println)
+    generateProgramFiles[IO](
+      20,
+      Path("analysis/src/test/resources/mutualrec/generated"),
+      generateProgramFile(Gen.choose(2, 8).sample.get)
+    ).compile.drain.unsafeRunSync()
+    //    println(
+    // retryUntilComplete[IO, String](generateProgramFile(27)).unsafeRunSync()
+    //    )
   }
 
 }
