@@ -39,7 +39,7 @@ object files {
         )
     )
 
-  def readCodeFromResources[F[_]: Sync: Files](
+  def readEoCodeFromResources[F[_]: Sync: Files](
     dir: String
   ): F[List[(String, String)]] =
     files

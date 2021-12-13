@@ -40,7 +40,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
     "manual tests" should {
       (for {
         files <-
-          files.readCodeFromResources[IO](
+          files.readEoCodeFromResources[IO](
             "/mutualrec"
           )
       } yield files.foreach { case (name, code) =>
