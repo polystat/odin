@@ -1,6 +1,5 @@
 package org.polystat.odin.analysis.gens
 
-import cats.syntax.show._
 import CallGraph._
 import cats.effect.IO
 import cats.effect.kernel.Sync
@@ -149,7 +148,6 @@ object MutualRecursionTestGen {
       .evalMap(i =>
         Stream
           .eval(retryUntilComplete(programGen))
-          .map(p => p.show)
           .through(utf8.encode)
           .through(
             Files[F].writeAll(dir.resolve(s"$i.eo"))
@@ -178,7 +176,7 @@ object MutualRecursionTestGen {
         .flatMap(_.callGraph.findCycles.map(cc => "# " + cc.show))
         .mkString("\n")
 
-      progText = prog.objs.map(_.show).mkString("\n")
+      progText = prog.objs.map(_.toEO).mkString("\n")
 
     } yield s"""
                |$cycles
@@ -189,7 +187,7 @@ object MutualRecursionTestGen {
   def main(args: Array[String]): Unit = {
     generateProgramFile(10).sample.foreach(println)
     generateProgramFiles[IO](
-      300,
+      20,
       Path("analysis/src/test/resources/mutualrec/generated"),
       generateProgramFile(Gen.choose(2, 8).sample.get)
     ).compile.drain.unsafeRunSync()

@@ -1,8 +1,5 @@
 package org.polystat.odin.analysis.gens
 
-import cats.Show
-import cats.syntax.show._
-
 import scala.annotation.tailrec
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -25,16 +22,13 @@ object CallGraph {
 
   }
 
-  implicit val showForCallGraph: Show[CallGraph] = new Show[CallGraph] {
-
-    override def show(g: CallGraph): String =
-      g.foldLeft(List.empty[String]) { case (acc, (m, calls)) =>
-        s"${m.show} -> ${calls.map(_.show).mkString(", ")}" :: acc
-      }.mkString("\n")
-
-  }
-
   implicit final class CallGraphOps(cg: CallGraph) {
+
+    def toEO: String = cg
+      .foldLeft(List.empty[String]) { case (acc, (m, calls)) =>
+        s"${m.show} -> ${calls.map(_.show).mkString(", ")}" :: acc
+      }
+      .mkString("\n")
 
     def containsMethodWithName(name: String): Boolean = {
       cg.keySet.map(_.name).contains(name)
