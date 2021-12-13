@@ -46,7 +46,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
       } yield files.foreach { case (name, code) =>
         registerTest(name) {
           val producedErrors = odinErrors(code)
-          print(producedErrors)
+          println(producedErrors)
           assert(producedErrors.nonEmpty)
         }
       }).unsafeRunSync()

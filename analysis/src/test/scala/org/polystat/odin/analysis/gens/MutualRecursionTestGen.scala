@@ -168,33 +168,28 @@ object MutualRecursionTestGen {
         case Right(value) => Sync[F].pure(value)
       }
 
-  def generateProgramFile(size: Int): Gen[String] = {
-    val prog = genProgram(size)
-      .retryUntil(p => p.objs.exists(_.callGraph.containsMultiObjectCycles))
+  def generateProgramFile(size: Int): Gen[String] =
+    for {
+      prog <- genProgram(size)
+        .retryUntil(p => p.objs.exists(_.callGraph.containsMultiObjectCycles))
 
-    val cycles = prog
-      .map(p =>
-        p.objs
-          .flatMap(_.callGraph.findCycles.map(cc => "# " + cc.show))
-          .mkString("\n")
-      )
+      cycles = prog
+        .objs
+        .flatMap(_.callGraph.findCycles.map(cc => "# " + cc.show))
+        .mkString("\n")
 
-    cycles.flatMap(cycles =>
-      prog
-        .map(p => p.objs.map(_.show).mkString("\n"))
-        .map(body => s"""
-                        |$cycles
-                        |
-                        |$body
-                        |""".stripMargin)
-    )
+      progText = prog.objs.map(_.show).mkString("\n")
 
-  }
+    } yield s"""
+               |$cycles
+               |
+               |$progText
+               |""".stripMargin
 
   def main(args: Array[String]): Unit = {
     generateProgramFile(10).sample.foreach(println)
     generateProgramFiles[IO](
-      20,
+      300,
       Path("analysis/src/test/resources/mutualrec/generated"),
       generateProgramFile(Gen.choose(2, 8).sample.get)
     ).compile.drain.unsafeRunSync()
