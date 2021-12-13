@@ -48,6 +48,26 @@ case class Object(
 
   }
 
+  def toCPP: String = {
+    val renderMethod: CallGraphEntry => String = { case (name, calls) =>
+      s"""  virtual void ${name.name}(){${calls
+        .map(call => s"${call.name}();")
+        .mkString("\n")}};""".stripMargin
+    }
+
+    s"""
+       |class ${name.name.toUpperCase()} ${ext
+      .fold("")(ext => s": public ${ext.name.name.toUpperCase()}")}{
+       |  public:
+       |  ${callGraph
+      .filter { case (method, _) =>
+        method.whereDefined.name == name.name
+      }
+      .map(renderMethod)
+      .mkString("\n  ")}
+       |};""".stripMargin
+  }
+
 }
 
 case class ObjectName(parent: Option[ObjectName], name: String) {

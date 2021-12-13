@@ -1,81 +1,31 @@
 
-# f.c -> d.h -> f.f -> f.c
-# f.f -> f.c -> d.h -> f.f
-# d.h -> f.f -> f.c -> d.h
-# f.f -> f.c -> d.h -> f.f
-# s.g -> d.h -> f.f -> f.c -> d.h
-# f.c -> d.h -> f.f -> f.c
-# d.h -> f.f -> f.c -> d.h
-# s.t -> f.f -> f.c -> d.h -> f.f
-# f.f -> k.c -> d.h -> f.f
-# k.c -> d.h -> f.f -> k.c
-# d.h -> f.f -> k.c -> d.h
-# k.t -> d.h -> f.f -> k.c -> d.h
-# s.g -> d.h -> f.f -> k.c -> d.h
+# g.y -> d.i -> g.y
+# d.i -> g.y -> d.i
 
-[] > f
-  [self] > h
+[] > g
+  [self] > n
     self > @
-  [self] > c
-    self.h self > @
-  [self] > f
-    self.c self > @
-[] > d
-  f > @
-  [self] > t
-    self > @
-  [self] > h
-    self.f self > @
-[] > s
-  d > @
-  [self] > g
-    self.h self > @
-  [self] > t
-    self.f self > @
-[] > k
-  s > @
+  [self] > y
+    self.i self > @
+  [self] > k
+    self.n self > @
+  [self] > i
+    self.n self > @
+[] > u
+  g > @
   [self] > k
     self > @
-  [self] > z
+  [self] > w
     self > @
-  [self] > c
-    self.h self > @
-  [self] > t
-    self.h self > @
-[] > c
-  f > @
-  [self] > e
-    self.h self > @
-  [self] > r
-    self > @
-  [self] > f
-    self > @
-[] > v
+[] > d
+  g > @
   [self] > u
     self > @
-  [self] > l
+  [self] > k
+    self.n self > @
+  [self] > n
     self > @
-  [self] > p
-    self.u self > @
-[] > m
-  c > @
-  [self] > h
-    self > @
-  [self] > f
-    self.r self > @
-  [self] > c
-    self.r self > @
-  [self] > v
-    self.f self > @
-  [self] > e
-    self > @
-  [self] > z
-    self > @
-  [self] > r
-    self > @
-[] > w
-  c > @
-  [self] > f
-    self > @
-  [self] > g
+  [self] > i
+    self.y self > @
+  [self] > q
     self > @

@@ -141,17 +141,29 @@ object MutualRecursionTestGen {
   def generateProgramFiles[F[_]: Files: Sync](
     n: Int,
     dir: Path,
-    programGen: Gen[String]
+    programGen: Gen[Program],
+    converters: List[(Program => String, String)]
   ): Stream[F, Unit] =
     Stream
       .range(1, n + 1)
       .evalMap(i =>
         Stream
           .eval(retryUntilComplete(programGen))
-          .through(utf8.encode)
-          .through(
-            Files[F].writeAll(dir.resolve(s"$i.eo"))
-          )
+          .flatMap(prog => {
+            Stream
+              .emits(converters)
+              .evalMap { case (convert, ext) =>
+                Stream
+                  .emit(prog)
+                  .map(convert)
+                  .through(utf8.encode)
+                  .through(
+                    Files[F].writeAll(dir.resolve(s"$i.$ext"))
+                  )
+                  .compile
+                  .drain
+              }
+          })
           .compile
           .drain
       )
@@ -166,34 +178,41 @@ object MutualRecursionTestGen {
         case Right(value) => Sync[F].pure(value)
       }
 
-  def generateProgramFile(size: Int): Gen[String] =
-    for {
-      prog <- genProgram(size)
-        .retryUntil(p => p.objs.exists(_.callGraph.containsMultiObjectCycles))
+  def textFromProgram(
+    prog: Program,
+    commentMarker: String,
+    display: Object => String
+  ): String = {
+    val cycles = prog
+      .objs
+      .flatMap(_.callGraph.findCycles.map(cc => commentMarker + cc.show))
+      .mkString("\n")
 
-      cycles = prog
-        .objs
-        .flatMap(_.callGraph.findCycles.map(cc => "# " + cc.show))
-        .mkString("\n")
+    val progText = prog.objs.map(display).mkString("\n")
 
-      progText = prog.objs.map(_.toEO).mkString("\n")
+    s"""
+       |$cycles
+       |
+       |$progText
+       |""".stripMargin
 
-    } yield s"""
-               |$cycles
-               |
-               |$progText
-               |""".stripMargin
+  }
 
   def main(args: Array[String]): Unit = {
-    generateProgramFile(10).sample.foreach(println)
     generateProgramFiles[IO](
-      20,
-      Path("analysis/src/test/resources/mutualrec/generated"),
-      generateProgramFile(Gen.choose(2, 8).sample.get)
-    ).compile.drain.unsafeRunSync()
-    //    println(
-    // retryUntilComplete[IO, String](generateProgramFile(27)).unsafeRunSync()
-    //    )
+      n = 20,
+      dir = Path("analysis/src/test/resources/mutualrec/generated"),
+      programGen = genProgram(3).retryUntil(p =>
+        p.objs.exists(_.callGraph.containsMultiObjectCycles)
+      ),
+      converters = List(
+        (p => textFromProgram(p, "# ", _.toEO), "eo"),
+        (p => textFromProgram(p, "// ", _.toCPP), "cpp"),
+      )
+    )
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
 }
