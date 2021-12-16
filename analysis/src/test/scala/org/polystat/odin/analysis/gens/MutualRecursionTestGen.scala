@@ -144,29 +144,19 @@ object MutualRecursionTestGen {
     programGen: Gen[Program],
     converters: List[(Program => String, String)]
   ): Stream[F, Unit] =
-    Stream
-      .range(1, n + 1)
-      .evalMap(i =>
-        Stream
-          .eval(retryUntilComplete(programGen))
-          .flatMap(prog => {
-            Stream
-              .emits(converters)
-              .evalMap { case (convert, ext) =>
-                Stream
-                  .emit(prog)
-                  .map(convert)
-                  .through(utf8.encode)
-                  .through(
-                    Files[F].writeAll(dir.resolve(s"$i.$ext"))
-                  )
-                  .compile
-                  .drain
-              }
-          })
-          .compile
-          .drain
-      )
+    for {
+      i <- Stream.range(1, n + 1)
+      prog <- Stream.eval(retryUntilComplete(programGen))
+      (convert, ext) <- Stream.emits(converters)
+      _ <- Stream
+        .emit(prog)
+        .map(convert)
+        .through(utf8.encode)
+        .through(
+          Files[F].writeAll(dir.resolve(s"$i.$ext"))
+        )
+        .as(())
+    } yield ()
 
   def retryUntilComplete[F[_]: Sync, T](g: Gen[T]): F[T] =
     Sync[F]
