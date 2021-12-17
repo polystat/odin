@@ -100,6 +100,7 @@ object MutualRecursionTestGen {
   def genObject(p: Program): Gen[Object] =
     for {
       objectName <- genObjectName(p)
+      nestedObjects <- between(0, 2, genObject(Program(Nil)))
       methods <-
         between(1, 4, genMethodName)
           .map(_.map(MethodName(objectName, _)))
@@ -107,7 +108,7 @@ object MutualRecursionTestGen {
     } yield Object(
       name = objectName,
       ext = None,
-      nestedObjs = List(),
+      nestedObjs = nestedObjects,
       callGraph = cg,
     )
 
