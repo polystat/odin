@@ -15,6 +15,7 @@ case class Program(objs: List[Object]) {
 case class Object(
   name: ObjectName, // full object name
   ext: Option[Object], // the object extended by this object
+  nestedObjs: List[Object], // the objects inside this object
   callGraph: CallGraph, // the call graph for methods of this object
 ) {
 
@@ -25,6 +26,7 @@ case class Object(
     Object(
       name = name,
       ext = Some(this.copy()),
+      nestedObjs = List(),
       callGraph = callGraph.extendWith(cg),
     )
 

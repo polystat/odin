@@ -107,6 +107,7 @@ object MutualRecursionTestGen {
     } yield Object(
       name = objectName,
       ext = None,
+      nestedObjs = List(),
       callGraph = cg,
     )
 
