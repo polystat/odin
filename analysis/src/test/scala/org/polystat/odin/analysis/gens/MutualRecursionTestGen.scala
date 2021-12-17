@@ -15,7 +15,7 @@ import scala.util.Try
 object MutualRecursionTestGen {
 
   // TODO: allow this to generate programs with more than 26 objects
-  def genTopLvlObjectName(p: Program): Gen[ObjectName] = {
+  def genObjectName(p: Program): Gen[ObjectName] = {
     Gen
       .listOfN(1, Gen.alphaLowerChar)
       .map(_.mkString)
@@ -66,9 +66,9 @@ object MutualRecursionTestGen {
     } yield calls
   }
 
-  def genExtendTopLvlObj(obj: Object, p: Program): Gen[Object] = for {
+  def genExtendObject(obj: Object, p: Program): Gen[Object] = for {
     // name for new object
-    objName <- genTopLvlObjectName(p)
+    objName <- genObjectName(p)
 
     // new method definitions
     newMethodNames <-
@@ -97,9 +97,9 @@ object MutualRecursionTestGen {
 
   } yield obj.extended(objName, callGraph)
 
-  def genTopLvlObj(p: Program): Gen[Object] =
+  def genObject(p: Program): Gen[Object] =
     for {
-      objectName <- genTopLvlObjectName(p)
+      objectName <- genObjectName(p)
       methods <-
         between(1, 4, genMethodName)
           .map(_.map(MethodName(objectName, _)))
@@ -113,9 +113,8 @@ object MutualRecursionTestGen {
 
   def genProgram(size: Int): Gen[Program] =
     for {
-      initObj <- genTopLvlObj(Program(Nil)).retryUntil(obj =>
-        !obj.callGraph.containsCycles
-      )
+      initObj <-
+        genObject(Program(Nil)).retryUntil(obj => !obj.callGraph.containsCycles)
       init = Gen.const(Program(List(initObj)))
       program <- (1 until size).foldLeft(init) { case (acc, _) =>
         for {
@@ -128,10 +127,10 @@ object MutualRecursionTestGen {
               if (extend)
                 Gen
                   .oneOf(p.objs)
-                  .flatMap(genExtendTopLvlObj(_, p))
+                  .flatMap(genExtendObject(_, p))
                   .retryUntil(obj => !obj.callGraph.containsSingleObjectCycles)
               else
-                genTopLvlObj(p).retryUntil(obj => !obj.callGraph.containsCycles)
+                genObject(p).retryUntil(obj => !obj.callGraph.containsCycles)
             ).map(newObj => Program(p.objs ++ List(newObj)))
           )
         } yield prog
