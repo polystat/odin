@@ -31,23 +31,38 @@ case class Object(
     )
 
   def toEO: String = {
-    val renderMethod: CallGraphEntry => String = { case (name, calls) =>
-      s"""[self] > ${name.name}
-         |    ${if (calls.nonEmpty)
-        calls
-          .map(call => s"self.${call.name} self > @")
-          .mkString("\n    ")
-      else
-        "self > @"}""".stripMargin
-    }
-    s"""[] > ${name.name}
-       |  ${ext.fold("")(ext => s"${ext.name.name} > @\n  ")}${callGraph
-      .filter { case (method, _) =>
-        method.whereDefined.name == name.name
+    def renderMethod(depth: Int)(cg: CallGraphEntry): String = {
+      val spaces = "  " * depth
+      cg match {
+        case (name, calls) =>
+          s"""$spaces[self] > ${name.name}
+             |  $spaces${if (calls.nonEmpty)
+            calls
+              .map(call => s"self.${call.name} self > @")
+              .mkString(s"\n  $spaces")
+          else
+            "self > @"}""".stripMargin
       }
-      .map(renderMethod)
-      .mkString("\n  ")}""".stripMargin
+    }
 
+    def helper(obj: Object, depth: Int): String = {
+      val spaces = "  " * (depth + 1)
+      s"""[] > ${obj.name.name}
+         |${obj.ext.fold("")(ext => s"${ext.name.name} > @\n  ")}${obj
+        .callGraph
+        .filter { case (method, _) =>
+          method.whereDefined.name == obj.name.name
+        }
+        .map(renderMethod(depth + 1))
+        .mkString("\n")}
+         |
+         |$spaces${obj
+        .nestedObjs
+        .map(helper(_, depth + 1))
+        .mkString("\n" + spaces)}""".stripMargin
+    }
+
+    helper(this, 0)
   }
 
   def toCPP: String = {
