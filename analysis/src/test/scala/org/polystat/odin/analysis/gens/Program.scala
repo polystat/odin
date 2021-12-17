@@ -74,16 +74,11 @@ case class ObjectName(parent: Option[ObjectName], name: String) {
   def show: String = parent.fold(name)(p => s"${p.show}.$name")
 }
 
-case class MethodName(whereDefined: ObjectName, name: String)
+case class MethodName(whereDefined: ObjectName, name: String) {
+  def show: String = s"${whereDefined.show}.$name"
+}
 
 object MethodName {
-
-  implicit val showForMethodName: Show[MethodName] = new Show[MethodName] {
-
-    override def show(t: MethodName): String =
-      s"${t.whereDefined.show}.${t.name}"
-
-  }
 
   implicit final class MethodNameOps(obj: String) {
 
