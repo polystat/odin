@@ -66,23 +66,45 @@ case class Object(
   }
 
   def toCPP: String = {
-    val renderMethod: CallGraphEntry => String = { case (name, calls) =>
-      s"""  virtual void ${name.name}(){${calls
-        .map(call => s"${call.name}();")
-        .mkString("\n")}};""".stripMargin
+    def renderMethod(depth: Int)(cg: CallGraphEntry): String = {
+      val spaces = "  " * depth
+      cg match {
+        case (name, calls) =>
+          s"${spaces}virtual void ${name.name}(){${calls
+            .map(call => s"${call.name}();")
+            .mkString(s"\n  $spaces")}};"
+      }
     }
 
-    s"""
-       |class ${name.name.toUpperCase()} ${ext
-      .fold("")(ext => s": public ${ext.name.name.toUpperCase()}")}{
-       |  public:
-       |  ${callGraph
-      .filter { case (method, _) =>
-        method.whereDefined.name == name.name
-      }
-      .map(renderMethod)
-      .mkString("\n  ")}
-       |};""".stripMargin
+    def helper(obj: Object, depth: Int): String = {
+      val spaces = "  " * (depth + 1)
+      val class_def = s"""class ${obj.name.name.toUpperCase()} ${obj
+        .ext
+        .fold("")(ext => s": public ${ext.name.name.toUpperCase()}")}"""
+      val class_methods =
+        "  " + obj
+          .callGraph
+          .filter { case (method, _) =>
+            method.whereDefined.name == obj.name.name
+          }
+          .map(renderMethod(depth + 1))
+          .mkString("\n  ")
+      val nested_classes =
+        obj
+          .nestedObjs
+          .map(helper(_, depth + 1))
+          .mkString("\n  " + spaces)
+      val nested_block =
+        if (nested_classes.nonEmpty) spaces + "  " + nested_classes else ""
+      val bracket_balance =
+        if (depth == 0) "" else spaces
+      s"""$class_def{
+         |${spaces}public:
+         |$class_methods${if (nested_classes.nonEmpty) "\n" else ""}
+         |$nested_block$bracket_balance};\n""".stripMargin
+    }
+
+    helper(this, 0)
   }
 
 }
