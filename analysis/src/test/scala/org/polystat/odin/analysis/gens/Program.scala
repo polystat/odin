@@ -49,7 +49,9 @@ case class Object(
     def helper(obj: Object, depth: Int): String = {
       val spaces = "  " * (depth + 1)
       s"""[] > ${obj.name.name}
-         |${obj.ext.fold("")(ext => s"${ext.name.name} > @\n  ")}${obj
+         |${obj
+        .ext
+        .fold("")(ext => s"$spaces${ext.name.name} > @\n")}${obj
         .callGraph
         .filter { case (method, _) =>
           method.whereDefined.name == obj.name.name
