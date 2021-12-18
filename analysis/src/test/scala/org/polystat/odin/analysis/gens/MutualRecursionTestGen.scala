@@ -100,10 +100,18 @@ object MutualRecursionTestGen {
   def genObject(p: Program): Gen[Object] =
     for {
       objectName <- genObjectName(p)
-      tmp <- between(0, 2, genObject(Program(Nil)))
       nestedObjects <- Gen.frequency(
-        1 -> List(),
-        1 -> tmp
+        4 -> Gen.const(List()),
+        1 -> (for {
+          n <- Gen.choose(1, 3)
+          a <- (0 until n).foldLeft[Gen[List[Object]]](Gen.const(List()))(
+            (accGen, _) =>
+              for {
+                acc <- accGen
+                obj <- genObject(Program(acc))
+              } yield acc ++ List(obj)
+          )
+        } yield a)
       )
       methods <-
         between(1, 4, genMethodName)
@@ -146,7 +154,6 @@ object MutualRecursionTestGen {
           )
         } yield prog
       }
-
     } yield program
   }
 
@@ -170,7 +177,7 @@ object MutualRecursionTestGen {
         .as(())
     } yield ()
 
-  def retryUntilComplete[F[_]: Sync, T](g: Gen[T]): F[T] =
+  def retryUntilComplete[F[_]: Sync, T](g: Gen[T]): F[T] = {
     Sync[F]
       .attempt(
         Sync[F].delay(g.sample.get)
@@ -179,6 +186,7 @@ object MutualRecursionTestGen {
         case Left(_) => retryUntilComplete(g)
         case Right(value) => Sync[F].pure(value)
       }
+  }
 
   def textFromProgram(
     prog: Program,
