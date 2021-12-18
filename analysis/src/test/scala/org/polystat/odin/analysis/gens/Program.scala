@@ -9,6 +9,7 @@ case class Program(objs: List[Object]) {
   }
 
   def toEO: String = objs.map(_.toEO).mkString("\n")
+  def toCPP: String = objs.map(_.toCPP).mkString("\n")
 
 }
 
