@@ -100,7 +100,11 @@ object MutualRecursionTestGen {
   def genObject(p: Program): Gen[Object] =
     for {
       objectName <- genObjectName(p)
-      nestedObjects <- between(0, 2, genObject(Program(Nil)))
+      tmp <- between(0, 2, genObject(Program(Nil)))
+      nestedObjects <- Gen.frequency(
+        1 -> List(),
+        1 -> tmp
+      )
       methods <-
         between(1, 4, genMethodName)
           .map(_.map(MethodName(objectName, _)))
@@ -112,7 +116,11 @@ object MutualRecursionTestGen {
       callGraph = cg,
     )
 
-  def genProgram(size: Int): Gen[Program] =
+  def genProgram(size: Int): Gen[Program] = {
+    def get_inner_objs(obj: Object): List[Object] = {
+      obj.nestedObjs.flatMap(get_inner_objs)
+    }
+
     for {
       initObj <-
         genObject(Program(Nil)).retryUntil(obj => !obj.callGraph.containsCycles)
@@ -127,8 +135,10 @@ object MutualRecursionTestGen {
             (
               if (extend)
                 Gen
-                  .oneOf(p.objs)
-                  .flatMap(genExtendObject(_, p))
+                  .oneOf(p.objs ++ p.objs.flatMap(get_inner_objs))
+                  .flatMap(obj =>
+                    genExtendObject(obj, Program(get_inner_objs(obj)))
+                  )
                   .retryUntil(obj => !obj.callGraph.containsSingleObjectCycles)
               else
                 genObject(p).retryUntil(obj => !obj.callGraph.containsCycles)
@@ -138,6 +148,7 @@ object MutualRecursionTestGen {
       }
 
     } yield program
+  }
 
   def generateProgramFiles[F[_]: Files: Sync](
     n: Int,
