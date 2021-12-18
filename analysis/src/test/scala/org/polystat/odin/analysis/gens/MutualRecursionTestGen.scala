@@ -15,12 +15,15 @@ import scala.util.Try
 object MutualRecursionTestGen {
 
   // TODO: allow this to generate programs with more than 26 objects
-  def genObjectName(p: Program): Gen[ObjectName] = {
+  def genObjectName(
+    p: Program,
+    containerObjName: Option[ObjectName]
+  ): Gen[ObjectName] = {
     Gen
       .listOfN(1, Gen.alphaLowerChar)
       .map(_.mkString)
       .retryUntil(!p.containsObjectWithName(_))
-      .map(ObjectName(None, _))
+      .map(ObjectName(containerObjName, _))
   }
 
   def between[T](min: Int, max: Int, g: Gen[T]): Gen[List[T]] =
@@ -66,9 +69,10 @@ object MutualRecursionTestGen {
     } yield calls
   }
 
+  // TODO: add containerObj parameter
   def genExtendObject(obj: Object, p: Program): Gen[Object] = for {
     // name for new object
-    objName <- genObjectName(p)
+    objName <- genObjectName(p, None)
 
     // new method definitions
     newMethodNames <-
@@ -97,9 +101,9 @@ object MutualRecursionTestGen {
 
   } yield obj.extended(objName, callGraph)
 
-  def genObject(p: Program): Gen[Object] =
+  def genObject(p: Program, containerObj: Option[ObjectName]): Gen[Object] =
     for {
-      objectName <- genObjectName(p)
+      objectName <- genObjectName(p, containerObj)
       nestedObjects <- Gen.frequency(
         4 -> Gen.const(List()),
         1 -> (for {
@@ -108,7 +112,7 @@ object MutualRecursionTestGen {
             (accGen, _) =>
               for {
                 acc <- accGen
-                obj <- genObject(Program(acc))
+                obj <- genObject(Program(acc), Some(objectName))
               } yield acc ++ List(obj)
           )
         } yield a)
@@ -131,7 +135,9 @@ object MutualRecursionTestGen {
 
     for {
       initObj <-
-        genObject(Program(Nil)).retryUntil(obj => !obj.callGraph.containsCycles)
+        genObject(Program(Nil), None).retryUntil(obj =>
+          !obj.callGraph.containsCycles
+        )
       init = Gen.const(Program(List(initObj)))
       program <- (1 until size).foldLeft(init) { case (acc, _) =>
         for {
@@ -141,15 +147,18 @@ object MutualRecursionTestGen {
           )
           prog <- acc.flatMap(p =>
             (
-              if (extend)
+              if (extend) {
+                // TODO: account for the nested objects
                 Gen
                   .oneOf(p.objs ++ p.objs.flatMap(get_inner_objs))
                   .flatMap(obj =>
                     genExtendObject(obj, Program(get_inner_objs(obj)))
                   )
                   .retryUntil(obj => !obj.callGraph.containsSingleObjectCycles)
-              else
-                genObject(p).retryUntil(obj => !obj.callGraph.containsCycles)
+              } else
+                genObject(p, None).retryUntil(obj =>
+                  !obj.callGraph.containsCycles
+                )
             ).map(newObj => Program(p.objs ++ List(newObj)))
           )
         } yield prog
