@@ -27,7 +27,7 @@ case class Object(
     Object(
       name = name,
       ext = Some(this.copy()),
-      nestedObjs = List(),
+      nestedObjs = nestedObjs,
       callGraph = callGraph.extendWith(cg),
     )
 
