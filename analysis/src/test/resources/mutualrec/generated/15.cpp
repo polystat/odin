@@ -1,27 +1,47 @@
+// p.s -> p.x -> p.l -> k.u -> p.s
+// p.x -> p.l -> k.u -> p.s -> p.x
+// k.u -> p.s -> p.x -> p.l -> k.u
+// p.l -> k.u -> p.s -> p.x -> p.l
 
-// x.l -> e.a -> x.l
-// e.n -> x.l -> e.a -> x.l
-// e.a -> x.l -> e.a
-// e.a -> x.l -> e.a
-// c.n -> x.l -> e.a -> x.l
-// x.l -> e.a -> x.l
-
-
-class X {
+class K {
   public:
-    virtual void a(){};
-    virtual void l(){a();};
+    virtual void x(){u();};
+    virtual void l(){};
+    virtual void s(){};
+    virtual void u(){s();};
 };
 
-class E : public X{
+class T {
   public:
-    virtual void u(){};
-    virtual void n(){l();};
-    virtual void a(){l();};
+    virtual void z(){};
+    virtual void r(){z();};
+
+    class Z {
+    public:
+      virtual void g(){};
+      virtual void f(){g();};
+    };
+
+    class G {
+    public:
+      virtual void g(){m();};
+      virtual void m(){};
+      virtual void f(){};
+    };
+
+    class U {
+    public:
+      virtual void i(){e();};
+      virtual void a(){i();};
+      virtual void e(){};
+    };
 };
 
-class C : public E{
+class P : public K{
   public:
-    virtual void n(){l();};
-    virtual void v(){};
+    virtual void s(){x();};
+    virtual void x(){l();};
+    virtual void z(){};
+    virtual void l(){u();};
 };
+

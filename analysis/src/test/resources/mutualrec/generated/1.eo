@@ -1,24 +1,35 @@
+# c.x.f -> f.q -> c.x.f
+# f.q -> c.x.f -> f.q
 
-# x.y -> p.c -> x.y
-# p.c -> x.y -> p.c
+[] > c
+  [self] > i
+    self > @
+  [self] > q
+    self.m self > @
+  [self] > j
+    self > @
+  [self] > m
+    self.j self > @
 
-[] > i
-  [self] > b
+  [] > x
+    c > @
+    [self] > f
+      self.q self > @
+    [self] > i
+      self.j self > @
+
+    
+[] > f
+  c.x > @
+  [self] > j
     self > @
-  [self] > y
+  [self] > h
+    self.j self > @
+  [self] > q
+    self.f self > @
+  [self] > i
     self > @
-  [self] > k
-    self > @
-[] > x
-  [self] > y
-    self.c self > @
-  [self] > c
-    self > @
-[] > p
-  x > @
-  [self] > w
-    self > @
-  [self] > o
-    self > @
-  [self] > c
-    self.y self > @
+  [self] > s
+    self.m self > @
+
+  

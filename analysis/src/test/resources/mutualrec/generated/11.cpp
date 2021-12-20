@@ -1,26 +1,27 @@
+// t.r -> r.o -> t.y -> r.o
+// r.e -> t.y -> r.o -> t.y
+// t.y -> r.o -> t.y
+// r.o -> t.y -> r.o
 
-// o.x -> z.q -> o.x
-// z.q -> o.x -> z.q
-
-
-class O {
+class B {
   public:
-    virtual void q(){};
-    virtual void c(){};
-    virtual void y(){x();};
-    virtual void x(){q();};
+    virtual void d(){o();};
+    virtual void o(){};
 };
 
-class Z : public O{
+class R : public B{
   public:
-    virtual void c(){};
-    virtual void g(){};
     virtual void y(){};
-    virtual void q(){x();};
+    virtual void e(){y();};
+    virtual void d(){};
+    virtual void o(){y();};
 };
 
-class Q : public O{
+class T : public R{
   public:
-    virtual void s(){};
-    virtual void q(){};
+    virtual void w(){};
+    virtual void r(){o();};
+    virtual void d(){};
+    virtual void y(){o();};
 };
+

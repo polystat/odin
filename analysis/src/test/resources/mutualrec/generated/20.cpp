@@ -1,22 +1,25 @@
-
-// a.u -> h.w -> a.u
-// h.w -> a.u -> h.w
-
+// q.d -> q.c -> a.r -> q.e -> q.d
+// q.e -> q.d -> q.c -> a.r -> q.e
+// q.c -> a.r -> q.e -> q.d -> q.c
+// a.r -> q.e -> q.d -> q.c -> a.r
 
 class A {
   public:
-    virtual void u(){w();};
-    virtual void w(){};
+    virtual void r(){e();};
+    virtual void c(){};
+    virtual void e(){};
+
+    class A {
+    public:
+      virtual void a(){};
+    };
 };
 
-class O : public A{
+class Q : public A{
   public:
-    virtual void v(){};
-    virtual void u(){};
+    virtual void d(){c();};
+    virtual void e(){d();};
+    virtual void i(){};
+    virtual void c(){r();};
 };
 
-class H : public A{
-  public:
-    virtual void o(){};
-    virtual void w(){u();};
-};

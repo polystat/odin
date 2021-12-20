@@ -1,28 +1,22 @@
+// w.u.w -> n.p -> w.u.w
+// n.p -> w.u.w -> n.p
 
-// d.u -> d.k -> m.j -> m.s -> d.u
-// d.k -> m.j -> m.s -> d.u -> d.k
-// m.j -> m.s -> d.u -> d.k -> m.j
-// m.s -> d.u -> d.k -> m.j -> m.s
-
-
-class M {
+class W {
   public:
-    virtual void j(){s();};
-    virtual void s(){u();};
-    virtual void l(){};
-    virtual void u(){};
-};
-
-class D : public M{
-  public:
-    virtual void u(){k();};
-    virtual void k(){j();};
-    virtual void l(){};
-};
-
-class F {
-  public:
-    virtual void w(){j();};
+    virtual void w(){i();};
     virtual void c(){};
-    virtual void j(){};
+    virtual void i(){};
+
+    class U {
+    public:
+      virtual void w(){p();};
+      virtual void p(){};
+    };
 };
+
+class N : public W::U{
+  public:
+    virtual void i(){};
+    virtual void p(){w();};
+};
+

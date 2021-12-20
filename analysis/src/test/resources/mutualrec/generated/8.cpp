@@ -1,27 +1,25 @@
+// s.v -> u.e -> s.v
+// s.m -> s.v -> u.e -> s.v
+// u.e -> s.v -> u.e
 
-// g.y -> d.i -> g.y
-// d.i -> g.y -> d.i
-
-
-class G {
+class U {
   public:
-    virtual void n(){};
-    virtual void y(){i();};
-    virtual void k(){n();};
-    virtual void i(){n();};
-};
-
-class U : public G{
-  public:
-    virtual void k(){};
-    virtual void w(){};
-};
-
-class D : public G{
-  public:
+    virtual void e(){v();};
+    virtual void v(){m();};
     virtual void u(){};
-    virtual void k(){n();};
-    virtual void n(){};
-    virtual void i(){y();};
-    virtual void q(){};
+    virtual void m(){};
 };
+
+class S : public U{
+  public:
+    virtual void j(){};
+    virtual void v(){e();};
+    virtual void m(){v();};
+};
+
+class O {
+  public:
+    virtual void a(){};
+    virtual void p(){};
+};
+

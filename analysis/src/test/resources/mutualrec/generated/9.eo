@@ -1,31 +1,19 @@
+# m.m -> b.f -> b.i -> m.m
+# b.i -> m.m -> b.f -> b.i
+# b.f -> b.i -> m.m -> b.f
 
-# l.m -> w.p -> w.f -> l.m
-# w.f -> l.m -> w.p -> w.f
-# w.p -> w.f -> l.m -> w.p
-# w.y -> l.m -> w.p -> w.f -> l.m
-
-[] > l
-  [self] > p
-    self > @
+[] > m
   [self] > m
-    self.p self > @
-  [self] > y
-    self > @
-[] > o
-  l > @
-  [self] > h
-    self > @
-  [self] > m
-    self > @
-  [self] > y
-    self > @
-  [self] > k
-    self.y self > @
-[] > w
-  l > @
-  [self] > f
-    self.m self > @
-  [self] > p
     self.f self > @
-  [self] > y
+  [self] > f
+    self > @
+
+  
+[] > b
+  m > @
+  [self] > i
     self.m self > @
+  [self] > f
+    self.i self > @
+
+  

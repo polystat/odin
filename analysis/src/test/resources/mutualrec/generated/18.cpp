@@ -1,28 +1,31 @@
+// g.l -> g.u -> g.j -> g.y -> l.n -> g.y
+// l.n -> g.y -> l.n
+// g.u -> g.j -> g.y -> l.n -> g.y
+// g.y -> l.n -> g.y
+// g.j -> g.y -> l.n -> g.y
+// n.n -> g.y -> n.n
+// g.y -> n.n -> g.y
 
-// c.m -> x.d -> c.y -> c.f -> x.d
-// c.y -> c.f -> x.d -> c.y
-// x.d -> c.y -> c.f -> x.d
-// c.f -> x.d -> c.y -> c.f
-
-
-class X {
+class L {
   public:
-    virtual void f(){y();};
-    virtual void d(){y();};
+    virtual void n(){y();};
+    virtual void j(){y();};
     virtual void y(){};
 };
 
-class U : public X{
+class G : public L{
   public:
-    virtual void n(){f();};
-    virtual void d(){c();};
-    virtual void c(){};
+    virtual void l(){u();};
+    virtual void u(){j();};
+    virtual void y(){n();};
+    virtual void j(){y();};
 };
 
-class C : public X{
+class N : public G{
   public:
-    virtual void m(){d();};
-    virtual void o(){};
-    virtual void y(){f();};
-    virtual void f(){d();};
+    virtual void j(){l();};
+    virtual void q(){u();};
+    virtual void l(){};
+    virtual void n(){y();};
 };
+

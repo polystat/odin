@@ -1,27 +1,42 @@
+// t.w.d -> q.t -> t.w.d
+// q.h -> t.w.d -> q.t -> t.w.d
+// q.t -> t.w.d -> q.t
 
-// y.n -> g.j -> g.c -> y.n
-// g.s -> g.c -> y.n -> g.j -> g.c
-// g.j -> g.c -> y.n -> g.j
-// g.c -> y.n -> g.j -> g.c
-
-
-class Y {
+class T {
   public:
-    virtual void n(){j();};
-    virtual void c(){};
-    virtual void j(){};
+    virtual void q(){};
+    virtual void g(){v();};
+    virtual void v(){};
+
+    class Y {
+    public:
+      virtual void u(){};
+    };
+
+    class W {
+    public:
+      virtual void d(){t();};
+      virtual void t(){};
+
+      class H {
+      public:
+        virtual void z(){};
+        virtual void m(){z();};
+        virtual void x(){m();};
+      };
+    };
 };
 
-class G : public Y{
+class Q : public T::W{
   public:
-    virtual void s(){c();};
-    virtual void j(){c();};
-    virtual void c(){n();};
+    virtual void h(){d();};
+    virtual void t(){d();};
+
+    class H {
+    public:
+      virtual void z(){};
+      virtual void m(){z();};
+      virtual void x(){m();};
+    };
 };
 
-class D : public Y{
-  public:
-    virtual void a(){c();};
-    virtual void n(){};
-    virtual void j(){a();};
-};

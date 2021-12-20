@@ -1,31 +1,31 @@
+# v.z -> w.q -> v.z
+# w.a -> v.z -> w.q -> v.z
+# w.s -> v.z -> w.q -> v.z
+# w.q -> v.z -> w.q
 
-# d.j -> p.n -> d.j
-# p.g -> d.j -> p.n -> d.j
-# p.n -> d.j -> p.n
-# p.d -> p.g -> d.j -> p.n -> d.j
+[] > e
+  [self] > m
+    self.s self > @
+  [self] > s
+    self > @
+  [self] > v
+    self.s self > @
 
-[] > d
-  [self] > j
-    self.n self > @
-  [self] > d
+  
+[] > v
+  [self] > z
+    self.q self > @
+  [self] > q
     self > @
-  [self] > n
-    self > @
-[] > s
-  d > @
-  [self] > k
-    self.n self > @
-  [self] > j
-    self.d self > @
-  [self] > d
-    self.k self > @
-  [self] > n
-    self > @
-[] > p
-  d > @
-  [self] > g
-    self.j self > @
-  [self] > n
-    self.j self > @
-  [self] > d
-    self.g self > @
+
+  
+[] > w
+  v > @
+  [self] > a
+    self.z self > @
+  [self] > s
+    self.z self > @
+  [self] > q
+    self.z self > @
+
+  

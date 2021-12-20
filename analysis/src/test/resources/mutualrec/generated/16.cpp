@@ -1,29 +1,55 @@
+// h.p.i.y -> v.h -> h.p.i.y
+// v.h -> h.p.i.y -> v.h
 
-// b.g -> k.s -> b.g
-// k.s -> b.g -> k.s
-// b.h -> k.s -> b.g -> k.s
-// b.g -> k.s -> b.g
-// k.s -> b.g -> k.s
-
-
-class K {
+class H {
   public:
-    virtual void u(){};
-    virtual void g(){};
-    virtual void s(){g();};
-    virtual void c(){};
+    virtual void p(){};
+    virtual void k(){};
+    virtual void f(){};
+    virtual void w(){};
+
+    class P {
+    public:
+      virtual void o(){};
+      virtual void h(){};
+
+      class I {
+      public:
+        virtual void h(){};
+        virtual void y(){h();};
+        virtual void e(){};
+      };
+
+      class F {
+      public:
+        virtual void s(){};
+      };
+    };
+
+    class S {
+    public:
+      virtual void b(){};
+      virtual void l(){b();};
+    };
+
+    class X {
+    public:
+      virtual void t(){};
+    };
+
+    class N {
+    public:
+      virtual void c(){e();};
+      virtual void f(){};
+      virtual void e(){f();};
+    };
 };
 
-class B : public K{
+class V : public H::P::I{
   public:
-    virtual void l(){};
-    virtual void g(){s();};
-    virtual void c(){u();};
-    virtual void h(){s();};
+    virtual void h(){y();};
+    virtual void e(){};
+    virtual void o(){};
+    virtual void q(){o();};
 };
 
-class I : public B{
-  public:
-    virtual void x(){};
-    virtual void h(){c();};
-};

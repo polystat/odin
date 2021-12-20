@@ -1,26 +1,38 @@
+# m.y -> e.t -> e.z -> m.y
+# e.z -> m.y -> e.t -> e.z
+# e.t -> e.z -> m.y -> e.t
 
-# z.x -> p.a -> z.x
-# p.r -> p.a -> z.x -> p.a
-# p.t -> z.x -> p.a -> z.x
-# p.a -> z.x -> p.a
-
-[] > z
-  [self] > x
-    self.a self > @
-  [self] > a
+[] > m
+  [self] > y
+    self.t self > @
+  [self] > g
     self > @
-[] > p
-  z > @
-  [self] > r
-    self.a self > @
   [self] > t
-    self.x self > @
-  [self] > a
-    self.x self > @
-[] > x
-  [self] > b
-    self.d self > @
-  [self] > w
+    self.g self > @
+
+  
+[] > e
+  m > @
+  [self] > z
+    self.y self > @
+  [self] > t
+    self.z self > @
+  [self] > g
     self > @
-  [self] > d
+
+  
+[] > a
+  [self] > s
     self > @
+
+  [] > d
+    [self] > i
+      self.m self > @
+    [self] > a
+      self.m self > @
+    [self] > d
+      self > @
+    [self] > m
+      self.d self > @
+
+    

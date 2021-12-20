@@ -1,28 +1,16 @@
+// m.m -> b.f -> b.i -> m.m
+// b.i -> m.m -> b.f -> b.i
+// b.f -> b.i -> m.m -> b.f
 
-// l.m -> w.p -> w.f -> l.m
-// w.f -> l.m -> w.p -> w.f
-// w.p -> w.f -> l.m -> w.p
-// w.y -> l.m -> w.p -> w.f -> l.m
-
-
-class L {
+class M {
   public:
-    virtual void p(){};
-    virtual void m(){p();};
-    virtual void y(){};
+    virtual void m(){f();};
+    virtual void f(){};
 };
 
-class O : public L{
+class B : public M{
   public:
-    virtual void h(){};
-    virtual void m(){};
-    virtual void y(){};
-    virtual void k(){y();};
+    virtual void i(){m();};
+    virtual void f(){i();};
 };
 
-class W : public L{
-  public:
-    virtual void f(){m();};
-    virtual void p(){f();};
-    virtual void y(){m();};
-};
