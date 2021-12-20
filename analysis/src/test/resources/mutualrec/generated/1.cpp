@@ -1,24 +1,26 @@
+// c.x.f -> f.q -> c.x.f
+// f.q -> c.x.f -> f.q
 
-// x.y -> p.c -> x.y
-// p.c -> x.y -> p.c
-
-
-class I {
+class C {
   public:
-    virtual void b(){};
-    virtual void y(){};
-    virtual void k(){};
+    virtual void i(){};
+    virtual void q(){m();};
+    virtual void j(){};
+    virtual void m(){j();};
+
+    class X : public C{
+    public:
+      virtual void f(){q();};
+      virtual void i(){j();};
+    };
 };
 
-class X {
+class F : public C::X{
   public:
-    virtual void y(){c();};
-    virtual void c(){};
+    virtual void j(){};
+    virtual void h(){j();};
+    virtual void q(){f();};
+    virtual void i(){};
+    virtual void s(){m();};
 };
 
-class P : public X{
-  public:
-    virtual void w(){};
-    virtual void o(){};
-    virtual void c(){y();};
-};

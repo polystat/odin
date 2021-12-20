@@ -1,26 +1,19 @@
+// l.s -> l.k -> z.y -> l.k
+// l.k -> z.y -> l.k
+// z.y -> l.k -> z.y
+// l.r -> l.k -> z.y -> l.k
 
-// q.t -> k.y -> q.t
-// k.h -> k.y -> q.t -> k.y
-// k.y -> q.t -> k.y
-// q.k -> k.h -> k.y -> q.t -> k.y
-
-
-class K {
+class L {
   public:
-    virtual void y(){t();};
-    virtual void h(){y();};
-    virtual void t(){};
+    virtual void s(){k();};
+    virtual void r(){k();};
+    virtual void y(){};
+    virtual void k(){y();};
 };
 
-class F {
+class Z : public L{
   public:
-    virtual void o(){};
-    virtual void w(){};
+    virtual void a(){};
+    virtual void y(){k();};
 };
 
-class Q : public K{
-  public:
-    virtual void t(){y();};
-    virtual void v(){};
-    virtual void k(){h();};
-};

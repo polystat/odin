@@ -1,24 +1,23 @@
+// h.l -> b.p -> h.l
+// h.e -> b.p -> h.l -> b.p
+// b.p -> h.l -> b.p
 
-// z.g -> x.b -> z.g
-// x.w -> z.g -> x.b -> z.g
-// x.b -> z.g -> x.b
-
-
-class X {
+class H {
   public:
-    virtual void w(){g();};
-    virtual void b(){g();};
-    virtual void g(){};
+    virtual void l(){p();};
+    virtual void p(){};
+    virtual void e(){p();};
 };
 
-class Y {
+class B : public H{
   public:
-    virtual void w(){};
+    virtual void m(){};
+    virtual void p(){l();};
 };
 
-class Z : public X{
+class L {
   public:
-    virtual void g(){b();};
-    virtual void x(){};
-    virtual void t(){};
+    virtual void f(){r();};
+    virtual void r(){};
 };
+

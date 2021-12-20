@@ -1,29 +1,15 @@
+// v.f -> d.u -> v.f
+// d.u -> v.f -> d.u
 
-// l.d -> j.k -> l.d
-// j.u -> l.d -> j.k -> l.d
-// j.t -> j.u -> l.d -> j.k -> l.d
-// j.k -> l.d -> j.k
-
-
-class L {
+class V {
   public:
-    virtual void t(){d();};
-    virtual void d(){k();};
-    virtual void k(){};
+    virtual void u(){};
+    virtual void f(){u();};
 };
 
-class P : public L{
+class D : public V{
   public:
-    virtual void k(){n();};
-    virtual void w(){};
-    virtual void n(){w();};
-    virtual void d(){};
-    virtual void t(){w();};
+    virtual void n(){};
+    virtual void u(){f();};
 };
 
-class J : public L{
-  public:
-    virtual void u(){d();};
-    virtual void t(){u();};
-    virtual void k(){d();};
-};

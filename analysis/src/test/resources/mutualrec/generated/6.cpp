@@ -1,26 +1,31 @@
+// m.y -> e.t -> e.z -> m.y
+// e.z -> m.y -> e.t -> e.z
+// e.t -> e.z -> m.y -> e.t
 
-// z.x -> p.a -> z.x
-// p.r -> p.a -> z.x -> p.a
-// p.t -> z.x -> p.a -> z.x
-// p.a -> z.x -> p.a
-
-
-class Z {
+class M {
   public:
-    virtual void x(){a();};
-    virtual void a(){};
+    virtual void y(){t();};
+    virtual void g(){};
+    virtual void t(){g();};
 };
 
-class P : public Z{
+class E : public M{
   public:
-    virtual void r(){a();};
-    virtual void t(){x();};
-    virtual void a(){x();};
+    virtual void z(){y();};
+    virtual void t(){z();};
+    virtual void g(){};
 };
 
-class X {
+class A {
   public:
-    virtual void b(){d();};
-    virtual void w(){};
-    virtual void d(){};
+    virtual void s(){};
+
+    class D {
+    public:
+      virtual void i(){m();};
+      virtual void a(){m();};
+      virtual void d(){};
+      virtual void m(){d();};
+    };
 };
+

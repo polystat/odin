@@ -1,28 +1,25 @@
+// v.z -> w.q -> v.z
+// w.a -> v.z -> w.q -> v.z
+// w.s -> v.z -> w.q -> v.z
+// w.q -> v.z -> w.q
 
-// d.j -> p.n -> d.j
-// p.g -> d.j -> p.n -> d.j
-// p.n -> d.j -> p.n
-// p.d -> p.g -> d.j -> p.n -> d.j
-
-
-class D {
+class E {
   public:
-    virtual void j(){n();};
-    virtual void d(){};
-    virtual void n(){};
+    virtual void m(){s();};
+    virtual void s(){};
+    virtual void v(){s();};
 };
 
-class S : public D{
+class V {
   public:
-    virtual void k(){n();};
-    virtual void j(){d();};
-    virtual void d(){k();};
-    virtual void n(){};
+    virtual void z(){q();};
+    virtual void q(){};
 };
 
-class P : public D{
+class W : public V{
   public:
-    virtual void g(){j();};
-    virtual void n(){j();};
-    virtual void d(){g();};
+    virtual void a(){z();};
+    virtual void s(){z();};
+    virtual void q(){z();};
 };
+

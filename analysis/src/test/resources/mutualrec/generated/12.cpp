@@ -1,30 +1,24 @@
+// o.u -> r.q -> o.i -> r.q
+// r.q -> o.i -> r.q
+// o.i -> r.q -> o.i
 
-// w.z -> c.i -> w.z
-// c.i -> w.z -> c.i
-// c.r -> w.z -> c.i -> w.z
-// o.r -> o.i -> w.z -> o.i
-// w.z -> o.i -> w.z
-// o.i -> w.z -> o.i
-
-
-class W {
+class R {
   public:
+    virtual void q(){i();};
+    virtual void j(){};
+    virtual void u(){};
     virtual void i(){};
-    virtual void z(){i();};
-    virtual void r(){};
 };
 
-class C : public W{
+class V {
   public:
-    virtual void g(){};
-    virtual void i(){z();};
-    virtual void r(){z();};
+    virtual void s(){};
 };
 
-class O : public W{
+class O : public R{
   public:
-    virtual void r(){i();};
-    virtual void a(){};
-    virtual void e(){};
-    virtual void i(){z();};
+    virtual void d(){};
+    virtual void u(){q();};
+    virtual void i(){q();};
 };
+

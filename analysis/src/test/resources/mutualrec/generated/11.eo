@@ -1,29 +1,36 @@
+# t.r -> r.o -> t.y -> r.o
+# r.e -> t.y -> r.o -> t.y
+# t.y -> r.o -> t.y
+# r.o -> t.y -> r.o
 
-# o.x -> z.q -> o.x
-# z.q -> o.x -> z.q
+[] > b
+  [self] > d
+    self.o self > @
+  [self] > o
+    self > @
 
-[] > o
-  [self] > q
-    self > @
-  [self] > c
-    self > @
-  [self] > y
-    self.x self > @
-  [self] > x
-    self.q self > @
-[] > z
-  o > @
-  [self] > c
-    self > @
-  [self] > g
-    self > @
+  
+[] > r
+  b > @
   [self] > y
     self > @
-  [self] > q
-    self.x self > @
-[] > q
-  o > @
-  [self] > s
+  [self] > e
+    self.y self > @
+  [self] > d
     self > @
-  [self] > q
+  [self] > o
+    self.y self > @
+
+  
+[] > t
+  r > @
+  [self] > w
     self > @
+  [self] > r
+    self.o self > @
+  [self] > d
+    self > @
+  [self] > y
+    self.o self > @
+
+  

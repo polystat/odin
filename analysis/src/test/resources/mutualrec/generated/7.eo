@@ -1,27 +1,28 @@
+# q.d -> i.v -> q.d
+# i.v -> q.d -> i.v
 
-# w.l -> t.e -> w.l
-# t.e -> w.l -> t.e
+[] > q
+  [self] > a
+    self > @
+  [self] > v
+    self.a self > @
+  [self] > d
+    self.v self > @
 
-[] > w
-  [self] > l
-    self.e self > @
-  [self] > e
-    self > @
-[] > v
-  w > @
-  [self] > o
-    self > @
-  [self] > m
-    self > @
-  [self] > e
-    self > @
-[] > t
-  v > @
-  [self] > o
-    self > @
-  [self] > r
-    self > @
-  [self] > m
-    self > @
-  [self] > e
-    self.l self > @
+  [] > j
+    [self] > t
+      self > @
+    [self] > o
+      self > @
+    [self] > d
+      self.t self > @
+
+    
+[] > i
+  q > @
+  [self] > i
+    self.a self > @
+  [self] > v
+    self.d self > @
+
+  

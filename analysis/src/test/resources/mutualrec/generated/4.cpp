@@ -1,30 +1,17 @@
+// u.z -> l.g -> u.z
+// l.d -> u.z -> l.g -> u.z
+// l.g -> u.z -> l.g
 
-// z.x -> h.a -> z.x
-// h.a -> z.x -> h.a
-
-
-class H {
+class U {
   public:
-    virtual void j(){};
-    virtual void a(){x();};
-    virtual void i(){j();};
-    virtual void x(){};
+    virtual void g(){};
+    virtual void t(){};
+    virtual void z(){g();};
 };
 
-class E : public H{
+class L : public U{
   public:
-    virtual void d(){};
-    virtual void j(){};
-    virtual void a(){};
-    virtual void g(){a();};
-    virtual void i(){};
-    virtual void x(){i();};
+    virtual void d(){z();};
+    virtual void g(){z();};
 };
 
-class Z : public H{
-  public:
-    virtual void x(){a();};
-    virtual void c(){i();};
-    virtual void i(){};
-    virtual void v(){};
-};

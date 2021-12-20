@@ -1,33 +1,30 @@
+# o.u -> r.q -> o.i -> r.q
+# r.q -> o.i -> r.q
+# o.i -> r.q -> o.i
 
-# w.z -> c.i -> w.z
-# c.i -> w.z -> c.i
-# c.r -> w.z -> c.i -> w.z
-# o.r -> o.i -> w.z -> o.i
-# w.z -> o.i -> w.z
-# o.i -> w.z -> o.i
-
-[] > w
-  [self] > i
-    self > @
-  [self] > z
+[] > r
+  [self] > q
     self.i self > @
-  [self] > r
+  [self] > j
     self > @
-[] > c
-  w > @
-  [self] > g
+  [self] > u
     self > @
   [self] > i
-    self.z self > @
-  [self] > r
-    self.z self > @
+    self > @
+
+  
+[] > v
+  [self] > s
+    self > @
+
+  
 [] > o
-  w > @
-  [self] > r
-    self.i self > @
-  [self] > a
+  r > @
+  [self] > d
     self > @
-  [self] > e
-    self > @
+  [self] > u
+    self.q self > @
   [self] > i
-    self.z self > @
+    self.q self > @
+
+  
