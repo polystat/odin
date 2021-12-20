@@ -32,6 +32,19 @@ object MutualRecursionTestGen {
       lst <- Gen.listOfN(n, g)
     } yield lst
 
+  def mapRandom[T](lst: List[T])(f: T => Gen[T]): Gen[List[T]] = {
+    lst match {
+      case Nil => Gen.const(List.empty)
+      case last :: Nil => f(last).map(_ :: Nil)
+      case head :: tail => Gen
+          .oneOf(true, false)
+          .flatMap(stop =>
+            if (stop) f(head).map(_ :: tail)
+            else mapRandom(tail)(f).map(tail => head :: tail)
+          )
+    }
+  }
+
   def pickOneOrZero[T](lst: List[T]): Gen[Set[T]] =
     for {
       n <- Gen.oneOf(0, 1)
@@ -69,10 +82,13 @@ object MutualRecursionTestGen {
     } yield calls
   }
 
-  // TODO: add containerObj parameter
-  def genExtendObject(obj: Object, p: Program): Gen[Object] = for {
+  def genExtendObject(
+    obj: Object,
+    scope: Program,
+    containerObj: Option[ObjectName]
+  ): Gen[Object] = for {
     // name for new object
-    objName <- genObjectName(p, None)
+    objName <- genObjectName(scope, containerObj)
 
     // new method definitions
     newMethodNames <-
@@ -101,9 +117,9 @@ object MutualRecursionTestGen {
 
   } yield obj.extended(objName, callGraph)
 
-  def genObject(p: Program, containerObj: Option[ObjectName]): Gen[Object] =
+  def genObject(scope: Program, containerObj: Option[ObjectName]): Gen[Object] =
     for {
-      objectName <- genObjectName(p, containerObj)
+      objectName <- genObjectName(scope, containerObj)
       nestedObjects <- Gen.frequency(
         4 -> Gen.const(List()),
         1 -> (for {
@@ -113,6 +129,7 @@ object MutualRecursionTestGen {
               for {
                 acc <- accGen
                 obj <- genObject(Program(acc), Some(objectName))
+                  .retryUntil(!_.callGraph.containsSingleObjectCycles)
               } yield acc ++ List(obj)
           )
         } yield a)
@@ -129,41 +146,81 @@ object MutualRecursionTestGen {
     )
 
   def genProgram(size: Int): Gen[Program] = {
-    def get_inner_objs(obj: Object): List[Object] = {
-      obj.nestedObjs.flatMap(get_inner_objs)
+
+    def flattenProgram(prog: Program): List[Object] = {
+      prog.objs ++
+        prog
+          .objs
+          .flatMap(obj => flattenProgram(Program(obj.nestedObjs)))
     }
 
-    for {
-      initObj <-
-        genObject(Program(Nil), None).retryUntil(obj =>
-          !obj.callGraph.containsCycles
+    def addExtendedOrSimpleObj(
+      scope: Program,
+      extendCandidates: List[Object],
+      container: Option[ObjectName]
+    ): Gen[Program] = for {
+      extend <- Gen.oneOf(false, true)
+      newObj <-
+        (
+          if (extend && extendCandidates.nonEmpty)
+            Gen
+              .oneOf(extendCandidates)
+              .flatMap(extendCandidate =>
+                genExtendObject(extendCandidate, scope, container)
+              )
+          else
+            genObject(scope, container)
         )
-      init = Gen.const(Program(List(initObj)))
-      program <- (1 until size).foldLeft(init) { case (acc, _) =>
+          .retryUntil(!_.callGraph.containsSingleObjectCycles)
+    } yield Program(scope.objs ++ List(newObj))
+
+    // Type 1 -> add to topLevel
+    // Type 2 -> Add to some obj as nested
+    // Both T1 & T2 can be extensions of other objs
+    def addObj(prog: Program): Gen[Program] = {
+      def addObjRec(
+        container: Object,
+        containerName: Option[ObjectName]
+      ): Gen[Program] = {
         for {
-          extend <- Gen.frequency(
-            (1, true),
-            (1, false)
-          )
-          prog <- acc.flatMap(p =>
-            (
-              if (extend) {
-                // TODO: account for the nested objects
-                Gen
-                  .oneOf(p.objs ++ p.objs.flatMap(get_inner_objs))
-                  .flatMap(obj =>
-                    genExtendObject(obj, Program(get_inner_objs(obj)))
-                  )
-                  .retryUntil(obj => !obj.callGraph.containsSingleObjectCycles)
-              } else
-                genObject(p, None).retryUntil(obj =>
-                  !obj.callGraph.containsCycles
+          deeper <- Gen.oneOf(true, false)
+          currentLevel = container.nestedObjs
+          next <-
+            if (deeper) {
+              mapRandom(currentLevel)(randomObj =>
+                addObjRec(randomObj, Some(randomObj.name))
+                  .map(nextLevel => randomObj.copy(nestedObjs = nextLevel.objs))
+              ).map(objs => Program(objs))
+            } else {
+              for {
+                newProg <- addExtendedOrSimpleObj(
+                  Program(currentLevel),
+                  flattenProgram(prog),
+                  containerName
                 )
-            ).map(newObj => Program(p.objs ++ List(newObj)))
-          )
-        } yield prog
+              } yield newProg
+            }
+        } yield next
       }
-    } yield program
+      if (prog.objs.isEmpty) addExtendedOrSimpleObj(prog, List.empty, None)
+      else
+        addObjRec(
+          Object(
+            name = ObjectName(None, "THE VALUE OF THIS STRING DOESN'T MATTER"),
+            ext = None,
+            nestedObjs = prog.objs,
+            callGraph = Map()
+          ),
+          None
+        )
+    }
+
+    (1 to size).foldLeft(Gen.const(Program(List.empty))) { case (acc, _) =>
+      for {
+        oldProg <- acc
+        newProg <- addObj(oldProg)
+      } yield newProg
+    }
   }
 
   def generateProgramFiles[F[_]: Files: Sync](
@@ -209,8 +266,7 @@ object MutualRecursionTestGen {
 
     val progText = prog.objs.map(display).mkString("\n")
 
-    s"""
-       |$cycles
+    s"""$cycles
        |
        |$progText
        |""".stripMargin
