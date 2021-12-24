@@ -1,6 +1,6 @@
 package org.polystat.odin.analysis.gens
 
-import CallGraph._
+import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import cats.effect.IO
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.implicits.global
@@ -9,6 +9,12 @@ import org.scalacheck.Gen
 import fs2.Stream
 import fs2.text.utf8
 import cats.syntax.flatMap._
+import org.polystat.odin.analysis.mutualrec.advanced.{
+  MethodName,
+  Object,
+  ObjectName,
+  Program
+}
 
 import scala.util.Try
 
@@ -117,20 +123,24 @@ object MutualRecursionTestGen {
 
   } yield obj.extended(objName, callGraph)
 
-  def genObject(scope: Program, containerObj: Option[ObjectName]): Gen[Object] =
+  def genObject(
+    scope: Program,
+    containerObj: Option[ObjectName]
+  ): Gen[Object] =
     for {
       objectName <- genObjectName(scope, containerObj)
       nestedObjects <- Gen.frequency(
         4 -> Gen.const(List()),
         1 -> (for {
           n <- Gen.choose(1, 3)
-          a <- (0 until n).foldLeft[Gen[List[Object]]](Gen.const(List()))(
-            (accGen, _) =>
-              for {
-                acc <- accGen
-                obj <- genObject(Program(acc), Some(objectName))
-                  .retryUntil(!_.callGraph.containsSingleObjectCycles)
-              } yield acc ++ List(obj)
+          a <- (0 until n).foldLeft[Gen[List[Object]]](
+            Gen.const(List())
+          )((accGen, _) =>
+            for {
+              acc <- accGen
+              obj <- genObject(Program(acc), Some(objectName))
+                .retryUntil(!_.callGraph.containsSingleObjectCycles)
+            } yield acc ++ List(obj)
           )
         } yield a)
       )
@@ -140,7 +150,7 @@ object MutualRecursionTestGen {
       cg <- genCallGraph(methods, methods)
     } yield Object(
       name = objectName,
-      ext = None,
+      parent = None,
       nestedObjs = nestedObjects,
       callGraph = cg,
     )
@@ -207,7 +217,7 @@ object MutualRecursionTestGen {
         addObjRec(
           Object(
             name = ObjectName(None, "THE VALUE OF THIS STRING DOESN'T MATTER"),
-            ext = None,
+            parent = None,
             nestedObjs = prog.objs,
             callGraph = Map()
           ),

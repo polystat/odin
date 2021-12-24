@@ -1,6 +1,6 @@
-package org.polystat.odin.analysis.gens
+package org.polystat.odin.analysis.mutualrec.advanced
 
-import CallGraph._
+import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 
 case class Program(objs: List[Object]) {
 
@@ -15,7 +15,7 @@ case class Program(objs: List[Object]) {
 
 case class Object(
   name: ObjectName, // full object name
-  ext: Option[Object], // the object extended by this object
+  parent: Option[Object], // the object extended by this object
   nestedObjs: List[Object], // the objects inside this object
   callGraph: CallGraph, // the call graph for methods of this object
 ) {
@@ -26,7 +26,7 @@ case class Object(
   ): Object =
     Object(
       name = name,
-      ext = Some(this.copy()),
+      parent = Some(this.copy()),
       nestedObjs = nestedObjs,
       callGraph = callGraph.extendWith(cg),
     )
@@ -50,7 +50,7 @@ case class Object(
       val spaces = "  " * (depth + 1)
       s"""[] > ${obj.name.name}
          |${obj
-        .ext
+        .parent
         .fold("")(ext => s"$spaces${ext.name.name} > @\n")}${obj
         .callGraph
         .filter { case (method, _) =>
@@ -82,7 +82,7 @@ case class Object(
     def helper(obj: Object, depth: Int): String = {
       val spaces = "  " * (depth + 1)
       val class_def = s"""class ${obj.name.name.toUpperCase()} ${obj
-        .ext
+        .parent
         .fold("")(ext => s": public ${ext.name.name.toUpperCase()}")}"""
       val class_methods =
         "  " + obj
