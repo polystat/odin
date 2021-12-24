@@ -15,6 +15,10 @@ trait EOOdinAnalyzer[EORepr, F[_]] {
   def analyzeSourceCode(eoRepr: EORepr): Stream[F, OdinAnalysisError]
 }
 
+trait ASTAnalyzer[F[_]] {
+  def analyze(ast: EOProg[EOExprOnly]): Stream[F, OdinAnalysisError]
+}
+
 object EOOdinAnalyzer {
   type OdinAnalysisError = OdinAnalysisError.Type
   object OdinAnalysisError extends NewtypeWrapped[String]
@@ -28,34 +32,40 @@ object EOOdinAnalyzer {
     ): Stream[F, OdinAnalysisError] =
       for {
         programAst <- Stream.eval(parse(eoRepr))
-        mutualRecursionErrors <- findMutualRecursion(programAst)
+        mutualRecursionErrors <- implicitly[ASTAnalyzer[F]].analyze(programAst)
       } yield mutualRecursionErrors
 
-    private def findMutualRecursion(
-      ast: EOProg[EOExprOnly]
-    ): Stream[F, OdinAnalysisError] = for {
-      recursiveDependency <- Stream.evals(findMutualRecursionFromAst(ast))
-      (method, depChains) <- Stream.emits(recursiveDependency.toVector)
-      depChain <- Stream.emits(depChains.toVector)
-      odinError <- Stream.fromOption(for {
-        mutualRecMeth <- depChain.lastOption
-      } yield {
-        val mutualRecString =
-          s"Method `${method.parentObject.objName}.${method.name}` " ++
-            s"is mutually recursive with method " ++
-            s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
+    // TODO: this should be passed explicitly
+    implicit val naiveMutualRecursionAnalyzer: ASTAnalyzer[F] =
+      new ASTAnalyzer[F] {
 
-        val dependencyChainString = depChain
-          .append(method)
-          .map(m => s"${m.parentObject.objName}.${m.name}")
-          .mkString_(" -> ")
+        override def analyze(
+          ast: EOProg[EOExprOnly]
+        ): Stream[F, OdinAnalysisError] = for {
+          recursiveDependency <- Stream.evals(findMutualRecursionFromAst(ast))
+          (method, depChains) <- Stream.emits(recursiveDependency.toVector)
+          depChain <- Stream.emits(depChains.toVector)
+          odinError <- Stream.fromOption(for {
+            mutualRecMeth <- depChain.lastOption
+          } yield {
+            val mutualRecString =
+              s"Method `${method.parentObject.objName}.${method.name}` " ++
+                s"is mutually recursive with method " ++
+                s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
 
-        val errorMessage =
-          mutualRecString ++ " through the following possible code path:\n" ++
-            dependencyChainString
-        OdinAnalysisError(errorMessage)
-      })
-    } yield odinError
+            val dependencyChainString = depChain
+              .append(method)
+              .map(m => s"${m.parentObject.objName}.${m.name}")
+              .mkString_(" -> ")
+
+            val errorMessage =
+              mutualRecString ++ " through the following possible code path:\n" ++
+                dependencyChainString
+            OdinAnalysisError(errorMessage)
+          })
+        } yield odinError
+
+      }
 
   }
 
