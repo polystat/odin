@@ -85,15 +85,28 @@ object Analyzer {
     objName: ObjectName
   ): CallGraph = {
 
-    def getInnerCalls(obj: EOObj[Fix[EOExpr]]): Set[MethodName] = obj
-      .bndAttrs
-      .foldLeft(Set.empty[MethodName])((acc, el) =>
-        el.expr match {
-          case EOCopy(EODot(EOSimpleApp("self"), name), _) =>
-            acc + MethodName(objName, name)
-          case _ => acc
-        }
-      )
+    def getInnerCalls(obj: EOExpr[Fix[EOExpr]]): Set[MethodName] = obj match {
+      case EOObj(_, _, bndAttrs) => bndAttrs
+          .foldLeft(Set.empty[MethodName])((acc, el) =>
+            el.expr match {
+              case EOCopy(
+                     EODot(EOSimpleApp("self"), name),
+                     args
+                   ) =>
+                (acc + MethodName(objName, name)) ++ args
+                  .value
+                  .asInstanceOf[Vector[EOBnd[Fix[EOExpr]]]]
+                  .flatMap((bnd: EOBnd[Fix[EOExpr]]) =>
+                    getInnerCalls(Fix.un(bnd.expr))
+                  )
+              case _ => acc
+            }
+          )
+      case EOCopy(Fix(trg), args) => getInnerCalls(trg).union(
+          args.flatMap(bnd => getInnerCalls(Fix.un(bnd.expr))).toSet
+        )
+      case _ => Set()
+    }
 
     def getObjMethods(obj: EOObj[Fix[EOExpr]]): List[EOBndExpr[Fix[EOExpr]]] =
       obj.bndAttrs.foldLeft[List[EOBndExpr[Fix[EOExpr]]]](List.empty) {
@@ -191,7 +204,7 @@ object Analyzer {
         |
         |""".stripMargin
 
-    def ast[F[_]: Sync] = sourceCodeEoParser(2).parse(code)
+    def ast[F[_]: Sync] = sourceCodeEoParser().parse(code)
 
     (for {
       ast <- ast[IO]
