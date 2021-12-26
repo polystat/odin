@@ -13,58 +13,117 @@ import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 
 object Analyzer {
-  /* EOProg -> Program object signature: [] > name
-   * 1. filter EOProg for object signatures
-   * 2. map this list with a function that converts EOBnds to Objects
-   * 3. wrap the result in Program */
 
-  /* EoBnd -> Object
-   * 1. Object.name will come from EOBnd.name
-   * 2. parent will come from searching bndAttrs for Object with EO decoration
-   * 2.1. This object can be either EoSimpleApp or EODot EOBndExpr(EODecoration,
-   * Fix[EOExpr](EOSimpleApp("base")))
-   * 3. nestedObjs will come from recursively calling this function with the
-   * current object as a container
-   * 3.1. may need a helper
-   * 4. callGraph will come from a function that generates a call graph from
-   * EoObj */
+  /* EOProg -> Program by using object signature: [] > name
+   * 1. filter EOProg for object signatures
+   * 2. convert every matching EOBndExpr to Object
+   * 3. wrap the result in Program */
+  def findObjs(
+    ast: EOProg[Fix[EOExpr]]
+  ): Program = {
+    /* EoBnd -> Object
+     * 1. name comes from EOBnd.name
+     * 2. parent comes from searching bndAttrs for Object with EO decoration
+     * 3. nestedObjs come from recursively calling the function with the current
+     * object as a container
+     * 4. callGraph will be generated from the from EoObj */
+    def bndHelper(
+      container: Option[ObjectName]
+    )(bnd: EOBnd[Fix[EOExpr]]): List[Object] =
+      bnd match {
+        case EOBndExpr(bndName, Fix(obj @ EOObj(Vector(), None, bndAttrs))) =>
+          val objName = ObjectName(container, bndName.name.name)
+          val currentObj = Object(
+            name = objName,
+            parent = getObjectParent(bndAttrs),
+            nestedObjs = bndAttrs.flatMap(bndHelper(Some(objName))).toList,
+            callGraph = getObjCallGraph(obj, objName)
+          )
+          List(currentObj)
+        case EOBndExpr(_, Fix(EOObj(_, _, bndAttrs))) =>
+          bndAttrs.flatMap(bndHelper(container)).toList
+        case _ => List()
+      }
+    Program(ast.bnds.flatMap(bndHelper(None)).toList)
+  }
+
+  // The target object can be either EoSimpleApp or EODot
+  // TODO: make it so that it can set ALL the parents
+  def getObjectParent(
+    bndAttrs: Vector[EOBndExpr[Fix[EOExpr]]]
+  ): Option[Object] = {
+
+    // TODO: find a way to to this properly
+    def createObj(name: String): Some[Object] = Some(
+      Object(
+        name = ObjectName(None, name),
+        parent = None,
+        nestedObjs = List(),
+        callGraph = Map()
+      )
+    )
+
+    bndAttrs
+      .find {
+        case EOBndExpr(EODecoration, Fix(EOSimpleApp(_))) => true
+        case EOBndExpr(EODecoration, Fix(EODot(_, _))) => true
+        case _ => false
+      }
+      .flatMap(_.expr match {
+        case EOSimpleApp(name) => createObj(name)
+        case EODot(_, name) => createObj(name)
+      })
+  }
 
   /* EOObj -> CallGraph CallGraph entry: MethodName -> Set[MethodName] method
    * call signature: self.name self params
-   * 1. filter bndAttrs for method declaration signatures, extract method names
-   * from them
-   * 2. search method bodies for method call signatures
-   * 3. compose them together */
+   * 1. filter bndAttrs for method declaration signatures and extract their
+   * method names,
+   * 2. search method bodies for method call signatures */
+  def getObjCallGraph(
+    obj: EOObj[Fix[EOExpr]],
+    objName: ObjectName
+  ): CallGraph = {
 
-  def findObjs(
-    ast: EOProg[Fix[EOExpr]]
-  ): List[EOBndExpr[Fix[EOExpr]]] = {
-    def bndHelper(
-      bnd: EOBnd[Fix[EOExpr]],
-      container: Option[Object]
-    ): List[EOBndExpr[Fix[EOExpr]]] =
-      bnd match {
-        case EOBndExpr(bndName, Fix(obj @ EOObj(Vector(), None, bndAttrs))) =>
-          Object(
-            name = ObjectName(container.map(_.name), bndName.name.name),
-            parent = ???, // search bndAttrs for Object with EO decoration
-            nestedObjs = ???,
-            /* filter bndAttrs for other objects and call this function
-             * recursively */
-            callGraph = getObjCallGraph(obj)
-          )
-        case EOBndExpr(bndName, Fix(EOObj(_, _, bndAttrs))) =>
-          bndAttrs.flatMap(bndHelper).toList
-        case _ => List()
+    def getInnerCalls(obj: EOObj[Fix[EOExpr]]): Set[MethodName] = obj
+      .bndAttrs
+      .foldLeft(Set.empty[MethodName])((acc, el) =>
+        el.expr match {
+          case EOCopy(EODot(EOSimpleApp("self"), name), _) =>
+            acc + MethodName(objName, name)
+          case _ => acc
+        }
+      )
+
+    def getObjMethods(obj: EOObj[Fix[EOExpr]]): List[EOBndExpr[Fix[EOExpr]]] =
+      obj.bndAttrs.foldLeft[List[EOBndExpr[Fix[EOExpr]]]](List.empty) {
+        case (acc, bnd) =>
+          bnd match {
+            case method @ EOBndExpr(_, Fix(obj: EOObj[Fix[EOExpr]])) =>
+              obj match {
+                case EOObj(LazyName("self") +: _, _, _) =>
+                  acc ++ List(method)
+                case _ => acc
+              }
+            case _ => acc
+          }
       }
 
-    ast.bnds.flatMap(bndHelper).toList
-  }
+    def accCallGraphEntry(
+      acc: CallGraph,
+      method: EOBndExpr[Fix[EOExpr]]
+    ): CallGraph = {
+      method.expr match {
+        case Fix(obj @ EOObj(_, _, _)) =>
+          val methodName = MethodName(objName, method.bndName.name.name)
+          acc.updated(methodName, getInnerCalls(obj))
+        case _ => acc
+      }
+    }
 
-  def getObjCallGraph(
-    obj: EOObj[Fix[EOExpr]]
-  ): CallGraph = {
-    def getCallGraphEntry(method: EOObj[Fix[EOExpr]]): CallGraphEntry = ???
+    getObjMethods(obj).foldLeft(Map.empty[MethodName, Set[MethodName]])(
+      accCallGraphEntry
+    )
   }
 
   def main(args: Array[String]): Unit = {
@@ -136,7 +195,7 @@ object Analyzer {
 
     (for {
       ast <- ast[IO]
-      _ <- IO.println(findObjs(ast).map(_.bndName.name))
+      _ <- IO.println(findObjs(ast).toEO)
     } yield ()).unsafeRunSync()
   }
 
