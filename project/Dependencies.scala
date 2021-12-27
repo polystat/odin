@@ -6,6 +6,7 @@ object Dependencies {
     val cats = "2.6.1"
     val catsMtl = "1.2.1"
     val catsEffect = "3.2.8"
+    val catsParse = "0.3.4"
     val scalaTest = "3.2.9"
     val scalaCheck = "3.2.9.0"
     val nonEmpty = "0.2.0"
@@ -69,6 +70,10 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % V.pprint % Test,
   )
 
+  val catsParse = Seq(
+    "org.typelevel" %% "cats-parse" % V.catsParse
+  )
+
   val eoParser = Seq(
     "org.eolang" % "eo-parser" % V.eoParser % Test,
   )
@@ -84,6 +89,7 @@ object Dependencies {
     parserCombinators ++
     fastparse ++
     pprint ++
+    catsParse ++
     eoParser
 
   val interop: Seq[ModuleID] = common
