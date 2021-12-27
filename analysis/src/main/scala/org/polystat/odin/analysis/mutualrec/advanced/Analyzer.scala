@@ -3,6 +3,7 @@ package org.polystat.odin.analysis.mutualrec.advanced
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Sync}
 import fs2.Stream
+import cats.Eq
 import org.polystat.odin.analysis.ASTAnalyzer
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
@@ -13,6 +14,68 @@ import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 
 object Analyzer {
+  // build a tree
+  // convert a tree into Program
+
+  sealed trait Tree[A] {
+    val node: A
+    def find(predicate: A => Boolean): Option[A]
+  }
+
+  def untilDefined[A, B](lst: List[A])(f: A => Option[B]): Option[B] =
+    lst match {
+      case Nil => None
+      case head :: tail => f(head).orElse(untilDefined(tail)(f))
+    }
+
+  sealed case class Branch[A](node: A, children: List[Tree[A]])
+    extends Tree[A] {
+
+    override def find(predicate: A => Boolean): Option[A] =
+      if (predicate(node))
+        Some(node)
+      else
+        untilDefined(children)(t => t.find(predicate))
+
+  }
+
+  sealed case class Leaf[A](node: A) extends Tree[A] {
+
+    override def find(predicate: A => Boolean): Option[A] =
+      Option.when(predicate(node))(node)
+
+  }
+
+//  [] > a
+//    [] > aa
+  //    [self] > g
+  //      self > @
+//    a.a > @
+//
+//  [] > b
+
+// val aboba: Tree[Int] = Tree(1, List(Fix(Tree(1, List(Fix(Tree(1,
+  // List())))))))
+//
+//  val tree: List[Tree[(Object, Option[ObjectName])]] =
+//    List(
+//      Tree(
+//        (
+//          Object(
+//            name = ObjectName(None, "a"),
+//            parent = None,
+//            nestedObjs = List(),
+//            callGraph = ???
+//          ),
+//            Some(ObjectName(None, "b")
+//        ),
+//        List(Fix(Tree((ObjectName(None, "aa"), None), List()))),
+//      ),
+//      Tree(
+//        (ObjectName(None, "b"), None),
+//        List()
+//      )
+//    )
 
   /* EOProg -> Program by using object signature: [] > name
    * 1. filter EOProg for object signatures
