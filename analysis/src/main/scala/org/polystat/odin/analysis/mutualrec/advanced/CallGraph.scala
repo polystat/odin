@@ -139,6 +139,9 @@ object CallGraph {
       }
     }
 
+    def show: String =
+      cg.map(cge => s"${cge._1.show} -> ${cge._2.map(_.show).mkString(", ")}").mkString("\n")
+
   }
 
 }
