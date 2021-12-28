@@ -3,7 +3,6 @@ package org.polystat.odin.analysis.mutualrec.advanced
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Sync}
 import fs2.Stream
-import cats.Eq
 import org.polystat.odin.analysis.ASTAnalyzer
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
@@ -17,9 +16,184 @@ object Analyzer {
   // build a tree
   // convert a tree into Program
 
-  sealed trait Tree[A] {
-    val node: A
-    def find(predicate: A => Boolean): Option[A]
+  val exampleEO: String =
+    """[] > a
+      |  b > @
+      |  [self] > f
+      |    self > @
+      |[] > b
+      |  [] > d
+      |    c > @
+      |  [self] > g
+      |    self > @
+      |[] > c
+      |  [] > e
+      |    a > @
+      |    [self] > h
+      |      self.f self > @
+      |[] > t
+      |  c.e > @
+      |  [self] > f
+      |    self.h self > @
+      |""".stripMargin
+
+  case class ObjectInfo(
+    parent: Option[ObjectName],
+    methods: Vector[Method],
+    nestedObjects: Vector[NestedObject]
+  )
+
+  type Method = (String, EOObj[EOExprOnly])
+  type NestedObject = (String, EOObj[EOExprOnly])
+
+  def splitObjectBody(
+    body: Vector[EOBnd[EOExprOnly]]
+  ): ObjectInfo =
+    body.foldLeft(ObjectInfo(None, Vector.empty, Vector.empty)) {
+      case (acc, next) => next match {
+          case EOBndExpr(
+                 EODecoration,
+                 Fix(EOSimpleApp(name))
+               ) => acc.copy(parent = Some(ObjectName(None, name)))
+          case EOBndExpr(EODecoration, Fix(obj: EODot[EOExprOnly])) =>
+            acc.copy(parent = eoDotToObjectName(obj))
+
+          case EOBndExpr(
+                 EOAnyNameBnd(LazyName(name)),
+                 Fix(
+                   EOObj(
+                     Vector(),
+                     None,
+                     bnds: Vector[EOBndExpr[EOExprOnly]]
+                   )
+                 )
+               ) => acc.copy(nestedObjects =
+              acc.nestedObjects.appended((name, EOObj(Vector(), None, bnds)))
+            )
+
+          case EOBndExpr(
+                 EOAnyNameBnd(LazyName(name)),
+                 Fix(
+                   EOObj(
+                     params @ LazyName("self") +: _,
+                     vararg,
+                     bnds: Vector[EOBndExpr[EOExprOnly]]
+                   )
+                 )
+               ) => acc.copy(methods =
+              acc.methods.appended((name, EOObj(params, vararg, bnds)))
+            )
+          case _ => acc
+        }
+    }
+
+  def eoDotToObjectName(eoDot: EODot[EOExprOnly]): Option[ObjectName] = {
+    eoDot match {
+      case EODot(EOSimpleApp(obj), attr) =>
+        Some(ObjectName(Some(ObjectName(None, obj)), attr))
+      case EODot(Fix(dot: EODot[EOExprOnly]), name) => eoDotToObjectName(dot)
+          .map(container => ObjectName(Some(container), name))
+      case _ => None
+    }
+  }
+
+  def extractCalls(container: ObjectName)(
+    body: Vector[EOExpr[EOExprOnly]]
+  ): Set[MethodName] =
+    body.foldLeft(Set.empty[MethodName]) { case (acc, next) =>
+      next match {
+        case EOCopy(
+               Fix(EODot(Fix(EOSimpleApp("self")), name)),
+               args
+             ) =>
+          args
+            .value
+            .headOption
+            .map(bnd => Fix.un(bnd.expr))
+            .fold(acc) {
+              case EOSimpleApp("self") => acc + MethodName(container, name)
+              case _ => acc
+            }
+            .union(
+              extractCalls(container)(args.tail.map(bnd => Fix.un(bnd.expr)))
+            )
+        case EOCopy(Fix(trg), args) =>
+          acc
+            .union(extractCalls(container)(Vector(trg)))
+            .union(
+              extractCalls(container)(args.value.map(bnd => Fix.un(bnd.expr)))
+            )
+        case EODot(Fix(trg), _) =>
+          acc.union(extractCalls(container)(Vector(trg)))
+        case _ => acc
+      }
+    }
+
+  def extractCallGraph(
+    container: ObjectName
+  )(methods: Vector[Method]): CallGraph = {
+    def extractCallGraphEntry(method: Method): CallGraphEntry =
+      (
+        MethodName(container, method._1),
+        extractCalls(container)(method._2.bndAttrs.map(bnd => Fix.un(bnd.expr)))
+      )
+
+    methods.map(extractCallGraphEntry).toMap
+
+  }
+
+  def buildTreeFromObj(container: Option[ObjectName])(
+    obj: NestedObject
+  ): Tree[(Object, Option[ObjectName])] = {
+
+    val (name, body) = obj
+    val bodyInfo = splitObjectBody(body.bndAttrs)
+    val objectName = ObjectName(container, name)
+
+    Tree(
+      node = (
+        Object(
+          name = objectName,
+          parent = None,
+          nestedObjs = List(),
+          callGraph = extractCallGraph(objectName)(bodyInfo.methods)
+        ),
+        bodyInfo.parent
+      ),
+      children =
+        bodyInfo.nestedObjects.map(buildTreeFromObj(Some(objectName))).toList
+    )
+  }
+
+  def buildTree(
+    prog: EOProg[EOExprOnly]
+  ): Vector[Tree[(Object, Option[ObjectName])]] =
+    splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj(None))
+
+  def main(args: Array[String]): Unit = {
+    val code = exampleEO
+    """
+      |[self] > bebra
+      |  seq > @
+      |    self.amogus self
+      |    self.aboba self
+      |    self.dance
+      |    self.correct self (self.zhat self) (self.zhrat self)
+      |    1.add (self.fib self 2)
+      |""".stripMargin
+    (for {
+      ast <- sourceCodeEoParser[IO]().parse(code)
+//      _ <- IO.delay(pprint.pprintln(Fix.un(ast.bnds(0).expr)))
+//      _ <- IO.println(
+//        extractCallGraph(ObjectName(None, "sasamba"))(
+//          Vector(
+// ("bebra", Fix.un(ast.bnds(0).expr).asInstanceOf[EOObj[EOExprOnly]])
+//          )
+//        ).show
+//      )
+      _ <- IO.println(buildTree(ast).mkString("\n"))
+    } yield ()).unsafeRunSync()
+
   }
 
   def untilDefined[A, B](lst: List[A])(f: A => Option[B]): Option[B] =
@@ -28,21 +202,13 @@ object Analyzer {
       case head :: tail => f(head).orElse(untilDefined(tail)(f))
     }
 
-  sealed case class Branch[A](node: A, children: List[Tree[A]])
-    extends Tree[A] {
+  sealed case class Tree[A](node: A, children: List[Tree[A]]) {
 
-    override def find(predicate: A => Boolean): Option[A] =
+    def find(predicate: A => Boolean): Option[A] =
       if (predicate(node))
         Some(node)
       else
-        untilDefined(children)(t => t.find(predicate))
-
-  }
-
-  sealed case class Leaf[A](node: A) extends Tree[A] {
-
-    override def find(predicate: A => Boolean): Option[A] =
-      Option.when(predicate(node))(node)
+        untilDefined(children)(_.find(predicate))
 
   }
 
@@ -159,9 +325,7 @@ object Analyzer {
                 (acc + MethodName(objName, name)) ++ args
                   .value
                   .asInstanceOf[Vector[EOBnd[Fix[EOExpr]]]]
-                  .flatMap((bnd: EOBnd[Fix[EOExpr]]) =>
-                    getInnerCalls(Fix.un(bnd.expr))
-                  )
+                  .flatMap(bnd => getInnerCalls(Fix.un(bnd.expr)))
               case _ => acc
             }
           )
@@ -200,79 +364,6 @@ object Analyzer {
     getObjMethods(obj).foldLeft(Map.empty[MethodName, Set[MethodName]])(
       accCallGraphEntry
     )
-  }
-
-  def main(args: Array[String]): Unit = {
-    val code =
-      """
-        |+package sandbox
-        |+alias stdout org.eolang.io.stdout
-        |+alias sprintf org.eolang.txt.sprintf
-        |
-        |[p cont] > assert
-        |  if. > @
-        |    p
-        |    false
-        |    cont
-        |
-        |[] > character
-        |
-        |  [] > hui
-        |    character > @
-        |   
-        |  [self mana] > checkMana
-        |    0 > minMana
-        |    seq > @
-        |      stdout "Checking character's mana\n"
-        |      assert (mana.less minMana) true
-        |  [self mana] > castSpell
-        |    seq > @
-        |      self.checkMana self (mana.add(100))
-        |      stdout
-        |        sprintf
-        |          "Character with %d mana casts a spell\n"
-        |          mana
-        |  [self mana] > attack
-        |    seq > @
-        |      stdout
-        |        sprintf
-        |          "Character with %d mana attacks\n"
-        |          mana
-        |
-        |[] > god
-        |  character > @
-        |  [self mana] > checkMana
-        |    seq > @
-        |      stdout
-        |        sprintf "The God has unlimited mana\n"
-        |  [self mana] > attack
-        |    self.castSpell self mana > @
-        |
-        |[args...] > app
-        |  memory > mana
-        |  character > regular_character
-        |  god > god_character
-        |  seq > @
-        |    mana.write 10
-        |    stdout
-        |      sprintf "Regular character:\n"
-        |    regular_character.castSpell regular_character mana
-        |    mana.write (mana.sub 5)
-        |    regular_character.attack regular_character mana
-        |    stdout
-        |      sprintf "\nGod character:\n"
-        |    god_character.castSpell god_character mana
-        |    god_character.attack god_character mana
-        |    0
-        |
-        |""".stripMargin
-
-    def ast[F[_]: Sync] = sourceCodeEoParser().parse(code)
-
-    (for {
-      ast <- ast[IO]
-      _ <- IO.println(findObjs(ast).toEO)
-    } yield ()).unsafeRunSync()
   }
 
   // TODO: this should be explicit
