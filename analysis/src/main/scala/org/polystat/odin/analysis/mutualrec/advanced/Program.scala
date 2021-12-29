@@ -8,6 +8,8 @@ case class Program(objs: List[Object]) {
     objs.exists(obj => obj.name.name == s)
   }
 
+  def findCycles: List[CallChain] = objs.flatMap(_.callGraph.findCycles)
+
   def toEO: String = objs.map(_.toEO).mkString("\n")
   def toCPP: String = objs.map(_.toCPP).mkString("\n")
 
