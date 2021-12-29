@@ -51,7 +51,7 @@ case class Object(
       s"""[] > ${obj.name.name}
          |${obj
         .parent
-        .fold("")(ext => s"$spaces${ext.name.name} > @\n")}${obj
+        .fold("")(parent => s"$spaces${parent.name.show} > @\n")}${obj
         .callGraph
         .filter { case (method, _) =>
           method.whereDefined.name == obj.name.name
