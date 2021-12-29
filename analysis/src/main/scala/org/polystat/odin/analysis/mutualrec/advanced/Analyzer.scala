@@ -1,7 +1,9 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
+import cats.effect.{IO, Sync}
 import cats.effect.unsafe.implicits.global
-import cats.effect.IO
+import cats.syntax.either._
+import cats.Traverse
 import fs2.Stream
 import org.polystat.odin.analysis.ASTAnalyzer
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -16,36 +18,73 @@ object Analyzer {
   // build a tree
   // convert a tree into Program
 
+  type ErrorOr[A] = Either[String, A]
+
   val exampleEO: String =
-    """# v.z -> w.q -> v.z
-      |# w.a -> v.z -> w.q -> v.z
-      |# w.s -> v.z -> w.q -> v.z
-      |# w.q -> v.z -> w.q
+    """# h.p.i.y -> v.h -> h.p.i.y
+      |# v.h -> h.p.i.y -> v.h
       |
-      |[] > e
-      |  [self] > m
-      |    self.s self > @
-      |  [self] > s
+      |[] > h
+      |  [self] > p
       |    self > @
-      |  [self] > v
-      |    self.s self > @
+      |  [self] > k
+      |    self > @
+      |  [self] > f
+      |    self > @
+      |  [self] > w
+      |    self > @
+      |
+      |  [] > p
+      |    [self] > o
+      |      self > @
+      |    [self] > h
+      |      self > @
+      |
+      |    [] > i
+      |      [self] > h
+      |        self > @
+      |      [self] > y
+      |        self.h self > @
+      |      [self] > e
+      |        self > @
+      |
+      |
+      |    [] > f
+      |      [self] > s
+      |        self > @
+      |
+      |
+      |  [] > s
+      |    [self] > b
+      |      self > @
+      |    [self] > l
+      |      self.b self > @
+      |
+      |
+      |  [] > x
+      |    [self] > t
+      |      self > @
+      |
+      |
+      |  [] > n
+      |    [self] > c
+      |      self.e self > @
+      |    [self] > f
+      |      self > @
+      |    [self] > e
+      |      self.f self > @
       |
       |
       |[] > v
-      |  [self] > z
-      |    self.q self > @
-      |  [self] > q
+      |  h.p.i > @
+      |  [self] > h
+      |    self.y self > @
+      |  [self] > e
       |    self > @
-      |
-      |
-      |[] > w
-      |  v > @
-      |  [self] > a
-      |    self.z self > @
-      |  [self] > s
-      |    self.z self > @
+      |  [self] > o
+      |    self > @
       |  [self] > q
-      |    self.z self > @
+      |    self.o self > @
       |
       |
       |""".stripMargin
@@ -111,90 +150,107 @@ object Analyzer {
 
   def extractCalls(
     body: Vector[EOExpr[EOExprOnly]]
-  )(getContainer: String => ObjectName): Set[MethodName] =
-    body.foldLeft(Set.empty[MethodName]) { case (acc, next) =>
-      next match {
-        case EOCopy(
-               Fix(EODot(Fix(EOSimpleApp("self")), name)),
-               args
-             ) =>
-          args
-            .headOption
-            .map(bnd => Fix.un(bnd.expr))
-            .fold(acc) {
-              case EOSimpleApp("self") =>
-                acc + MethodName(getContainer(name), name)
-              case _ => acc
-            }
-            .union(
-              extractCalls(args.tail.map(bnd => Fix.un(bnd.expr)))(getContainer)
-            )
-        case EOCopy(Fix(trg), args) =>
-          acc
-            .union(extractCalls(Vector(trg))(getContainer))
-            .union(
-              extractCalls(
+  )(getContainer: String => ErrorOr[ObjectName]): ErrorOr[Set[MethodName]] =
+    body.foldLeft[ErrorOr[Set[MethodName]]](Right(Set.empty)) {
+      case (acc, next) =>
+        next match {
+          case EOCopy(
+                 Fix(EODot(Fix(EOSimpleApp("self")), name)),
+                 args
+               ) =>
+            for {
+              accWithMethod <- args
+                .headOption
+                .map(bnd => Fix.un(bnd.expr))
+                .fold(acc) {
+                  case EOSimpleApp("self") =>
+                    for {
+                      container <- getContainer(name)
+                      acc <- acc
+                    } yield acc + MethodName(container, name)
+                  case _ => acc
+                }
+              callsFromArgs <- extractCalls(
+                args.tail.map(bnd => Fix.un(bnd.expr))
+              )(getContainer)
+            } yield accWithMethod.union(callsFromArgs)
+
+          case EOCopy(Fix(trg), args) =>
+            for {
+              acc <- acc
+              callsFromTrg <- extractCalls(Vector(trg))(getContainer)
+              callsFromArgs <- extractCalls(
                 args.value.map(bnd => Fix.un(bnd.expr))
               )(getContainer)
-            )
-        case EODot(Fix(trg), _) =>
-          acc.union(extractCalls(Vector(trg))(getContainer))
-        case _ => acc
-      }
+
+            } yield acc.union(callsFromTrg).union(callsFromArgs)
+          case EODot(Fix(trg), _) =>
+            for {
+              acc <- acc
+              callsFromTrg <- extractCalls(Vector(trg))(getContainer)
+            } yield acc.union(callsFromTrg)
+          case _ => acc
+        }
     }
 
   def extractCallGraph(
     parent: Option[ObjectName],
     container: ObjectName
-  )(methods: Vector[Method]): CallGraph = {
-    def extractCallGraphEntry(method: Method): CallGraphEntry =
-      (
-        MethodName(container, method._1),
-        extractCalls(method._2.bndAttrs.map(bnd => Fix.un(bnd.expr))) { name =>
-          methods
-            .find(_._1 == name)
-            .fold(
-              parent.getOrElse(
-                throw new Exception(
+  )(methods: Vector[Method]): ErrorOr[CallGraph] = {
+    def extractCallGraphEntry(method: Method): ErrorOr[CallGraphEntry] = {
+      for {
+        calls <- extractCalls(method._2.bndAttrs.map(bnd => Fix.un(bnd.expr))) {
+          name =>
+            methods
+              .find(_._1 == name)
+              .fold(
+                Either.fromOption(
+                  parent,
                   "This object calls a method that's not defined!"
                 )
-              )
-            )(_ => container)
+              )(_ => Right(container))
         }
+      } yield (
+        MethodName(container, method._1),
+        calls
       )
-
-    methods.map(extractCallGraphEntry).toMap
-
+    }
+    Traverse[Vector].sequence(methods.map(extractCallGraphEntry)).map(_.toMap)
   }
 
   def buildTreeFromObj(container: Option[ObjectName])(
     obj: NestedObject
-  ): Tree[(Object, Option[ObjectName])] = {
+  ): ErrorOr[Tree[(Object, Option[ObjectName])]] = {
 
     val (name, body) = obj
     val bodyInfo = splitObjectBody(body.bndAttrs)
     val objectName = ObjectName(container, name)
 
-    Tree(
+    for {
+      cg <- extractCallGraph(bodyInfo.parent, objectName)(bodyInfo.methods)
+      nestedObjs <- Traverse[Vector].sequence(
+        bodyInfo.nestedObjects.map(buildTreeFromObj(Some(objectName)))
+      )
+    } yield Tree(
       node = (
         Object(
           name = objectName,
           parent = None,
           nestedObjs = List(),
-          callGraph =
-            extractCallGraph(bodyInfo.parent, objectName)(bodyInfo.methods)
+          callGraph = cg
         ),
         bodyInfo.parent
       ),
-      children =
-        bodyInfo.nestedObjects.map(buildTreeFromObj(Some(objectName))).toList
+      children = nestedObjs.toList
     )
   }
 
   def buildTree(
     prog: EOProg[EOExprOnly]
-  ): Vector[Tree[(Object, Option[ObjectName])]] =
-    splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj(None))
+  ): ErrorOr[Vector[Tree[(Object, Option[ObjectName])]]] =
+    Traverse[Vector].sequence(
+      splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj(None))
+    )
 
   def resolveParent(
     progTree: Tree[(Object, Option[ObjectName])] // only for lookup
@@ -216,18 +272,24 @@ object Analyzer {
 
   def restoreObjectFromTree(
     progTree: Tree[(Object, Option[ObjectName])] // only for lookup
-  )(tree: Tree[(Object, Option[ObjectName])]): Object = {
+  )(tree: Tree[(Object, Option[ObjectName])]): ErrorOr[Object] = {
     val (partialObj, maybeParent) = tree.node
     maybeParent match {
-      case Some(parent) => resolveParent(progTree)(parent).fold(
-          throw new Exception(
-            s"Parent object of ${partialObj.name.show} is specified, but not defined in the program"
+      case Some(parent) => Either
+          .fromOption(
+            resolveParent(progTree)(parent),
+            s"Parent object of ${partialObj.name.show} is specified, but not defined in the program!"
           )
-        )(parentObj =>
-          parentObj.extended(partialObj.name, partialObj.callGraph)
-        )
-      case None => partialObj.copy(
-          nestedObjs = tree.children.map(restoreObjectFromTree(progTree))
+          .map(parentObj =>
+            parentObj.extended(partialObj.name, partialObj.callGraph)
+          )
+      case None =>
+        for {
+          nestedObjs <- Traverse[List].sequence(
+            tree.children.map(restoreObjectFromTree(progTree))
+          )
+        } yield partialObj.copy(
+          nestedObjs = nestedObjs
         )
     }
   }
@@ -241,23 +303,32 @@ object Analyzer {
 
   def buildProgram(
     trees: Vector[Tree[(Object, Option[ObjectName])]]
-  ): Program = Program(
-    trees
-      .map(restoreObjectFromTree(Tree((dummyObj, None), trees.toList)))
-      .toList
-  )
+  ): ErrorOr[Program] =
+    Traverse[Vector]
+      .sequence(
+        trees
+          .map(restoreObjectFromTree(Tree((dummyObj, None), trees.toList)))
+      )
+      .map(objs => Program(objs.toList))
 
   def findErrors(prog: Program): List[OdinAnalysisError] =
     prog.findCycles.map(cc => OdinAnalysisError(cc.show))
 
-  def analyzeAst(prog: EOProg[EOExprOnly]): List[OdinAnalysisError] =
-    findErrors(buildProgram(buildTree(prog)))
+  def analyzeAst(prog: EOProg[EOExprOnly]): ErrorOr[List[OdinAnalysisError]] =
+    for {
+      tree <- buildTree(prog)
+      program <- buildProgram(tree)
+    } yield findErrors(program)
 
   def main(args: Array[String]): Unit = {
     val code = exampleEO
     (for {
       ast <- sourceCodeEoParser[IO]().parse(code)
-      _ <- advancedMutualRecursionAnalyzer.analyze(ast).evalMap(IO.println).compile.drain
+      _ <- advancedMutualRecursionAnalyzer[IO]
+        .analyze(ast)
+        .evalMap(IO.println)
+        .compile
+        .drain
     } yield ()).unsafeRunSync()
 
   }
@@ -279,13 +350,16 @@ object Analyzer {
   }
 
   // TODO: this should be explicit
-  implicit def advancedMutualRecursionAnalyzer[F[_]]: ASTAnalyzer[F] =
+  implicit def advancedMutualRecursionAnalyzer[F[_]: Sync]: ASTAnalyzer[F] =
     new ASTAnalyzer[F] {
 
       override def analyze(
         ast: EOProg[EOExprOnly]
       ): Stream[F, OdinAnalysisError] = for {
-        error <- Stream.emits(analyzeAst(ast))
+        errors <- Stream.eval(
+          Sync[F].fromEither(analyzeAst(ast).leftMap(new Exception(_)))
+        )
+        error <- Stream.emits(errors)
       } yield error
 
     }
