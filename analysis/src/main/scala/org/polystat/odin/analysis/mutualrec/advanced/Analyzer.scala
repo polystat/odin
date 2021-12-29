@@ -95,34 +95,68 @@ object Analyzer {
     nestedObjects: Vector[NestedObject]
   )
 
-  type Method = (String, EOObj[EOExprOnly])
-  type NestedObject = (String, EOObj[EOExprOnly])
+  type Method = (
+    String, // method name
+    EOObj[EOExprOnly] // method body
+  )
+
+  type NestedObject = (
+    String, // object name
+    EOObj[EOExprOnly] // object body
+  )
+
+  type PartialObject = (
+    Object, // an object containing the object name and partial call graph
+    Option[ObjectName] // parent or decoratee
+  )
+
+  def untilDefined[A, B](lst: List[A])(f: A => Option[B]): Option[B] =
+    lst match {
+      case Nil => None
+      case head :: tail => f(head).orElse(untilDefined(tail)(f))
+    }
+
+  sealed case class Tree[A](node: A, children: List[Tree[A]]) {
+
+    def find(predicate: A => Boolean): Option[A] =
+      if (predicate(node))
+        Some(node)
+      else
+        untilDefined(children)(_.find(predicate))
+
+  }
 
   def splitObjectBody(
     body: Vector[EOBnd[EOExprOnly]]
   ): ObjectInfo =
     body.foldLeft(ObjectInfo(None, Vector.empty, Vector.empty)) {
       case (acc, next) => next match {
+
+          // parent (simple app)
+          // simple_name > @
           case EOBndExpr(
                  EODecoration,
                  Fix(EOSimpleApp(name))
                ) => acc.copy(parent = Some(ObjectName(None, name)))
+
+          // parent (eo dot)
+          // a.b.c > @
           case EOBndExpr(EODecoration, Fix(obj: EODot[EOExprOnly])) =>
             acc.copy(parent = eoDotToObjectName(obj))
 
+          // object
+          // [] > objName
+          //   ...
           case EOBndExpr(
                  EOAnyNameBnd(LazyName(name)),
-                 Fix(
-                   EOObj(
-                     Vector(),
-                     None,
-                     bnds: Vector[EOBndExpr[EOExprOnly]]
-                   )
-                 )
+                 Fix(obj @ EOObj(Vector(), None, _))
                ) => acc.copy(nestedObjects =
-              acc.nestedObjects.appended((name, EOObj(Vector(), None, bnds)))
+              acc.nestedObjects.appended((name, obj))
             )
 
+          // method
+          // [self params] > methodName
+          //   ...
           case EOBndExpr(
                  EOAnyNameBnd(LazyName(name)),
                  Fix(
@@ -135,6 +169,11 @@ object Analyzer {
                ) => acc.copy(methods =
               acc.methods.appended((name, EOObj(params, vararg, bnds)))
             )
+
+          // any other binding that is not one of the above
+          // 2 > two
+          // 2.add 2 > four
+          // etc.
           case _ => acc
         }
     }
@@ -198,20 +237,22 @@ object Analyzer {
     container: ObjectName
   )(methods: Vector[Method]): ErrorOr[CallGraph] = {
     def extractCallGraphEntry(method: Method): ErrorOr[CallGraphEntry] = {
+      val (methodName, methodBody) = method
       for {
-        calls <- extractCalls(method._2.bndAttrs.map(bnd => Fix.un(bnd.expr))) {
-          name =>
-            methods
-              .find(_._1 == name)
-              .fold(
-                Either.fromOption(
-                  parent,
-                  "This object calls a method that's not defined!"
-                )
-              )(_ => Right(container))
+        calls <- extractCalls(
+          methodBody.bndAttrs.map(bnd => Fix.un(bnd.expr))
+        ) { name =>
+          methods
+            .find(_._1 == name)
+            .fold(
+              Either.fromOption(
+                parent,
+                "This object calls a method that's not defined!"
+              )
+            )(_ => Right(container))
         }
       } yield (
-        MethodName(container, method._1),
+        MethodName(container, methodName),
         calls
       )
     }
@@ -220,7 +261,7 @@ object Analyzer {
 
   def buildTreeFromObj(container: Option[ObjectName])(
     obj: NestedObject
-  ): ErrorOr[Tree[(Object, Option[ObjectName])]] = {
+  ): ErrorOr[Tree[PartialObject]] = {
 
     val (name, body) = obj
     val bodyInfo = splitObjectBody(body.bndAttrs)
@@ -247,13 +288,13 @@ object Analyzer {
 
   def buildTree(
     prog: EOProg[EOExprOnly]
-  ): ErrorOr[Vector[Tree[(Object, Option[ObjectName])]]] =
+  ): ErrorOr[Vector[Tree[PartialObject]]] =
     Traverse[Vector].sequence(
       splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj(None))
     )
 
   def resolveParent(
-    progTree: Tree[(Object, Option[ObjectName])] // only for lookup
+    progTree: Tree[PartialObject] // only for lookup
   )(parentName: ObjectName): Option[Object] = {
     progTree
       .find { case (obj, _) =>
@@ -271,8 +312,8 @@ object Analyzer {
   }
 
   def restoreObjectFromTree(
-    progTree: Tree[(Object, Option[ObjectName])] // only for lookup
-  )(tree: Tree[(Object, Option[ObjectName])]): ErrorOr[Object] = {
+    progTree: Tree[PartialObject] // only for lookup
+  )(tree: Tree[PartialObject]): ErrorOr[Object] = {
     val (partialObj, maybeParent) = tree.node
     maybeParent match {
       case Some(parent) => Either
@@ -294,22 +335,24 @@ object Analyzer {
     }
   }
 
-  val dummyObj: Object = Object(
-    name = ObjectName(None, "THIS NAME DOESN'T MATTER"),
-    parent = None,
-    nestedObjs = List(),
-    callGraph = Map()
-  )
-
   def buildProgram(
-    trees: Vector[Tree[(Object, Option[ObjectName])]]
-  ): ErrorOr[Program] =
+    trees: Vector[Tree[PartialObject]]
+  ): ErrorOr[Program] = {
+
+    val dummyObj: Object = Object(
+      name = ObjectName(None, "THIS NAME DOESN'T MATTER"),
+      parent = None,
+      nestedObjs = List(),
+      callGraph = Map()
+    )
+
     Traverse[Vector]
       .sequence(
         trees
           .map(restoreObjectFromTree(Tree((dummyObj, None), trees.toList)))
       )
       .map(objs => Program(objs.toList))
+  }
 
   def findErrors(prog: Program): List[OdinAnalysisError] =
     prog.findCycles.map(cc => OdinAnalysisError(cc.show))
@@ -330,22 +373,6 @@ object Analyzer {
         .compile
         .drain
     } yield ()).unsafeRunSync()
-
-  }
-
-  def untilDefined[A, B](lst: List[A])(f: A => Option[B]): Option[B] =
-    lst match {
-      case Nil => None
-      case head :: tail => f(head).orElse(untilDefined(tail)(f))
-    }
-
-  sealed case class Tree[A](node: A, children: List[Tree[A]]) {
-
-    def find(predicate: A => Boolean): Option[A] =
-      if (predicate(node))
-        Some(node)
-      else
-        untilDefined(children)(_.find(predicate))
 
   }
 
