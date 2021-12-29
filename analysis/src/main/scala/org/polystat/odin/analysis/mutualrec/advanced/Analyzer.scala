@@ -87,7 +87,7 @@ object Analyzer {
         }
     }
 
-  def eoDotToObjectName(eoDot: EODot[EOExprOnly]): Option[ObjectName] = {
+  def eoDotToObjectName(eoDot: EODot[EOExprOnly]): Option[ObjectName] =
     eoDot match {
       case EODot(EOSimpleApp(obj), attr) =>
         Some(ObjectName(Some(ObjectName(None, obj)), attr))
@@ -95,11 +95,10 @@ object Analyzer {
           .map(container => ObjectName(Some(container), name))
       case _ => None
     }
-  }
 
-  def extractCalls(container: ObjectName)(
+  def extractCalls(
     body: Vector[EOExpr[EOExprOnly]]
-  ): Set[MethodName] =
+  )(getContainer: String => ObjectName): Set[MethodName] =
     body.foldLeft(Set.empty[MethodName]) { case (acc, next) =>
       next match {
         case EOCopy(
@@ -111,31 +110,45 @@ object Analyzer {
             .headOption
             .map(bnd => Fix.un(bnd.expr))
             .fold(acc) {
-              case EOSimpleApp("self") => acc + MethodName(container, name)
+              case EOSimpleApp("self") =>
+                acc + MethodName(getContainer(name), name)
               case _ => acc
             }
             .union(
-              extractCalls(container)(args.tail.map(bnd => Fix.un(bnd.expr)))
+              extractCalls(args.tail.map(bnd => Fix.un(bnd.expr)))(getContainer)
             )
         case EOCopy(Fix(trg), args) =>
           acc
-            .union(extractCalls(container)(Vector(trg)))
+            .union(extractCalls(Vector(trg))(getContainer))
             .union(
-              extractCalls(container)(args.value.map(bnd => Fix.un(bnd.expr)))
+              extractCalls(
+                args.value.map(bnd => Fix.un(bnd.expr))
+              )(getContainer)
             )
         case EODot(Fix(trg), _) =>
-          acc.union(extractCalls(container)(Vector(trg)))
+          acc.union(extractCalls(Vector(trg))(getContainer))
         case _ => acc
       }
     }
 
   def extractCallGraph(
+    parent: Option[ObjectName],
     container: ObjectName
   )(methods: Vector[Method]): CallGraph = {
     def extractCallGraphEntry(method: Method): CallGraphEntry =
       (
         MethodName(container, method._1),
-        extractCalls(container)(method._2.bndAttrs.map(bnd => Fix.un(bnd.expr)))
+        extractCalls(method._2.bndAttrs.map(bnd => Fix.un(bnd.expr))) { name =>
+          methods
+            .find(_._1 == name)
+            .fold(
+              parent.getOrElse(
+                throw new Exception(
+                  "This object calls a method that's not defined!"
+                )
+              )
+            )(_ => container)
+        }
       )
 
     methods.map(extractCallGraphEntry).toMap
@@ -156,7 +169,8 @@ object Analyzer {
           name = objectName,
           parent = None,
           nestedObjs = List(),
-          callGraph = extractCallGraph(objectName)(bodyInfo.methods)
+          callGraph =
+            extractCallGraph(bodyInfo.parent, objectName)(bodyInfo.methods)
         ),
         bodyInfo.parent
       ),
@@ -169,6 +183,59 @@ object Analyzer {
     prog: EOProg[EOExprOnly]
   ): Vector[Tree[(Object, Option[ObjectName])]] =
     splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj(None))
+
+  def resolveParent(
+    progTree: Tree[(Object, Option[ObjectName])] // only for lookup
+  )(parentName: ObjectName): Option[Object] = {
+    progTree
+      .find { case (obj, _) =>
+        obj.name == parentName
+      }
+      .flatMap { case (parentObj, maybeParentOfParent) =>
+        maybeParentOfParent match {
+          case Some(parentOfParent) =>
+            resolveParent(progTree)(parentOfParent).map(
+              _.extended(parentObj.name, parentObj.callGraph)
+            )
+          case None => Some(parentObj)
+        }
+      }
+  }
+
+  def restoreObjectFromTree(
+    progTree: Tree[(Object, Option[ObjectName])] // only for lookup
+  )(tree: Tree[(Object, Option[ObjectName])]): Object = {
+    val (partialObj, maybeParent) = tree.node
+    maybeParent match {
+      case Some(parent) => resolveParent(progTree)(parent).fold(
+          throw new Exception(
+            s"Parent object of ${partialObj.name.show} is specified, but not defined in the program"
+          )
+        )(parentObj =>
+          parentObj.extended(partialObj.name, partialObj.callGraph)
+        )
+      case None => partialObj.copy(
+          nestedObjs = tree.children.map(restoreObjectFromTree(progTree))
+        )
+    }
+  }
+
+  val dummyObj: Object = Object(
+    name = ObjectName(None, "THIS NAME DOESN'T MATTER"),
+    parent = None,
+    nestedObjs = List(),
+    callGraph = Map()
+  )
+
+  def buildProgram(
+    trees: Vector[Tree[(Object, Option[ObjectName])]]
+  ): Program = {
+    Program(
+      trees
+        .map(restoreObjectFromTree(Tree((dummyObj, None), trees.toList)))
+        .toList
+    )
+  }
 
   def main(args: Array[String]): Unit = {
     val code = exampleEO
@@ -190,8 +257,8 @@ object Analyzer {
 // ("bebra", Fix.un(ast.bnds(0).expr).asInstanceOf[EOObj[EOExprOnly]])
 //          )
 //        ).show
-//      )
-      _ <- IO.println(buildTree(ast).mkString("\n"))
+//      )'
+      _ <- IO.println(buildProgram(buildTree(ast)).objs.flatMap(_.callGraph.findCycles.map(_.show)).mkString("\n"))
     } yield ()).unsafeRunSync()
 
   }
