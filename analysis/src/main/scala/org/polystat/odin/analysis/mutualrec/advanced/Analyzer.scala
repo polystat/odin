@@ -247,7 +247,7 @@ object Analyzer {
             .fold(
               Either.fromOption(
                 parent,
-                "This object calls a method that's not defined!"
+                s"${container.show} calls a method \"$name\" that's not defined!"
               )
             )(_ => Right(container))
         }
@@ -319,7 +319,7 @@ object Analyzer {
       case Some(parent) => Either
           .fromOption(
             resolveParent(progTree)(parent),
-            s"Parent object of ${partialObj.name.show} is specified, but not defined in the program!"
+            s"Parent object ${parent.show} of ${partialObj.name.show} is specified, but not defined in the program!"
           )
           .map(parentObj =>
             parentObj.extended(partialObj.name, partialObj.callGraph)
