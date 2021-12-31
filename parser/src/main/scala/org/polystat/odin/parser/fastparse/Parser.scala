@@ -6,9 +6,8 @@ import org.polystat.odin.core.ast._
 import IgnoreEmptyLinesOrComments._
 import org.polystat.odin.parser.fastparse.Metas.{aliasMeta, packageMeta, rtMeta}
 
-/**
-  * Entrypoint for the parser
-  */
+
+@deprecated("Use org.polystat.odin.parser.cats_parse package instead", "0.1.5")
 object Parser {
 
   private[parser] def metas[_: P]: P[EOMetas] = P(
@@ -45,7 +44,7 @@ object Parser {
     code: String,
     indentationStep: Int = 2
   ): Parsed[EOProg[EOExprOnly]] = {
-    fastparse.parse(code, Parser.program(0, indentationStep)(_))
+    fastparse.parse(code, program(0, indentationStep)(_))
   }
 
 }

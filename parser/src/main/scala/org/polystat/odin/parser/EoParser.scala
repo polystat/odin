@@ -25,28 +25,21 @@ object EoParser {
 
   implicit def sourceCodeEoParser[F[_]](
     indentationStep: Int = 2
-  )(implicit
-    ae: ApplicativeError[F, Throwable]
+  )(
+    implicit ae: ApplicativeError[F, Throwable]
   ): EoParser[String, F, EOProg[EOExprOnly]] =
     new EoParser[String, F, EOProg[EOExprOnly]] {
-      import fastparse.Parser
+      import cats_parse.Parser
 
       override def parse(
         eoRepr: String
-      ): F[EOProg[EOExprOnly]] = Parser
-        .parse(eoRepr, indentationStep)
-        .fold(
-          onFailure = (label, index, extra) => {
-            val errorMessage =
-              new IllegalArgumentException(
-                s"""[$index] Parsing failed with error: $label. Extra:
-                   |$extra""".stripMargin
-              )
-            ApplicativeError[F, Throwable].raiseError(errorMessage)
-          },
-          onSuccess = (ast, _) => ApplicativeError[F, Throwable].pure(ast)
+      ): F[EOProg[EOExprOnly]] = {
+        ae.fromEither(
+          Parser
+            .parse(eoRepr, indentationStep)
+            .leftMap(new IllegalArgumentException(_))
         )
-
+      }
     }
 
   implicit def xmirToEoBndEoParser[EORepr, F[_]](implicit
