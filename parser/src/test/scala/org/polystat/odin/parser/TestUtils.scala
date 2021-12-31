@@ -8,9 +8,21 @@ import scala.jdk.CollectionConverters._
 
 object TestUtils {
 
+  case class TestCase[AST](
+    label: String,
+    code: String,
+    ast: Option[AST] = Option.empty[AST]
+  )
+
   val astPrinter: PPrinter = pprint.copy(
-    additionalHandlers = { case nonEmpty: NonEmpty[_, _] =>
-      pprint.treeify(nonEmpty.value)
+    additionalHandlers = {
+      case nonEmpty: NonEmpty[_, _] => pprint
+          .treeify(
+            x = nonEmpty.value,
+            escapeUnicode = false,
+            showFieldNames = true
+          )
+      case s: String => pprint.Tree.Literal(s)
     }
   )
 

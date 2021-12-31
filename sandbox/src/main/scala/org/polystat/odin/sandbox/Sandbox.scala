@@ -1,16 +1,15 @@
 package org.polystat.odin.sandbox
 
-import cats.effect.{ExitCode, IO, IOApp, Resource, Sync}
-import cats.implicits._
-import org.polystat.odin.parser.fastparse.Parser
-import org.polystat.odin.analysis.EOOdinAnalyzer
+import cats.effect.{ExitCode, IO, IOApp, Resource}
 import org.polystat.odin.analysis.mutualrec.naive.{
   findMutualRecursionInTopLevelObjects,
   resolveMethodsReferencesForEOProgram
 }
+import cats.implicits._
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.backend.eolang.inlineorlines.ops._
+import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 
 import scala.io.Source
 import scala.util.chaining._
@@ -27,20 +26,7 @@ object Sandbox extends IOApp {
       Resource.make(IO(Source.fromResource(fileName)))(src => IO(src.close()))
     fileContents <-
       fileSourceResource.use(src => IO(src.getLines().toVector.mkString("\n")))
-    program <- IO.fromEither(
-      Parser
-        .parse(fileContents)
-        .fold(
-          onFailure = (label, index, extra) =>
-            Left(
-              new IllegalArgumentException(
-                s"""[$index] Parsing failed with error: $label. Extra:
-                   |$extra""".stripMargin
-              )
-            ),
-          onSuccess = (ast, _) => Right(ast)
-        )
-    )
+    program <- sourceCodeEoParser[IO]().parse(fileContents)
     programText = program.toEO.allLinesToString
     _ <- IO(programText.tap(println))
 

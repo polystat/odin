@@ -3,27 +3,23 @@ package org.polystat.odin.parser.xmir
 import cats.effect.testing.scalatest.AsyncIOSpec
 import cats.effect.{IO, Sync}
 import cats.implicits._
-import fastparse.Parsed
 import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.MutualRecExample
-import org.polystat.odin.parser.fastparse.Parser
+import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 import org.scalatest.Assertion
 import org.scalatest.wordspec.AsyncWordSpec
 import scala.xml.Elem
 
 class ParserTests extends AsyncWordSpec with AsyncIOSpec {
 
-  def parseEO(code: String): Either[String, Vector[EOBnd[EOExprOnly]]] = {
-    Parser.parse(code) match {
-      case Parsed.Success(value, _) => Right(value.bnds)
-      case failure: Parsed.Failure => Left(failure.msg)
-    }
+  def parseEO[F[_]: Sync](code: String): F[Vector[EOBnd[EOExprOnly]]] = {
+    sourceCodeEoParser[F]().parse(code).map(_.bnds)
   }
 
   def parseXMIRFromSeq[F[_]: Sync](
     code: String
-  ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
+  ): F[Vector[EOBnd[EOExprOnly]]] = {
     for {
       xmir <- EOtoXMIR.parse[F](code)
       scalaXML =
@@ -35,7 +31,7 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
 
   def parseXMIRFromString[F[_]: Sync](
     code: String
-  ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
+  ): F[Vector[EOBnd[EOExprOnly]]] = {
     for {
       xmir <- EOtoXMIR.parse[F](code)
       parsed <- XmirToAst.parseXMIR(xmir)
@@ -46,7 +42,7 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
     for {
       parsedSeq <- parseXMIRFromSeq(code)
       parsedString <- parseXMIRFromString(code)
-      parsedEO = parseEO(code)
+      parsedEO <- parseEO(code)
     } yield {
       assert(parsedEO == parsedSeq)
       assert(parsedEO == parsedString)

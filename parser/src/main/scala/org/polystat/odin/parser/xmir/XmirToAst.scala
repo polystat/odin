@@ -2,21 +2,19 @@ package org.polystat.odin.parser.xmir
 
 import cats.effect.Sync
 import cats.implicits._
+import cats.Traverse
+import cats.data.Validated
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.xml.sax.InputSource
 
-import java.io.{ByteArrayInputStream, StringReader, StringWriter}
+import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
-import javax.xml.parsers.DocumentBuilderFactory
-import javax.xml.transform.{OutputKeys, TransformerFactory}
-import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.TransformerFactory
 import javax.xml.transform.stream.{StreamResult, StreamSource}
-import scala.xml.Elem
-import scala.xml.XML
+import scala.xml.{Elem, XML}
 
 trait XmirToAst[F[_], T] {
   /**
@@ -28,7 +26,7 @@ trait XmirToAst[F[_], T] {
     * @return
     *   Either an error message, or a Vector of EOBnds
     */
-  def parseXMIR(objs: T): F[Either[String, Vector[EOBnd[EOExprOnly]]]]
+  def parseXMIR(objs: T): F[Vector[EOBnd[EOExprOnly]]]
 }
 
 object XmirToAst {
@@ -42,7 +40,7 @@ object XmirToAst {
 
       override def parseXMIR(
         objs: String
-      ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
+      ): F[Vector[EOBnd[EOExprOnly]]] = {
         for {
           scalaXML <- Sync[F].delay(
             (XML.loadString(objs) \\ "objects" \ "o")
@@ -59,57 +57,27 @@ object XmirToAst {
 
       override def parseXMIR(
         xmir: Seq[String]
-      ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
+      ): F[Vector[EOBnd[EOExprOnly]]] = {
         for {
           out <- Sync[F].delay(Files.createTempFile("xmir", ".xml"))
           _ <- Sync[F].delay {
-            Files.write(out, buildXML(xmir).getBytes(StandardCharsets.UTF_8))
+            Files.write(
+              out,
+              s"<objects>${xmir.mkString}</objects>"
+                .getBytes(StandardCharsets.UTF_8)
+            )
           }
           _ <- applyXSLT(out)
           scalaXML <- Sync[F].delay(
             (XML.loadFile(out.toAbsolutePath.toString) \\ "objects" \ "_")
               .collect { case elem: Elem => elem }
           )
-          parsed = combineErrors(
-            scalaXML.map(obj => parseObject(obj).map(bndFromTuple))
+          parsed <- Sync[F].fromEither(
+            combineErrors(
+              scalaXML.map(obj => parseObject(obj).map(bndFromTuple))
+            ).leftMap(new Exception(_))
           )
-        } yield parsed.map(_.toVector)
-      }
-
-      /**
-        * adapted from
-        * https://stackoverflow.com/questions/2567416/xml-document-to-string
-        *
-        * @param elems
-        *   A sequence of XML elements as UTF-8 strings
-        * @return
-        *   a single XML document as UTF-8 string of format
-        *   <objects>{elems}</objects>
-        */
-      private[this] def buildXML(elems: Seq[String]): String = {
-        val doc = DocumentBuilderFactory
-          .newInstance
-          .newDocumentBuilder
-          .newDocument
-        val root = doc.createElement("objects")
-        elems
-          .map(elem => {
-            DocumentBuilderFactory
-              .newInstance
-              .newDocumentBuilder
-              .parse(new InputSource(new StringReader(elem)))
-              .getFirstChild
-          })
-          .foreach(node => root.appendChild(doc.adoptNode(node)))
-        doc.appendChild(root)
-        val sw: StringWriter = new StringWriter
-        val transformer = TransformerFactory.newInstance.newTransformer
-        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no")
-        transformer.setOutputProperty(OutputKeys.METHOD, "xml")
-        transformer.setOutputProperty(OutputKeys.INDENT, "yes")
-        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8")
-        transformer.transform(new DOMSource(doc), new StreamResult(sw))
-        sw.toString
+        } yield parsed.toVector
       }
 
       /**
@@ -169,12 +137,13 @@ object XmirToAst {
       }
 
       private[this] def combineErrors[A](
-        eithers: collection.Seq[Either[String, A]]
-      ): Either[String, collection.Seq[A]] = {
-        (eithers.partitionMap(identity) match {
-          case (Nil, rights) => Right(rights)
-          case (lefts, _) => Left(lefts)
-        }).leftMap(_.mkString("\n"))
+        eithers: Seq[Either[String, A]]
+      ): Either[String, Seq[A]] = {
+        Traverse[Seq]
+          .traverse(eithers)(either =>
+            Validated.fromEither(either.leftMap(_ + "\n"))
+          )
+          .toEither
       }
 
       private[this] val bndFromTuple: ((Option[EONamedBnd], EOExprOnly)) => EOBnd[EOExprOnly] = {
@@ -199,7 +168,7 @@ object XmirToAst {
               (attrMap.get("type"), attrMap.get("value")) match {
                 case (Some("int"), Some(value)) =>
                   Right(Fix[EOExpr](EOIntData(value.toInt)))
-                case (Some("bool"), Some(value)) => {
+                case (Some("bool"), Some(value)) =>
                   val bool: Either[String, Boolean] = value match {
                     case "true" => Right(true)
                     case "false" => Right(false)
@@ -208,7 +177,6 @@ object XmirToAst {
                       )
                   }
                   bool.map(value => Fix[EOExpr](EOBoolData(value)))
-                }
                 case (Some("string"), Some(value)) =>
                   Right(Fix[EOExpr](EOStrData(value)))
                 case (Some("char"), Some(value)) =>
@@ -244,7 +212,7 @@ object XmirToAst {
               eitherOf <- parsedOf
               (_, trg) <- eitherOf
               eitherWith <- parsedWith
-              combineWith = combineErrors(eitherWith)
+              combineWith = combineErrors(eitherWith.toSeq)
               wth <- combineWith
             } yield NonEmpty.from(wth.toVector) match {
               case Some(value) =>
@@ -312,7 +280,7 @@ object XmirToAst {
 
   def parseXMIR[F[_], T](objs: T)(implicit
     impl: XmirToAst[F, T]
-  ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] =
+  ): F[Vector[EOBnd[EOExprOnly]]] =
     XmirToAst[F, T].parseXMIR(objs)
 
 }

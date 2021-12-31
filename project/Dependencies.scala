@@ -3,22 +3,21 @@ import sbt._
 object Dependencies {
 
   object V {
-    val cats = "2.6.1"
+    val cats = "2.7.0"
     val catsMtl = "1.2.1"
-    val catsEffect = "3.2.8"
+    val catsEffect = "3.3.0"
+    val catsParse = "0.3.6"
     val scalaTest = "3.2.9"
     val scalaCheck = "3.2.9.0"
     val nonEmpty = "0.2.0"
     val monocle = "3.1.0"
-    val parserCombinators = "2.0.0"
     val droste = "0.8.0"
-    val fastparse = "2.3.3"
-    val pprint = "0.6.6"
-    val fs2 = "3.2.2"
+    val pprint = "0.7.1"
+    val fs2 = "3.2.4"
     val fs2io = "3.2.2"
     val newTypes = "0.0.1"
-    val eoParser = "0.16.7"
-    val catsEffectScalatest = "1.3.0"
+    val eoParser = "0.21.8"
+    val catsEffectScalatest = "1.4.0"
   }
 
   val cats = Seq(
@@ -46,10 +45,6 @@ object Dependencies {
     "dev.optics" %% "monocle-macro" % V.monocle,
   )
 
-  val parserCombinators = Seq(
-    "org.scala-lang.modules" %% "scala-parser-combinators" % V.parserCombinators,
-  )
-
   val droste = Seq(
     "io.higherkindness" %% "droste-core" % V.droste
   )
@@ -66,12 +61,12 @@ object Dependencies {
     "io.monix" %% "newtypes-core" % V.newTypes,
   )
 
-  val fastparse = Seq(
-    "com.lihaoyi" %% "fastparse" % V.fastparse,
-  )
-
   val pprint = Seq(
     "com.lihaoyi" %% "pprint" % V.pprint % Test,
+  )
+
+  val catsParse = Seq(
+    "org.typelevel" %% "cats-parse" % V.catsParse
   )
 
   val eoParser = Seq(
@@ -88,9 +83,8 @@ object Dependencies {
   val core: Seq[ModuleID] = common ++ droste ++ fs2
 
   val parser: Seq[ModuleID] = common ++
-    parserCombinators ++
-    fastparse ++
     pprint ++
+    catsParse ++
     eoParser
 
   val interop: Seq[ModuleID] = common
