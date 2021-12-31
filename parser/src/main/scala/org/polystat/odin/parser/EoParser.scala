@@ -28,7 +28,7 @@ object EoParser {
     implicit ae: ApplicativeError[F, Throwable]
   ): EoParser[String, F, EOProg[EOExprOnly]] =
     new EoParser[String, F, EOProg[EOExprOnly]] {
-      import cats_parse.Parser
+      import eo.Parser
 
       override def parse(
         eoRepr: String

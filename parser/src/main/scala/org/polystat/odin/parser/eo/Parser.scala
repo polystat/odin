@@ -1,7 +1,7 @@
-package org.polystat.odin.parser.cats_parse
+package org.polystat.odin.parser.eo
 
 import org.polystat.odin.core.ast.{EOBnd, EOProg}
-import org.polystat.odin.parser.cats_parse.Tokens._
+import org.polystat.odin.parser.eo.Tokens._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import cats.parse.{Parser => P, Parser0 => P0}
 

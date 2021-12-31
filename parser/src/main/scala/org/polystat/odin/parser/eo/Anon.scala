@@ -1,13 +1,13 @@
-package org.polystat.odin.parser.cats_parse
+package org.polystat.odin.parser.eo
 
 import cats.parse.{Parser => P}
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.cats_parse.Tokens._
+import org.polystat.odin.parser.eo.Tokens._
 import org.polystat.odin.parser.Utils._
-import org.polystat.odin.parser.cats_parse.Common._
-import org.polystat.odin.parser.cats_parse.SingleLine._
+import org.polystat.odin.parser.eo.Common._
+import org.polystat.odin.parser.eo.SingleLine._
 
 object Anon {
 

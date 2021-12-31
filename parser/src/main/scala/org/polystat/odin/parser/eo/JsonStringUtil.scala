@@ -1,4 +1,4 @@
-package org.polystat.odin.parser.cats_parse
+package org.polystat.odin.parser.eo
 
 import cats.parse.{Parser => P, Parser0 => P0}
 

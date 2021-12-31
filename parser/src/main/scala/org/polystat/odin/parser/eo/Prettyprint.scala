@@ -1,4 +1,4 @@
-package org.polystat.odin.parser.cats_parse
+package org.polystat.odin.parser.eo
 
 // Borrowed from:
 // https://github.com/typelevel/cats-parse/issues/239
@@ -8,7 +8,7 @@ package org.polystat.odin.parser.cats_parse
 import cats.data.NonEmptyList
 import cats.parse.Parser.Expectation
 import cats.parse._
-import org.polystat.odin.parser.cats_parse.JsonStringUtil.escape
+import org.polystat.odin.parser.eo.JsonStringUtil.escape
 
 class Prettyprint(filename: String = "", input: String) {
   private val locmap = LocationMap(input)
@@ -61,7 +61,7 @@ class Prettyprint(filename: String = "", input: String) {
 
 object Prettyprint {
 
-  import org.polystat.odin.parser.cats_parse.Parser.`object`
+  import org.polystat.odin.parser.eo.Parser.`object`
 
   def main(args: Array[String]): Unit = {
     val code = "1"

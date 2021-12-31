@@ -1,10 +1,10 @@
-package org.polystat.odin.parser.cats_parse
+package org.polystat.odin.parser.eo
 
 import cats.parse.{Parser => P}
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.cats_parse.Tokens._
+import org.polystat.odin.parser.eo.Tokens._
 import com.github.tarao.nonempty.collection.NonEmpty
 
 object SingleLine {

@@ -1,4 +1,4 @@
-package org.polystat.odin.parser.cats_parse
+package org.polystat.odin.parser.eo
 
 import cats.parse.Rfc5234.{crlf, lf}
 import cats.parse.{Parser => P, _}
