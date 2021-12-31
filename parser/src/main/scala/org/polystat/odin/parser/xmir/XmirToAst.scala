@@ -26,7 +26,7 @@ trait XmirToAst[F[_], T] {
     * @return
     *   Either an error message, or a Vector of EOBnds
     */
-  def parseXMIR(objs: T): F[Either[String, Vector[EOBnd[EOExprOnly]]]]
+  def parseXMIR(objs: T): F[Vector[EOBnd[EOExprOnly]]]
 }
 
 object XmirToAst {
@@ -40,7 +40,7 @@ object XmirToAst {
 
       override def parseXMIR(
         objs: String
-      ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
+      ): F[Vector[EOBnd[EOExprOnly]]] = {
         for {
           scalaXML <- Sync[F].delay(
             (XML.loadString(objs) \\ "objects" \ "o")
@@ -57,7 +57,7 @@ object XmirToAst {
 
       override def parseXMIR(
         xmir: Seq[String]
-      ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] = {
+      ): F[Vector[EOBnd[EOExprOnly]]] = {
         for {
           out <- Sync[F].delay(Files.createTempFile("xmir", ".xml"))
           _ <- Sync[F].delay {
@@ -72,10 +72,12 @@ object XmirToAst {
             (XML.loadFile(out.toAbsolutePath.toString) \\ "objects" \ "_")
               .collect { case elem: Elem => elem }
           )
-          parsed = combineErrors(
-            scalaXML.map(obj => parseObject(obj).map(bndFromTuple))
+          parsed <- Sync[F].fromEither(
+            combineErrors(
+              scalaXML.map(obj => parseObject(obj).map(bndFromTuple))
+            ).leftMap(new Exception(_))
           )
-        } yield parsed.map(_.toVector)
+        } yield parsed.toVector
       }
 
       /**
@@ -278,7 +280,7 @@ object XmirToAst {
 
   def parseXMIR[F[_], T](objs: T)(implicit
     impl: XmirToAst[F, T]
-  ): F[Either[String, Vector[EOBnd[EOExprOnly]]]] =
+  ): F[Vector[EOBnd[EOExprOnly]]] =
     XmirToAst[F, T].parseXMIR(objs)
 
 }

@@ -2,7 +2,6 @@ package org.polystat.odin.parser
 
 import cats.{ApplicativeError, Functor, MonadError}
 import cats.syntax.functor._
-import cats.syntax.flatMap._
 import cats.syntax.either._
 import org.polystat.odin.core.ast.{EOBnd, EOMetas, EOProg}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -50,10 +49,7 @@ object EoParser {
 
       override def parse(eoRepr: EORepr): F[Vector[EOBnd[EOExprOnly]]] = for {
         parseResult <- parseXMIR[F, EORepr](eoRepr)
-        result <- MonadError[F, Throwable].fromEither(
-          parseResult.leftMap(new RuntimeException(_))
-        )
-      } yield result
+      } yield parseResult
 
     }
 
