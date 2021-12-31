@@ -14,7 +14,7 @@ object Dependencies {
     val droste = "0.8.0"
     val pprint = "0.7.1"
     val fs2 = "3.2.4"
-    val fs2io = "3.2.2"
+    val fs2io = "3.2.4"
     val newTypes = "0.0.1"
     val eoParser = "0.21.8"
     val catsEffectScalatest = "1.4.0"
