@@ -1,7 +1,7 @@
 [] > a
   memory > x
   [self] > inc
-    self.x.write (self.x.add 1)
+    self.x.write (self.x.add 1) > @
 
 [] > b
   a > @

@@ -292,7 +292,7 @@ object MutualRecursionTestGen {
       ),
       converters = List(
         (p => textFromProgram(p, "# ", _.toEO), "eo"),
-        (p => textFromProgram(p, "// ", _.toCPP), "cpp"),
+//        (p => textFromProgram(p, "// ", _.toCPP), "cpp"),
       )
     )
       .compile

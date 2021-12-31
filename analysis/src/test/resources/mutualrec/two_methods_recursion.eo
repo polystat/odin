@@ -1,6 +1,6 @@
 +package sandbox.mutualrec
-+alias org.eolang.io.stdout
-+alias org.eolang.txt.sprintf
++alias stdout org.eolang.io.stdout
++alias sprintf org.eolang.txt.sprintf
 
 # An object containing 2 mutually-recursive methods - f, g
 # This example should not trigger the analysis, because the mutual recursion

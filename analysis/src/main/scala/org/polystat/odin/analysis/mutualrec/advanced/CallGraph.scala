@@ -85,6 +85,10 @@ object CallGraph {
       }
     }
 
+    def findMultiObjectCycles: List[CallChain] = {
+      cg.findCycles.filter(_.map(_.whereDefined).toSet.size > 1)
+    }
+
     def containsMultiObjectCycles: Boolean = {
       cg
         .findCycles
@@ -140,7 +144,8 @@ object CallGraph {
     }
 
     def show: String =
-      cg.map(cge => s"${cge._1.show} -> ${cge._2.map(_.show).mkString(", ")}").mkString("\n")
+      cg.map(cge => s"${cge._1.show} -> ${cge._2.map(_.show).mkString(", ")}")
+        .mkString("\n")
 
   }
 

@@ -1,8 +1,5 @@
-# g  --  f
-# |  \/ |
-# i  --  h
-
 [] > a
+  b > @
   [self] > g
     seq > @
       self.f self
@@ -18,5 +15,4 @@
       self.h self
   [self] > h
     seq > @
-      self.g self
       self.f self

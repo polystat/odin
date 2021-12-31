@@ -6,11 +6,11 @@
   [] > a
     [self] > g
       self.f self > @
-  [self] > f
-    self > @
+    [self] > f
+      self > @
 [] > nestedB
-  nestedA > @
+  nestedA.a > @
   [self] > f
-    self.a.g self > @
+    self.g self > @
 [] > nested
   nestedB.f nestedB > @

@@ -9,6 +9,7 @@ case class Program(objs: List[Object]) {
   }
 
   def findCycles: List[CallChain] = objs.flatMap(_.callGraph.findCycles)
+  def findMultiObjectCycles: List[CallChain] = objs.flatMap(_.callGraph.findMultiObjectCycles)
 
   def toEO: String = objs.map(_.toEO).mkString("\n")
   def toCPP: String = objs.map(_.toCPP).mkString("\n")
@@ -42,7 +43,7 @@ case class Object(
              |  $spaces${if (calls.nonEmpty)
             calls
               .map(call => s"self.${call.name} self > @")
-              .mkString(s"\n  $spaces")
+              .mkString(s"\n$spaces  ")
           else
             "self > @"}""".stripMargin
       }
@@ -60,7 +61,6 @@ case class Object(
         }
         .map(renderMethod(depth + 1))
         .mkString("\n")}
-         |
          |$spaces${obj
         .nestedObjs
         .map(helper(_, depth + 1))

@@ -1,93 +1,16 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
-import cats.effect.{IO, Sync}
-import cats.effect.unsafe.implicits.global
 import cats.syntax.either._
 import cats.Traverse
-import fs2.Stream
-import org.polystat.odin.analysis.ASTAnalyzer
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.core.ast.EOProg
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
-import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 
 object Analyzer {
-  // build a tree
-  // convert a tree into Program
-
   type ErrorOr[A] = Either[String, A]
-
-  val exampleEO: String =
-    """# h.p.i.y -> v.h -> h.p.i.y
-      |# v.h -> h.p.i.y -> v.h
-      |
-      |[] > h
-      |  [self] > p
-      |    self > @
-      |  [self] > k
-      |    self > @
-      |  [self] > f
-      |    self > @
-      |  [self] > w
-      |    self > @
-      |
-      |  [] > p
-      |    [self] > o
-      |      self > @
-      |    [self] > h
-      |      self > @
-      |
-      |    [] > i
-      |      [self] > h
-      |        self > @
-      |      [self] > y
-      |        self.h self > @
-      |      [self] > e
-      |        self > @
-      |
-      |
-      |    [] > f
-      |      [self] > s
-      |        self > @
-      |
-      |
-      |  [] > s
-      |    [self] > b
-      |      self > @
-      |    [self] > l
-      |      self.b self > @
-      |
-      |
-      |  [] > x
-      |    [self] > t
-      |      self > @
-      |
-      |
-      |  [] > n
-      |    [self] > c
-      |      self.e self > @
-      |    [self] > f
-      |      self > @
-      |    [self] > e
-      |      self.f self > @
-      |
-      |
-      |[] > v
-      |  h.p.i > @
-      |  [self] > h
-      |    self.y self > @
-      |  [self] > e
-      |    self > @
-      |  [self] > o
-      |    self > @
-      |  [self] > q
-      |    self.o self > @
-      |
-      |
-      |""".stripMargin
 
   case class ObjectInfo(
     parent: Option[ObjectName],
@@ -150,9 +73,7 @@ object Analyzer {
           case EOBndExpr(
                  EOAnyNameBnd(LazyName(name)),
                  Fix(obj @ EOObj(Vector(), None, _))
-               ) => acc.copy(nestedObjects =
-              acc.nestedObjects.appended((name, obj))
-            )
+               ) => acc.copy(nestedObjects = acc.nestedObjects.appended((name, obj)))
 
           // method
           // [self params] > methodName
@@ -160,14 +81,10 @@ object Analyzer {
           case EOBndExpr(
                  EOAnyNameBnd(LazyName(name)),
                  Fix(
-                   EOObj(
-                     params @ LazyName("self") +: _,
-                     vararg,
-                     bnds: Vector[EOBndExpr[EOExprOnly]]
-                   )
+                   obj @ EOObj(_ @ LazyName("self") +: _, _, _)
                  )
                ) => acc.copy(methods =
-              acc.methods.appended((name, EOObj(params, vararg, bnds)))
+              acc.methods.appended((name, obj))
             )
 
           // any other binding that is not one of the above
@@ -247,7 +164,7 @@ object Analyzer {
             .fold(
               Either.fromOption(
                 parent,
-                s"${container.show} calls a method \"$name\" that's not defined!"
+                s"\"${container.show}\" calls a method \"$name\" that's not defined!"
               )
             )(_ => Right(container))
         }
@@ -355,40 +272,12 @@ object Analyzer {
   }
 
   def findErrors(prog: Program): List[OdinAnalysisError] =
-    prog.findCycles.map(cc => OdinAnalysisError(cc.show))
+    prog.findMultiObjectCycles.map(cc => OdinAnalysisError(cc.show))
 
   def analyzeAst(prog: EOProg[EOExprOnly]): ErrorOr[List[OdinAnalysisError]] =
     for {
       tree <- buildTree(prog)
       program <- buildProgram(tree)
     } yield findErrors(program)
-
-  def main(args: Array[String]): Unit = {
-    val code = exampleEO
-    (for {
-      ast <- sourceCodeEoParser[IO]().parse(code)
-      _ <- advancedMutualRecursionAnalyzer[IO]
-        .analyze(ast)
-        .evalMap(IO.println)
-        .compile
-        .drain
-    } yield ()).unsafeRunSync()
-
-  }
-
-  // TODO: this should be explicit
-  implicit def advancedMutualRecursionAnalyzer[F[_]: Sync]: ASTAnalyzer[F] =
-    new ASTAnalyzer[F] {
-
-      override def analyze(
-        ast: EOProg[EOExprOnly]
-      ): Stream[F, OdinAnalysisError] = for {
-        errors <- Stream.eval(
-          Sync[F].fromEither(analyzeAst(ast).leftMap(new Exception(_)))
-        )
-        error <- Stream.emits(errors)
-      } yield error
-
-    }
 
 }

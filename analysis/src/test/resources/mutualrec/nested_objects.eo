@@ -1,6 +1,6 @@
 +package sandbox.mutualrec
-+alias org.eolang.io.stdout
-+alias org.eolang.txt.sprintf
++alias stdout org.eolang.io.stdout
++alias sprintf org.eolang.txt.sprintf
 
 # Analysis should be able to detect mutual recursion
 # no matter where the base and derived classes are.
@@ -23,6 +23,6 @@
         a > @
   [] > implementations
     [] > derived
-      ^.^.abstractions.base > @
+      nested_objects.abstractions.base > @
       [self a] > g
         self.f self a > @
