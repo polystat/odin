@@ -73,7 +73,8 @@ object Analyzer {
           case EOBndExpr(
                  EOAnyNameBnd(LazyName(name)),
                  Fix(obj @ EOObj(Vector(), None, _))
-               ) => acc.copy(nestedObjects = acc.nestedObjects.appended((name, obj)))
+               ) =>
+            acc.copy(nestedObjects = acc.nestedObjects.appended((name, obj)))
 
           // method
           // [self params] > methodName
@@ -81,7 +82,7 @@ object Analyzer {
           case EOBndExpr(
                  EOAnyNameBnd(LazyName(name)),
                  Fix(
-                   obj @ EOObj(_ @ LazyName("self") +: _, _, _)
+                   obj @ EOObj(_ @LazyName("self") +: _, _, _)
                  )
                ) => acc.copy(methods =
               acc.methods.appended((name, obj))
@@ -231,25 +232,27 @@ object Analyzer {
   def restoreObjectFromTree(
     progTree: Tree[PartialObject] // only for lookup
   )(tree: Tree[PartialObject]): ErrorOr[Object] = {
-    val (partialObj, maybeParent) = tree.node
-    maybeParent match {
-      case Some(parent) => Either
-          .fromOption(
-            resolveParent(progTree)(parent),
-            s"Parent object ${parent.show} of ${partialObj.name.show} is specified, but not defined in the program!"
-          )
-          .map(parentObj =>
-            parentObj.extended(partialObj.name, partialObj.callGraph)
-          )
-      case None =>
-        for {
-          nestedObjs <- Traverse[List].sequence(
-            tree.children.map(restoreObjectFromTree(progTree))
-          )
-        } yield partialObj.copy(
-          nestedObjs = nestedObjs
-        )
-    }
+    val (partialObj, maybeParentName) = tree.node
+
+    for {
+      nestedObjs <- Traverse[List].sequence(
+        tree.children.map(restoreObjectFromTree(progTree))
+      )
+      parent <- maybeParentName match {
+        case Some(parentName) =>
+          Either
+            .fromOption(
+              resolveParent(progTree)(parentName),
+              s"Parent object ${parentName.show} of ${partialObj.name.show} is specified, but not defined in the program!"
+            )
+            .map(parentObj =>
+              parentObj
+                .extended(partialObj.name, partialObj.callGraph)
+            )
+        case None => Right(partialObj)
+      }
+    } yield parent.copy(nestedObjs = nestedObjs)
+
   }
 
   def buildProgram(

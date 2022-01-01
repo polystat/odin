@@ -17,7 +17,8 @@ class MutualrecTests extends AnyWordSpec with Checkers {
   val params: Test.Parameters = Test
     .Parameters
     .default
-    .withMinSuccessfulTests(10000)
+    .withMinSuccessfulTests(1000)
+    .withWorkers(8)
 
   def odinErrors(code: String): List[EOOdinAnalyzer.OdinAnalysisError] =
     EOOdinAnalyzer
@@ -32,11 +33,8 @@ class MutualrecTests extends AnyWordSpec with Checkers {
     "find mutual recursion in auto-generated tests" in {
       val prop = Prop
         .forAllNoShrink(
-          genProgram(3).retryUntil(p =>
-            if (p.findMultiObjectCycles.nonEmpty) {
-              println(p.findMultiObjectCycles)
-              p.findMultiObjectCycles.nonEmpty
-            } else p.findMultiObjectCycles.nonEmpty
+          genProgram(2).retryUntil(p =>
+            p.findMultiObjectCycles.nonEmpty
           )
         ) { obj =>
           val code = obj.toEO + "\n"
