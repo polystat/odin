@@ -17,7 +17,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
   val params: Test.Parameters = Test
     .Parameters
     .default
-    .withMinSuccessfulTests(1000)
+    .withMinSuccessfulTests(10000)
 
   def odinErrors(code: String): List[EOOdinAnalyzer.OdinAnalysisError] =
     EOOdinAnalyzer
@@ -32,7 +32,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
     "find mutual recursion in auto-generated tests" in {
       val prop = Prop
         .forAllNoShrink(
-          genProgram(2).retryUntil(p =>
+          genProgram(3).retryUntil(p =>
             if (p.findMultiObjectCycles.nonEmpty) {
               println(p.findMultiObjectCycles)
               p.findMultiObjectCycles.nonEmpty
@@ -69,995 +69,162 @@ object MutualrecTests {
 
   def main(args: Array[String]): Unit = {
     import org.polystat.odin.parser.eo.Parser
-    val prog =
-      Program(
-        objs = List(
-          Object(
-            name = ObjectName(parent = None, name = "n"),
-            parent = None,
-            nestedObjs = List(
-              Object(
-                name = ObjectName(
-                  parent = Some(value = ObjectName(parent = None, name = "n")),
-                  name = "j"
-                ),
-                parent = None,
-                nestedObjs = List(
-                  Object(
-                    name = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent =
-                            Some(value = ObjectName(parent = None, name = "n")),
-                          name = "j"
-                        )
-                      ),
-                      name = "y"
+    val prog = Program(
+      objs = List(
+        Object(
+          name = ObjectName(parent = None, name = "z"),
+          parent = None,
+          nestedObjs = List(
+            Object(
+              name = ObjectName(
+                parent = Some(value = ObjectName(parent = None, name = "z")),
+                name = "w"
+              ),
+              parent = Some(
+                value = Object(
+                  name = ObjectName(parent = None, name = "z"),
+                  parent = None,
+                  nestedObjs = List(),
+                  callGraph = Map(
+                    MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "m") -> Set(),
+                    MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "o") -> Set(),
+                    MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "e") -> Set(
+                      MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "q")
                     ),
-                    parent = None,
-                    nestedObjs = List(
-                      Object(
-                        name = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(value =
-                                    ObjectName(parent = None, name = "n")
-                                  ),
-                                  name = "j"
-                                )
-                              ),
-                              name = "y"
-                            )
-                          ),
-                          name = "r"
-                        ),
-                        parent = None,
-                        nestedObjs = List(),
-                        callGraph = Map(
-                          MethodName(
-                            whereDefined = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(
-                                    value = ObjectName(
-                                      parent = Some(value =
-                                        ObjectName(parent = None, name = "n")
-                                      ),
-                                      name = "j"
-                                    )
-                                  ),
-                                  name = "y"
-                                )
-                              ),
-                              name = "r"
-                            ),
-                            name = "v"
-                          ) -> Set(),
-                          MethodName(
-                            whereDefined = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(
-                                    value = ObjectName(
-                                      parent = Some(value =
-                                        ObjectName(parent = None, name = "n")
-                                      ),
-                                      name = "j"
-                                    )
-                                  ),
-                                  name = "y"
-                                )
-                              ),
-                              name = "r"
-                            ),
-                            name = "s"
-                          ) -> Set(
-                            MethodName(
-                              whereDefined = ObjectName(
-                                parent = Some(
-                                  value = ObjectName(
-                                    parent = Some(
-                                      value = ObjectName(
-                                        parent = Some(value =
-                                          ObjectName(parent = None, name = "n")
-                                        ),
-                                        name = "j"
-                                      )
-                                    ),
-                                    name = "y"
-                                  )
-                                ),
-                                name = "r"
-                              ),
-                              name = "v"
-                            )
-                          ),
-                          MethodName(
-                            whereDefined = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(
-                                    value = ObjectName(
-                                      parent = Some(value =
-                                        ObjectName(parent = None, name = "n")
-                                      ),
-                                      name = "j"
-                                    )
-                                  ),
-                                  name = "y"
-                                )
-                              ),
-                              name = "r"
-                            ),
-                            name = "j"
-                          ) -> Set(),
-                          MethodName(
-                            whereDefined = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(
-                                    value = ObjectName(
-                                      parent = Some(value =
-                                        ObjectName(parent = None, name = "n")
-                                      ),
-                                      name = "j"
-                                    )
-                                  ),
-                                  name = "y"
-                                )
-                              ),
-                              name = "r"
-                            ),
-                            name = "c"
-                          ) -> Set()
-                        )
-                      ),
-                      Object(
-                        name = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(value =
-                                    ObjectName(parent = None, name = "n")
-                                  ),
-                                  name = "j"
-                                )
-                              ),
-                              name = "y"
-                            )
-                          ),
-                          name = "x"
-                        ),
-                        parent = None,
-                        nestedObjs = List(),
-                        callGraph = Map(
-                          MethodName(
-                            whereDefined = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(
-                                    value = ObjectName(
-                                      parent = Some(value =
-                                        ObjectName(parent = None, name = "n")
-                                      ),
-                                      name = "j"
-                                    )
-                                  ),
-                                  name = "y"
-                                )
-                              ),
-                              name = "x"
-                            ),
-                            name = "u"
-                          ) -> Set(),
-                          MethodName(
-                            whereDefined = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(
-                                    value = ObjectName(
-                                      parent = Some(value =
-                                        ObjectName(parent = None, name = "n")
-                                      ),
-                                      name = "j"
-                                    )
-                                  ),
-                                  name = "y"
-                                )
-                              ),
-                              name = "x"
-                            ),
-                            name = "q"
-                          ) -> Set()
-                        )
-                      )
-                    ),
-                    callGraph = Map(
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        ),
-                        name = "u"
-                      ) -> Set(
-                        MethodName(
-                          whereDefined = ObjectName(
-                            parent = Some(
-                              value = ObjectName(
-                                parent = Some(value =
-                                  ObjectName(parent = None, name = "n")
-                                ),
-                                name = "j"
-                              )
-                            ),
-                            name = "y"
-                          ),
-                          name = "j"
-                        )
-                      ),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        ),
-                        name = "j"
-                      ) -> Set()
-                    )
+                    MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "q") -> Set()
                   )
-                ),
-                callGraph = Map(
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent =
-                        Some(value = ObjectName(parent = None, name = "n")),
-                      name = "j"
-                    ),
-                    name = "a"
-                  ) -> Set(),
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent =
-                        Some(value = ObjectName(parent = None, name = "n")),
-                      name = "j"
-                    ),
-                    name = "i"
-                  ) -> Set(
-                    MethodName(
-                      whereDefined = ObjectName(
-                        parent =
-                          Some(value = ObjectName(parent = None, name = "n")),
-                        name = "j"
-                      ),
-                      name = "g"
-                    )
-                  ),
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent =
-                        Some(value = ObjectName(parent = None, name = "n")),
-                      name = "j"
-                    ),
-                    name = "g"
-                  ) -> Set()
                 )
               ),
-              Object(
-                name = ObjectName(
-                  parent = Some(value = ObjectName(parent = None, name = "n")),
-                  name = "l"
-                ),
-                parent = None,
-                nestedObjs = List(),
-                callGraph = Map(
+              nestedObjs = List(),
+              callGraph = Map(
+                MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "o") -> Set(),
+                MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "e") -> Set(
                   MethodName(
                     whereDefined = ObjectName(
-                      parent =
-                        Some(value = ObjectName(parent = None, name = "n")),
-                      name = "l"
+                      parent = Some(value = ObjectName(parent = None, name = "z")),
+                      name = "w"
                     ),
                     name = "q"
-                  ) -> Set(),
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent =
-                        Some(value = ObjectName(parent = None, name = "n")),
-                      name = "l"
-                    ),
-                    name = "v"
-                  ) -> Set()
-                )
-              ),
-              Object(
-                name = ObjectName(
-                  parent = Some(value = ObjectName(parent = None, name = "n")),
-                  name = "a"
-                ),
-                parent = None,
-                nestedObjs = List(
-                  Object(
-                    name = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent =
-                            Some(value = ObjectName(parent = None, name = "n")),
-                          name = "a"
-                        )
-                      ),
-                      name = "u"
-                    ),
-                    parent = None,
-                    nestedObjs = List(),
-                    callGraph = Map(
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "a"
-                            )
-                          ),
-                          name = "u"
-                        ),
-                        name = "b"
-                      ) -> Set(
-                        MethodName(
-                          whereDefined = ObjectName(
-                            parent = Some(
-                              value = ObjectName(
-                                parent = Some(value =
-                                  ObjectName(parent = None, name = "n")
-                                ),
-                                name = "a"
-                              )
-                            ),
-                            name = "u"
-                          ),
-                          name = "h"
-                        )
-                      ),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "a"
-                            )
-                          ),
-                          name = "u"
-                        ),
-                        name = "h"
-                      ) -> Set()
-                    )
-                  ),
-                  Object(
-                    name = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent =
-                            Some(value = ObjectName(parent = None, name = "n")),
-                          name = "a"
-                        )
-                      ),
-                      name = "h"
-                    ),
-                    parent = None,
-                    nestedObjs = List(),
-                    callGraph = Map(
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "a"
-                            )
-                          ),
-                          name = "h"
-                        ),
-                        name = "q"
-                      ) -> Set()
-                    )
-                  ),
-                  Object(
-                    name = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent =
-                            Some(value = ObjectName(parent = None, name = "n")),
-                          name = "a"
-                        )
-                      ),
-                      name = "v"
-                    ),
-                    parent = None,
-                    nestedObjs = List(),
-                    callGraph = Map(
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "a"
-                            )
-                          ),
-                          name = "v"
-                        ),
-                        name = "y"
-                      ) -> Set(),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "a"
-                            )
-                          ),
-                          name = "v"
-                        ),
-                        name = "v"
-                      ) -> Set(),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "a"
-                            )
-                          ),
-                          name = "v"
-                        ),
-                        name = "h"
-                      ) -> Set(),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "a"
-                            )
-                          ),
-                          name = "v"
-                        ),
-                        name = "m"
-                      ) -> Set()
-                    )
                   )
                 ),
-                callGraph = Map(
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent =
-                        Some(value = ObjectName(parent = None, name = "n")),
-                      name = "a"
-                    ),
-                    name = "o"
-                  ) -> Set()
-                )
-              )
-            ),
-            callGraph = Map(
-              MethodName(
-                whereDefined = ObjectName(parent = None, name = "n"),
-                name = "u"
-              ) -> Set(),
-              MethodName(
-                whereDefined = ObjectName(parent = None, name = "n"),
-                name = "d"
-              ) -> Set(),
-              MethodName(
-                whereDefined = ObjectName(parent = None, name = "n"),
-                name = "c"
-              ) -> Set(
                 MethodName(
-                  whereDefined = ObjectName(parent = None, name = "n"),
-                  name = "u"
-                )
+                  whereDefined = ObjectName(
+                    parent = Some(value = ObjectName(parent = None, name = "z")),
+                    name = "w"
+                  ),
+                  name = "q"
+                ) -> Set(),
+                MethodName(
+                  whereDefined = ObjectName(
+                    parent = Some(value = ObjectName(parent = None, name = "z")),
+                    name = "w"
+                  ),
+                  name = "h"
+                ) -> Set(MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "o")),
+                MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "m") -> Set()
               )
             )
           ),
-          Object(
-            name = ObjectName(parent = None, name = "y"),
-            parent = Some(
-              value = Object(
-                name = ObjectName(
-                  parent = Some(
-                    value = ObjectName(
-                      parent =
-                        Some(value = ObjectName(parent = None, name = "n")),
-                      name = "j"
-                    )
-                  ),
-                  name = "y"
-                ),
-                parent = None,
-                nestedObjs = List(
-                  Object(
-                    name = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        )
-                      ),
-                      name = "r"
-                    ),
-                    parent = None,
-                    nestedObjs = List(),
-                    callGraph = Map(
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(value =
-                                    ObjectName(parent = None, name = "n")
-                                  ),
-                                  name = "j"
-                                )
-                              ),
-                              name = "y"
-                            )
-                          ),
-                          name = "r"
-                        ),
-                        name = "v"
-                      ) -> Set(),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(value =
-                                    ObjectName(parent = None, name = "n")
-                                  ),
-                                  name = "j"
-                                )
-                              ),
-                              name = "y"
-                            )
-                          ),
-                          name = "r"
-                        ),
-                        name = "s"
-                      ) -> Set(
-                        MethodName(
-                          whereDefined = ObjectName(
-                            parent = Some(
-                              value = ObjectName(
-                                parent = Some(
-                                  value = ObjectName(
-                                    parent = Some(value =
-                                      ObjectName(parent = None, name = "n")
-                                    ),
-                                    name = "j"
-                                  )
-                                ),
-                                name = "y"
-                              )
-                            ),
-                            name = "r"
-                          ),
-                          name = "v"
-                        )
-                      ),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(value =
-                                    ObjectName(parent = None, name = "n")
-                                  ),
-                                  name = "j"
-                                )
-                              ),
-                              name = "y"
-                            )
-                          ),
-                          name = "r"
-                        ),
-                        name = "j"
-                      ) -> Set(),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(value =
-                                    ObjectName(parent = None, name = "n")
-                                  ),
-                                  name = "j"
-                                )
-                              ),
-                              name = "y"
-                            )
-                          ),
-                          name = "r"
-                        ),
-                        name = "c"
-                      ) -> Set()
-                    )
-                  ),
-                  Object(
-                    name = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        )
-                      ),
-                      name = "x"
-                    ),
-                    parent = None,
-                    nestedObjs = List(),
-                    callGraph = Map(
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(value =
-                                    ObjectName(parent = None, name = "n")
-                                  ),
-                                  name = "j"
-                                )
-                              ),
-                              name = "y"
-                            )
-                          ),
-                          name = "x"
-                        ),
-                        name = "u"
-                      ) -> Set(),
-                      MethodName(
-                        whereDefined = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(
-                                value = ObjectName(
-                                  parent = Some(value =
-                                    ObjectName(parent = None, name = "n")
-                                  ),
-                                  name = "j"
-                                )
-                              ),
-                              name = "y"
-                            )
-                          ),
-                          name = "x"
-                        ),
-                        name = "q"
-                      ) -> Set()
-                    )
-                  )
-                ),
-                callGraph = Map(
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent =
-                            Some(value = ObjectName(parent = None, name = "n")),
-                          name = "j"
-                        )
-                      ),
-                      name = "y"
-                    ),
-                    name = "u"
-                  ) -> Set(
-                    MethodName(
-                      whereDefined = ObjectName(
-                        parent = Some(
-                          value = ObjectName(
-                            parent = Some(value =
-                              ObjectName(parent = None, name = "n")
-                            ),
-                            name = "j"
-                          )
-                        ),
-                        name = "y"
-                      ),
-                      name = "j"
-                    )
-                  ),
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent =
-                            Some(value = ObjectName(parent = None, name = "n")),
-                          name = "j"
-                        )
-                      ),
-                      name = "y"
-                    ),
-                    name = "j"
-                  ) -> Set()
-                )
-              )
+          callGraph = Map(
+            MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "m") -> Set(),
+            MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "o") -> Set(),
+            MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "e") -> Set(
+              MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "q")
             ),
-            nestedObjs = List(
-              Object(
-                name = ObjectName(
-                  parent = Some(
-                    value = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent =
-                            Some(value = ObjectName(parent = None, name = "n")),
-                          name = "j"
-                        )
-                      ),
-                      name = "y"
-                    )
-                  ),
-                  name = "r"
-                ),
-                parent = None,
-                nestedObjs = List(),
-                callGraph = Map(
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        )
-                      ),
-                      name = "r"
+            MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "q") -> Set()
+          )
+        ),
+        Object(
+          name = ObjectName(parent = None, name = "w"),
+          parent = Some(
+            value = Object(
+              name = ObjectName(
+                parent = Some(value = ObjectName(parent = None, name = "z")),
+                name = "w"
+              ),
+              parent = Some(
+                value = Object(
+                  name = ObjectName(parent = None, name = "z"),
+                  parent = None,
+                  nestedObjs = List(),
+                  callGraph = Map(
+                    MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "m") -> Set(),
+                    MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "o") -> Set(),
+                    MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "e") -> Set(
+                      MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "q")
                     ),
-                    name = "v"
-                  ) -> Set(),
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        )
-                      ),
-                      name = "r"
-                    ),
-                    name = "s"
-                  ) -> Set(
-                    MethodName(
-                      whereDefined = ObjectName(
-                        parent = Some(
-                          value = ObjectName(
-                            parent = Some(
-                              value = ObjectName(
-                                parent = Some(value =
-                                  ObjectName(parent = None, name = "n")
-                                ),
-                                name = "j"
-                              )
-                            ),
-                            name = "y"
-                          )
-                        ),
-                        name = "r"
-                      ),
-                      name = "v"
-                    )
-                  ),
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        )
-                      ),
-                      name = "r"
-                    ),
-                    name = "j"
-                  ) -> Set(),
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        )
-                      ),
-                      name = "r"
-                    ),
-                    name = "c"
-                  ) -> Set()
+                    MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "q") -> Set()
+                  )
                 )
               ),
-              Object(
-                name = ObjectName(
-                  parent = Some(
-                    value = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent =
-                            Some(value = ObjectName(parent = None, name = "n")),
-                          name = "j"
-                        )
-                      ),
-                      name = "y"
-                    )
-                  ),
-                  name = "x"
-                ),
-                parent = None,
-                nestedObjs = List(),
-                callGraph = Map(
+              nestedObjs = List(),
+              callGraph = Map(
+                MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "o") -> Set(),
+                MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "e") -> Set(
                   MethodName(
                     whereDefined = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        )
-                      ),
-                      name = "x"
-                    ),
-                    name = "u"
-                  ) -> Set(),
-                  MethodName(
-                    whereDefined = ObjectName(
-                      parent = Some(
-                        value = ObjectName(
-                          parent = Some(
-                            value = ObjectName(
-                              parent = Some(value =
-                                ObjectName(parent = None, name = "n")
-                              ),
-                              name = "j"
-                            )
-                          ),
-                          name = "y"
-                        )
-                      ),
-                      name = "x"
+                      parent = Some(value = ObjectName(parent = None, name = "z")),
+                      name = "w"
                     ),
                     name = "q"
-                  ) -> Set()
-                )
-              )
-            ),
-            callGraph = Map(
-              MethodName(
-                whereDefined = ObjectName(
-                  parent = Some(
-                    value = ObjectName(
-                      parent =
-                        Some(value = ObjectName(parent = None, name = "n")),
-                      name = "j"
-                    )
-                  ),
-                  name = "y"
+                  )
                 ),
-                name = "u"
-              ) -> Set(
-                MethodName(
-                  whereDefined = ObjectName(parent = None, name = "y"),
-                  name = "j"
-                )
-              ),
-              MethodName(
-                whereDefined = ObjectName(parent = None, name = "y"),
-                name = "e"
-              ) -> Set(
-                MethodName(
-                  whereDefined = ObjectName(parent = None, name = "y"),
-                  name = "j"
-                )
-              ),
-              MethodName(
-                whereDefined = ObjectName(parent = None, name = "y"),
-                name = "j"
-              ) -> Set(
                 MethodName(
                   whereDefined = ObjectName(
-                    parent = Some(
-                      value = ObjectName(
-                        parent =
-                          Some(value = ObjectName(parent = None, name = "n")),
-                        name = "j"
-                      )
-                    ),
-                    name = "y"
+                    parent = Some(value = ObjectName(parent = None, name = "z")),
+                    name = "w"
                   ),
-                  name = "u"
-                )
+                  name = "q"
+                ) -> Set(),
+                MethodName(
+                  whereDefined = ObjectName(
+                    parent = Some(value = ObjectName(parent = None, name = "z")),
+                    name = "w"
+                  ),
+                  name = "h"
+                ) -> Set(MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "o")),
+                MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "m") -> Set()
               )
             )
+          ),
+          nestedObjs = List(),
+          callGraph = Map(
+            MethodName(whereDefined = ObjectName(parent = None, name = "w"), name = "q") -> Set(
+              MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "e")
+            ),
+            MethodName(whereDefined = ObjectName(parent = None, name = "w"), name = "j") -> Set(
+              MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "m")
+            ),
+            MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "o") -> Set(),
+            MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "e") -> Set(
+              MethodName(whereDefined = ObjectName(parent = None, name = "w"), name = "q")
+            ),
+            MethodName(whereDefined = ObjectName(parent = None, name = "w"), name = "h") -> Set(),
+            MethodName(whereDefined = ObjectName(parent = None, name = "z"), name = "m") -> Set()
           )
         )
       )
+    )
 
-    pprintln(prog, height=10000)
+
+    def showCallGraph(obj: Object): String =
+      s"""Callgraph for ${obj.name.show}:
+        |${obj.callGraph.show}
+        |""".stripMargin
+
+    def showCallGraphs(obj: Object): String =
+      s"""${showCallGraph(obj)}
+        |${obj.nestedObjs.map(showCallGraph).mkString("\n")}
+        |""".stripMargin
+
+
+
+    //    pprintln(prog, height=10000)
 
     val code = "#START\n" + prog.toEO + "#END\n"
     println(code)
+    println(prog.objs.map(showCallGraphs).mkString("\n"))
+    println("______________________________")
     println(prog.findMultiObjectCycles.map(_.show).mkString("\n"))
 //    println(
 //      EOOdinAnalyzer
@@ -1073,9 +240,17 @@ object MutualrecTests {
       .parse(code)
       .flatMap(ast => {
         val prog = Analyzer.buildTree(ast).flatMap(Analyzer.buildProgram)
+        val errors = prog.map(Analyzer.findErrors)
+        println(errors)
+        prog.map(_.toEO).foreach(println)
+        prog.map(_.objs.map(showCallGraphs).mkString("\n")).foreach(println)
         prog
 
-      }).foreach(p => pprintln(p, height=10000))
+      })
+      .foreach(_ =>
+//        pprintln(p, height=10000)
+        ()
+      )
 
 //    println(Parser.parse("#START\n" + aboba.toEO + "#END\n"))
 

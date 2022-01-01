@@ -57,7 +57,7 @@ case class Object(
         .fold("")(parent => s"$spaces${parent.name.show} > @\n")}${obj
         .callGraph
         .filter { case (method, _) =>
-          method.whereDefined.name == obj.name.name
+          method.whereDefined == obj.name
         }
         .map(renderMethod(depth + 1))
         .mkString("\n")}
