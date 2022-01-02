@@ -30,6 +30,7 @@ case class Object(
     Object(
       name = name,
       parent = Some(this.copy()),
+      // TODO: NESTED OBJECTS ARE NOT INHERITED!!!!
       nestedObjs = nestedObjs,
       callGraph = callGraph.extendWith(cg),
     )

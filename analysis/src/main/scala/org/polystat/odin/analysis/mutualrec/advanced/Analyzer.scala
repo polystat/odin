@@ -125,7 +125,8 @@ object Analyzer {
                 .headOption
                 .map(bnd => Fix.un(bnd.expr))
                 .fold(acc) {
-                  case EOSimpleApp("self") => acc.map(_ + ((getContainer(name), name)))
+                  case EOSimpleApp("self") =>
+                    acc.map(_ + ((getContainer(name), name)))
                   case _ => acc
                 }
               callsFromArgs <- extractCalls(
@@ -201,32 +202,18 @@ object Analyzer {
       splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj(None))
     )
 
-//  def resolveCallGraph(progTree: Tree[PartialObject])(
-//    parentName:
-//    pcg: PartialCallGraph,
-//  ): ErrorOr[CallGraph] = {
-// // (Some(ObjectName(...)), "aboba") -> MethodName(ObjectName(...), "aboba")
-//    // (None, "aboba") ->
-//    ???
-//  }
-
   def resolveParent(
     progTree: Tree[PartialObject] // only for lookup
   )(parentName: ObjectName): ErrorOr[Object] = {
     progTree
-      .find { case PartialObject(objName, _, _) =>
-        objName == parentName
-      }
+      .find(_.name == parentName)
       .toRight("aboba")
       .flatMap {
         case Tree(
                PartialObject(parentObjName, parentCg, maybeParentOfParent),
-               nestedTrees
+               _
              ) =>
           for {
-            nestedObjs <- Traverse[List].sequence(
-              nestedTrees.map(restoreObjectFromTree(progTree))
-            )
 
             parent <- maybeParentOfParent match {
               case Some(parentOfParent) =>
@@ -235,15 +222,15 @@ object Analyzer {
                   cg <- convertPartialCgWithParent(parentCg, parentOfParent)
                 } yield parentOfParent
                   .extended(parentObjName, cg)
-                  .copy(nestedObjs = nestedObjs)
+                  .copy(nestedObjs = List())
               case None =>
                 convertPartialCgNoParent(parentCg).map(cg =>
-                    Object(
-                      name = parentObjName,
-                      parent = None,
-                      nestedObjs = nestedObjs,
-                      callGraph = cg
-                    )
+                  Object(
+                    name = parentObjName,
+                    parent = None,
+                    nestedObjs = List(),
+                    callGraph = cg
+                  )
                 )
 
             }
@@ -251,27 +238,53 @@ object Analyzer {
       }
   }
 
-  def convertPartialCgWithParent(pcg: PartialCallGraph, parent: Object): ErrorOr[CallGraph] = {
-    ???
+  def convertPartialCgWithParent(
+    pcg: PartialCallGraph,
+    parent: Object
+  ): ErrorOr[CallGraph] = {
+
+    def convertCall(parent: Object)(pc: PartialCall): ErrorOr[MethodName] = {
+      pc match {
+        case (Some(whereDefined), name) => Right(MethodName(whereDefined, name))
+        case (None, name) =>
+          parent
+            .callGraph
+            .keySet
+            .find(_.name == name)
+            .fold(parent.parent match {
+              case Some(parentOfParent) => parent
+                  .callGraph
+                  .keySet
+                  .find(_.name == name)
+                  .fold(convertCall(parentOfParent)(pc))(Right(_))
+              case None =>
+                Left(s"Method \"$name\" was called, but it doesn't exist!")
+            })(Right(_))
+      }
+    }
+
+    convertPartialCg(convertCall(parent))(pcg)
   }
 
-  def convertPartialCgNoParent(pcg: PartialCallGraph): ErrorOr[CallGraph] = {
-
+  def convertPartialCg(
+    resolveCall: PartialCall => ErrorOr[MethodName]
+  )(pcg: PartialCallGraph): ErrorOr[CallGraph] =
     Traverse[List]
       .sequence(pcg.toList.map { case (methodName, partialCalls) =>
         Traverse[List]
-          .sequence(partialCalls.toList.map {
-            case (Some(whereDefined), name) =>
-              Right(MethodName(whereDefined, name))
-            case (None, name) => Left(
-                s"Method \"$name\" is called, but is not defined in the object!"
-              )
-          })
+          .sequence(partialCalls.toList.map(resolveCall))
           .map(calls => (methodName, calls.toSet))
       })
       .map(_.toMap)
 
-  }
+  val convertPartialCgNoParent: PartialCallGraph => ErrorOr[CallGraph] =
+    convertPartialCg {
+      case (Some(whereDefined), name) =>
+        Right(MethodName(whereDefined, name))
+      case (None, name) => Left(
+          s"Method \"$name\" is called, but is not defined in the object!"
+        )
+    }
 
   def restoreObjectFromTree(
     progTree: Tree[PartialObject] // only for lookup
@@ -279,11 +292,11 @@ object Analyzer {
     val PartialObject(partialObjName, pcg, maybeParent) = tree.node
     maybeParent match {
       case Some(parent) => for {
-        parentObj <- resolveParent(progTree)(parent).leftMap(_ =>
+          parentObj <- resolveParent(progTree)(parent).leftMap(_ =>
             s"Parent object ${parent.show} of ${partialObjName.show} is specified, but not defined in the program!"
           )
-        cg <- convertPartialCgWithParent(pcg, parentObj)
-        nestedObjs <- Traverse[List]
+          cg <- convertPartialCgWithParent(pcg, parentObj)
+          nestedObjs <- Traverse[List]
             .sequence(tree.children.map(restoreObjectFromTree(progTree)))
         } yield parentObj.extended(partialObjName, cg).copy(nestedObjs = nestedObjs)
       case None =>
@@ -305,17 +318,16 @@ object Analyzer {
     trees: Vector[Tree[PartialObject]]
   ): ErrorOr[Program] = {
 
-    val dummyObj: Object = Object(
+    val dummyObj: PartialObject = PartialObject(
       name = ObjectName(None, "THIS NAME DOESN'T MATTER"),
-      parent = None,
-      nestedObjs = List(),
-      callGraph = Map()
+      parentName = None,
+      cg = Map(),
     )
 
     Traverse[Vector]
       .sequence(
         trees
-          .map(restoreObjectFromTree(Tree((dummyObj, None), trees.toList)))
+          .map(restoreObjectFromTree(Tree(dummyObj, trees.toList)))
       )
       .map(objs => Program(objs.toList))
   }
