@@ -24,8 +24,8 @@ object EoParser {
 
   implicit def sourceCodeEoParser[F[_]](
     indentationStep: Int = 2
-  )(
-    implicit ae: ApplicativeError[F, Throwable]
+  )(implicit
+    ae: ApplicativeError[F, Throwable]
   ): EoParser[String, F, EOProg[EOExprOnly]] =
     new EoParser[String, F, EOProg[EOExprOnly]] {
       import eo.Parser
@@ -39,6 +39,7 @@ object EoParser {
             .leftMap(new IllegalArgumentException(_))
         )
       }
+
     }
 
   implicit def xmirToEoBndEoParser[EORepr, F[_]](implicit

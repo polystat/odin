@@ -29,8 +29,11 @@ object EOOdinAnalyzer {
     override def analyze(
       eoRepr: String
     ): java.util.List[OdinAnalysisErrorInterop] =
-      analysis.EOOdinAnalyzer
-        .analyzeSourceCode[String, IO](naiveMutualRecursionAnalyzer)(eoRepr)(sourceCodeEoParser())
+      analysis
+        .EOOdinAnalyzer
+        .analyzeSourceCode[String, IO](naiveMutualRecursionAnalyzer)(eoRepr)(
+          sourceCodeEoParser()
+        )
         .map(fromOdinAnalysisError)
         .compile
         .toList
@@ -53,8 +56,11 @@ object EOOdinAnalyzer {
     override def analyze(
       eoRepr: String
     ): util.List[OdinAnalysisErrorInterop] =
-      analysis.EOOdinAnalyzer
-        .analyzeSourceCode[String, IO](naiveMutualRecursionAnalyzer)(eoRepr)(xmirToEoProgEoParser)
+      analysis
+        .EOOdinAnalyzer
+        .analyzeSourceCode[String, IO](naiveMutualRecursionAnalyzer)(eoRepr)(
+          xmirToEoProgEoParser
+        )
         .map(fromOdinAnalysisError)
         .compile
         .toList
