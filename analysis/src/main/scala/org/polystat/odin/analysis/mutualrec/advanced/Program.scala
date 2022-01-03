@@ -11,7 +11,12 @@ case class Program(objs: List[Object]) {
   def findCycles: List[CallChain] = objs.flatMap(_.callGraph.findCycles)
 
   def findMultiObjectCycles: List[CallChain] =
-    objs.flatMap(_.callGraph.findMultiObjectCycles)
+    objs
+      .flatMap(obj =>
+        obj.callGraph.findMultiObjectCycles ++
+          Program(obj.nestedObjs).findMultiObjectCycles
+      )
+      .distinct
 
   def toEO: String = objs.map(_.toEO).mkString("\n")
   def toCPP: String = objs.map(_.toCPP).mkString("\n")
