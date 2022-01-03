@@ -1,7 +1,8 @@
 package org.polystat.odin.analysis
 
 import cats.effect.unsafe.implicits.global
-import cats.effect.IO
+import cats.effect.{IO, Sync}
+import cats.syntax.functor._
 import org.polystat.odin.utils.files
 import org.scalacheck.{Prop, Test}
 import org.scalatest.wordspec.AnyWordSpec
@@ -11,6 +12,10 @@ import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
 import org.polystat.odin.analysis.mutualrec.advanced._
 import pprint.pprintln
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.scalatest.Assertion
+import fs2.io.file.Files
+
+import scala.util.Try
 
 class MutualrecTests extends AnyWordSpec with Checkers {
 
@@ -33,37 +38,55 @@ class MutualrecTests extends AnyWordSpec with Checkers {
     "find mutual recursion in auto-generated tests" in {
       val prop = Prop
         .forAllNoShrink(
-          genProgram(10).retryUntil(p =>
-            if (p.findMultiObjectCycles.nonEmpty) {
-//              println(p.findMultiObjectCycles)
-              p.findMultiObjectCycles.nonEmpty
-            } else p.findMultiObjectCycles.nonEmpty
-          )
-        ) { obj =>
-          val code = obj.toEO + "\n"
-          try {
-            if (odinErrors(code).isEmpty) pprintln(obj, height = 10000)
-          } catch {
-            case _: Exception => pprintln(obj, height = 10000)
-          }
+          genProgram(10).retryUntil(p => p.findMultiObjectCycles.nonEmpty)
+        ) { prog =>
+          val code = prog.toEO + "\n"
+          Try(if (odinErrors(code).isEmpty) pprintln(prog, height = 10000))
+            .recover(_ => pprintln(prog, height = 10000))
           odinErrors(code).nonEmpty
         }
       check(prop, params)
     }
 
-    "manual tests" should {
-      (for {
-        files <-
-          files.readEoCodeFromResources[IO](
-            "/mutualrec"
-          )
+    def runTestsFrom[F[_]: Sync: Files](
+      path: String,
+      check: String => Assertion,
+    ): F[Unit] =
+      for {
+        files <- files.readEoCodeFromResources[F](path)
       } yield files.foreach { case (name, code) =>
-        registerIgnoredTest(name) {
-          val producedErrors = odinErrors(code)
-          println(producedErrors)
-          assert(producedErrors.nonEmpty)
-        }
-      }).unsafeRunSync()
+        registerTest(name)(check(code))
+      }
+
+    "manual tests" should {
+
+      "pass" should {
+        runTestsFrom[IO](
+          "/mutualrec/with_recursion",
+          code => {
+            assert(odinErrors(code).nonEmpty)
+          }
+        ).unsafeRunSync()
+      }
+
+      "fail" should {
+        runTestsFrom[IO](
+          "/mutualrec/no_recursion",
+          code => {
+            assert(odinErrors(code).isEmpty)
+          }
+        ).unsafeRunSync()
+      }
+
+      "crash" should {
+        runTestsFrom[IO](
+          "/mutualrec/failing",
+          code => {
+            assertThrows[java.lang.Exception](odinErrors(code))
+          }
+        ).unsafeRunSync()
+      }
+
     }
 
   }
@@ -74,125 +97,49 @@ object MutualrecTests {
 
   def main(args: Array[String]): Unit = {
     import org.polystat.odin.parser.eo.Parser
-    val prog = Program(
-      objs = List(
-        Object(
-          name = ObjectName(parent = None, name = "b"),
-          parent = None,
-          nestedObjs = List(),
-          callGraph = Map(
-            MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w") -> Set(),
-            MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "n") -> Set(
-              MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "x")
-            ),
-            MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "d") -> Set(
-              MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w")
-            ),
-            MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "x") -> Set()
-          )
-        ),
-        Object(
-          name = ObjectName(parent = None, name = "g"),
-          parent = Some(
-            value = ParentInfo(
-              name = ObjectName(parent = None, name = "b"),
-              callGraph = Map(
-                MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w") -> Set(),
-                MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "n") -> Set(
-                  MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "x")
-                ),
-                MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "d") -> Set(
-                  MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w")
-                ),
-                MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "x") -> Set()
-              ),
-              parent = None
-            )
-          ),
-          nestedObjs = List(),
-          callGraph = Map(
-            MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w") -> Set(),
-            MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "d") -> Set(
-              MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w")
-            ),
-            MethodName(whereDefined = ObjectName(parent = None, name = "g"), name = "k") -> Set(
-              MethodName(whereDefined = ObjectName(parent = None, name = "g"), name = "n")
-            ),
-            MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "x") -> Set(),
-            MethodName(whereDefined = ObjectName(parent = None, name = "g"), name = "n") -> Set()
-          )
-        ),
-        Object(
-          name = ObjectName(parent = None, name = "k"),
-          parent = Some(
-            value = ParentInfo(
-              name = ObjectName(parent = None, name = "g"),
-              callGraph = Map(
-                MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w") -> Set(),
-                MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "d") -> Set(
-                  MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w")
-                ),
-                MethodName(whereDefined = ObjectName(parent = None, name = "g"), name = "k") -> Set(
-                  MethodName(whereDefined = ObjectName(parent = None, name = "g"), name = "n")
-                ),
-                MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "x") -> Set(),
-                MethodName(whereDefined = ObjectName(parent = None, name = "g"), name = "n") -> Set()
-              ),
-              parent = Some(
-                value = ParentInfo(
-                  name = ObjectName(parent = None, name = "b"),
-                  callGraph = Map(
-                    MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w") -> Set(),
-                    MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "n") -> Set(
-                      MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "x")
-                    ),
-                    MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "d") -> Set(
-                      MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "w")
-                    ),
-                    MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "x") -> Set()
-                  ),
-                  parent = None
-                )
-              )
-            )
-          ),
-          nestedObjs = List(),
-          callGraph = Map(
-            MethodName(whereDefined = ObjectName(parent = None, name = "k"), name = "u") -> Set(),
-            MethodName(whereDefined = ObjectName(parent = None, name = "k"), name = "g") -> Set(),
-            MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "d") -> Set(
-              MethodName(whereDefined = ObjectName(parent = None, name = "k"), name = "w")
-            ),
-            MethodName(whereDefined = ObjectName(parent = None, name = "k"), name = "x") -> Set(),
-            MethodName(whereDefined = ObjectName(parent = None, name = "g"), name = "k") -> Set(
-              MethodName(whereDefined = ObjectName(parent = None, name = "k"), name = "n")
-            ),
-            MethodName(whereDefined = ObjectName(parent = None, name = "k"), name = "n") -> Set(),
-            MethodName(whereDefined = ObjectName(parent = None, name = "k"), name = "w") -> Set(
-              MethodName(whereDefined = ObjectName(parent = None, name = "b"), name = "d")
-            )
-          )
-        )
-      )
-    )
 
-
-
+    val prog = Program(List())
     def showCallGraph(obj: Object): String =
       s"""Callgraph for ${obj.name.show}:
-        |${obj.callGraph.show}
-        |""".stripMargin
+         |${obj.callGraph.show}
+         |""".stripMargin
 
     def showCallGraphs(obj: Object): String =
       s"""${showCallGraph(obj)}
-        |${obj.nestedObjs.map(showCallGraph).mkString("\n")}
-        |""".stripMargin
-
-
+         |${obj.nestedObjs.map(showCallGraph).mkString("\n")}
+         |""".stripMargin
 
     //    pprintln(prog, height=10000)
 
-    val code = "#START\n" + prog.toEO + "#END\n"
+    val code =
+      """
+        |+package sandbox.mutualrec
+        |+alias stdout org.eolang.io.stdout
+        |+alias sprintf org.eolang.txt.sprintf
+        |
+        |# Analysis should be able to detect mutual recursion
+        |# no matter where the base and derived classes are.
+        |
+        |# [abstractions.]base.f calls g
+        |# [implementations.]derived extends abstractions.base
+        |# derived.g overrides base g to call derived.f (which is inherited from base)
+        |# So, we have a loop:
+        |# derived.g -> derived.f. -> derived.g
+        |
+        |[] > nested_objects
+        |  [] > abstractions
+        |    [] > base
+        |      [self a] > f
+        |        self.g self a > @
+        |      [self a] > g
+        |        a > @
+        |  [] > implementations
+        |    [] > derived
+        |      nested_objects.abstractions.base > @
+        |      [self a] > g
+        |        self.f self a > @
+        |
+        |""".stripMargin
     println(code)
     println(prog.objs.map(showCallGraphs).mkString("\n"))
     println("______________________________")

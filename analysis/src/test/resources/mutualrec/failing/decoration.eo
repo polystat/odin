@@ -1,10 +1,12 @@
 +package sandbox.mutualrec
-+alias org.eolang.io.stdout
-+alias org.eolang.txt.sprintf
++alias stdout org.eolang.io.stdout
++alias sprintf org.eolang.txt.sprintf
 
 # The derived object is missing "base > @" part
-# so, this is not a valid example, although it is
-# almost identical to the common pattern
+# so, this is not a valid example, although
+# it is almost identical to the common pattern
+
+# Method "f" is called, but is not defined in the object!
 
 [] > base
   [self a] > f
