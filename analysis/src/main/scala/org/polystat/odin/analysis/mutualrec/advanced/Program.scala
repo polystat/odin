@@ -9,30 +9,38 @@ case class Program(objs: List[Object]) {
   }
 
   def findCycles: List[CallChain] = objs.flatMap(_.callGraph.findCycles)
-  def findMultiObjectCycles: List[CallChain] = objs.flatMap(_.callGraph.findMultiObjectCycles)
+
+  def findMultiObjectCycles: List[CallChain] =
+    objs.flatMap(_.callGraph.findMultiObjectCycles)
 
   def toEO: String = objs.map(_.toEO).mkString("\n")
   def toCPP: String = objs.map(_.toCPP).mkString("\n")
 
 }
 
+case class ParentInfo(
+  name: ObjectName,
+  callGraph: CallGraph,
+  parent: Option[ParentInfo],
+)
+
 case class Object(
   name: ObjectName, // full object name
-  parent: Option[Object], // the object extended by this object
+  parent: Option[ParentInfo], // the object extended by this object
   nestedObjs: List[Object], // the objects inside this object
   callGraph: CallGraph, // the call graph for methods of this object
 ) {
 
   def extended(
     name: ObjectName, // name of the extending object
-    cg: CallGraph // call graph containing method (re-)definitions
+    cg: CallGraph, // call graph containing method (re-)definitions
+    nestedObjs: List[Object],
   ): Object =
     Object(
       name = name,
-      parent = Some(this.copy()),
-      // TODO: NESTED OBJECTS ARE NOT INHERITED!!!!
+      parent = Some(ParentInfo(this.name, this.callGraph, this.parent)),
       nestedObjs = nestedObjs,
-      callGraph = callGraph.extendWith(cg),
+      callGraph = this.callGraph.extendWith(cg),
     )
 
   def toEO: String = {

@@ -88,7 +88,7 @@ object MutualRecursionTestGen {
     } yield calls
   }
 
-  def genExtendObject(
+  def genExtendedObject(
     obj: Object,
     scope: Program,
     containerObj: Option[ObjectName]
@@ -120,8 +120,25 @@ object MutualRecursionTestGen {
     // new methods may call any other method, both new and old
     methodNamesToCall = methodNamesToDefine ++ otherMethodNames
     callGraph <- genCallGraph(methodNamesToDefine, methodNamesToCall)
+    nestedObjects <- genNestedObjs(objName)
+  } yield obj.extended(objName, callGraph, nestedObjects)
 
-  } yield obj.extended(objName, callGraph)
+  def genNestedObjs(containerObj: ObjectName): Gen[List[Object]] =
+    Gen.frequency(
+      4 -> Gen.const(List()),
+      1 -> (for {
+        n <- Gen.choose(1, 3)
+        a <- (0 until n).foldLeft[Gen[List[Object]]](
+          Gen.const(List())
+        )((accGen, _) =>
+          for {
+            acc <- accGen
+            obj <- genObject(Program(acc), Some(containerObj))
+              .retryUntil(!_.callGraph.containsSingleObjectCycles)
+          } yield acc ++ List(obj)
+        )
+      } yield a)
+    )
 
   def genObject(
     scope: Program,
@@ -129,21 +146,7 @@ object MutualRecursionTestGen {
   ): Gen[Object] =
     for {
       objectName <- genObjectName(scope, containerObj)
-      nestedObjects <- Gen.frequency(
-        4 -> Gen.const(List()),
-        1 -> (for {
-          n <- Gen.choose(1, 3)
-          a <- (0 until n).foldLeft[Gen[List[Object]]](
-            Gen.const(List())
-          )((accGen, _) =>
-            for {
-              acc <- accGen
-              obj <- genObject(Program(acc), Some(objectName))
-                .retryUntil(!_.callGraph.containsSingleObjectCycles)
-            } yield acc ++ List(obj)
-          )
-        } yield a)
-      )
+      nestedObjects <- genNestedObjs(objectName)
       methods <-
         between(1, 4, genMethodName)
           .map(_.map(MethodName(objectName, _)))
@@ -176,7 +179,7 @@ object MutualRecursionTestGen {
             Gen
               .oneOf(extendCandidates)
               .flatMap(extendCandidate =>
-                genExtendObject(extendCandidate, scope, container)
+                genExtendedObject(extendCandidate, scope, container)
               )
           else
             genObject(scope, container)
