@@ -2,7 +2,7 @@ package org.polystat.odin.analysis.mutualrec.advanced
 
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import cats.{ApplicativeError, MonadError, Traverse}
+import cats.{MonadError, Traverse}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.core.ast.EOProg
@@ -208,43 +208,37 @@ object Analyzer {
   def resolveParent[F[_]](
     progTree: Tree[PartialObject] // only for lookup
   )(
-    parentName: ObjectName
-  )(implicit F: MonadError[F, String]): F[ParentInfo] = {
-    F.fromOption(
-      progTree
-        .find(_.name == parentName),
-      "aboba"
-    ).flatMap {
-      case PartialObject(parentObjName, parentCg, maybeParentOfParent) =>
-        for {
-          parent <- maybeParentOfParent match {
-            case Some(parentOfParent) =>
+    parentName: Option[ObjectName]
+  )(implicit F: MonadError[F, String]): F[Option[ParentInfo]] = {
+    // F.pure(None) - parent was not found and should not be found
+    // F.raiseError(...) - some exceptional case
+    // F.pure(Some(...)) - parent was found
+    parentName match {
+      case Some(parentName) =>
+        progTree
+          .find(_.name == parentName)
+          .fold[F[Option[ParentInfo]]](F.raiseError("aboba")) {
+            case PartialObject(parentObjName, parentCg, maybeParentOfParent) =>
               for {
-                parentOfParent <- resolveParent(progTree)(parentOfParent)
-                cg <- convertPartialCgWithParent(parentCg, parentOfParent)
-              } yield ParentInfo(
-                name = parentObjName,
-                callGraph = parentOfParent.callGraph.extendWith(cg),
-                parent = Some(parentOfParent)
-              )
-            case None =>
-              convertPartialCgNoParent(parentCg).map(cg =>
+                parentOfParent <- resolveParent(progTree)(maybeParentOfParent)
+                cg <- convertPartialCg(parentCg, parentOfParent)
+              } yield Some(
                 ParentInfo(
                   name = parentObjName,
-                  parent = None,
-                  callGraph = cg,
+                  callGraph =
+                    parentOfParent.fold(cg)(_.callGraph.extendWith(cg)),
+                  parent = parentOfParent
                 )
               )
-
           }
-        } yield parent
+      case None => F.pure(None)
     }
   }
 
-  def convertPartialCgWithParent[F[_]](
+  def convertPartialCg[F[_]](
     pcg: PartialCallGraph,
-    parent: ParentInfo
-  )(implicit F: ApplicativeError[F, String]): F[CallGraph] = {
+    maybeParent: Option[ParentInfo]
+  )(implicit F: MonadError[F, String]): F[CallGraph] = {
 
     def convertCall(
       parent: ParentInfo
@@ -271,12 +265,17 @@ object Analyzer {
       }
     }
 
-    convertPartialCg(pcg)(convertCall(parent))
-  }
+    val resolveCall: PartialCall => F[MethodName] = maybeParent match {
+      case Some(parent) => convertCall(parent)
+      case None => {
+        case (Some(whereDefined), name) =>
+          F.pure(MethodName(whereDefined, name))
+        case (None, name) => F.raiseError(
+            s"Method \"$name\" is called, but is not defined in the object!"
+          )
+      }
+    }
 
-  def convertPartialCg[F[_]](pcg: PartialCallGraph)(
-    resolveCall: PartialCall => F[MethodName]
-  )(implicit F: ApplicativeError[F, String]): F[CallGraph] =
     Traverse[List]
       .sequence(pcg.toList.map { case (methodName, partialCalls) =>
         Traverse[List]
@@ -284,51 +283,27 @@ object Analyzer {
           .map(calls => (methodName, calls.toSet))
       })
       .map(_.toMap)
-
-  def convertPartialCgNoParent[F[_]](
-    pcg: PartialCallGraph
-  )(implicit F: ApplicativeError[F, String]): F[CallGraph] =
-    convertPartialCg[F](pcg) {
-      case (Some(whereDefined), name) =>
-        F.pure(MethodName(whereDefined, name))
-      case (None, name) => F.raiseError(
-          s"Method \"$name\" is called, but is not defined in the object!"
-        )
-    }
+  }
 
   def restoreObjectFromTree[F[_]](
     progTree: Tree[PartialObject] // only for lookup
   )(tree: Tree[PartialObject])(implicit F: MonadError[F, String]): F[Object] = {
     val PartialObject(partialObjName, pcg, maybeParent) = tree.node
-    maybeParent match {
-      case Some(parent) =>
-        for {
-          parentInfo <- F.adaptError(resolveParent(progTree)(parent))(_ =>
-            s"Parent object ${parent.show} of ${partialObjName.show} is specified, but not defined in the program!"
-          )
-          cg <- convertPartialCgWithParent(pcg, parentInfo)
-          nestedObjs <- Traverse[List].sequence(
-            tree.children.map(restoreObjectFromTree[F](progTree))
-          )
-        } yield Object(
-          parent = Some(parentInfo),
-          name = partialObjName,
-          callGraph = parentInfo.callGraph.extendWith(cg),
-          nestedObjs = nestedObjs,
-        )
-      case None =>
-        for {
-          nestedObjs <- Traverse[List].sequence(
-            tree.children.map(restoreObjectFromTree[F](progTree))
-          )
-          cg <- convertPartialCgNoParent(pcg)
-        } yield Object(
-          name = partialObjName,
-          parent = None,
-          nestedObjs = nestedObjs,
-          callGraph = cg
-        )
-    }
+    for {
+      parent <- F.adaptError(resolveParent[F](progTree)(maybeParent))(_ =>
+        s"Parent object ${maybeParent.fold("None")(_.show)} of ${partialObjName.show} is specified, but not defined in the program!"
+      )
+      cg <- convertPartialCg[F](pcg, parent)
+      nestedObjs <- Traverse[List].sequence(
+
+        tree.children.map(restoreObjectFromTree[F](progTree))
+      )
+    } yield Object(
+      name = partialObjName,
+      parent = parent,
+      callGraph = parent.fold(cg)(_.callGraph.extendWith(cg)),
+      nestedObjs = nestedObjs
+    )
   }
 
   def buildProgram[F[_]](
