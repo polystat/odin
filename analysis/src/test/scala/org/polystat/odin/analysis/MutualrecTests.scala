@@ -22,7 +22,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
   val params: Test.Parameters = Test
     .Parameters
     .default
-    .withMinSuccessfulTests(1000)
+    .withMinSuccessfulTests(10000)
     .withWorkers(4)
 
   def odinErrors(code: String): List[EOOdinAnalyzer.OdinAnalysisError] =
@@ -157,8 +157,8 @@ object MutualrecTests {
     Parser
       .parse(code)
       .flatMap(ast => {
-        val tree = Analyzer.buildTree(ast)
-        val prog = tree.flatMap(Analyzer.buildProgram)
+        val tree = Analyzer.buildTree[Either[String, *]](ast)
+        val prog = tree.flatMap(Analyzer.buildProgram[Either[String, *]])
         val errors = prog.map(Analyzer.findErrors)
         println(errors)
         prog.map(_.toEO).foreach(println)

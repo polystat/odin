@@ -1,8 +1,9 @@
 package org.polystat.odin.analysis
 
+import cats.ApplicativeError
 import cats.effect.Sync
-import cats.implicits.catsSyntaxFoldableOps0
 import cats.syntax.either._
+import cats.syntax.foldable._
 import fs2.Stream
 import monix.newtypes.NewtypeWrapped
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
@@ -51,14 +52,18 @@ object EOOdinAnalyzer {
 
     }
 
-  def advancedMutualRecursionAnalyzer[F[_]: Sync]: ASTAnalyzer[F] =
+  def advancedMutualRecursionAnalyzer[F[_]](implicit
+    F: ApplicativeError[F, Throwable],
+  ): ASTAnalyzer[F] =
     new ASTAnalyzer[F] {
 
       override def analyze(
         ast: EOProg[EOExprOnly]
       ): Stream[F, OdinAnalysisError] = for {
         errors <- Stream.eval(
-          Sync[F].fromEither(analyzeAst(ast).leftMap(new Exception(_)))
+          F.fromEither(
+            analyzeAst[Either[String, *]](ast).leftMap(new Exception(_))
+          )
         )
         error <- Stream.emits(errors)
       } yield error
