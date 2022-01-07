@@ -9,12 +9,7 @@ import org.scalacheck.Gen
 import fs2.Stream
 import fs2.text.utf8
 import cats.syntax.flatMap._
-import org.polystat.odin.analysis.mutualrec.advanced.{
-  MethodName,
-  Object,
-  ObjectName,
-  Program
-}
+import org.polystat.odin.analysis.mutualrec.advanced.Program._
 
 import scala.util.Try
 
@@ -133,7 +128,7 @@ object MutualRecursionTestGen {
         )((accGen, _) =>
           for {
             acc <- accGen
-            obj <- genObject(Program(acc), Some(containerObj))
+            obj <- genObject(acc, Some(containerObj))
               .retryUntil(!_.callGraph.containsSingleObjectCycles)
           } yield acc ++ List(obj)
         )
@@ -161,10 +156,7 @@ object MutualRecursionTestGen {
   def genProgram(size: Int): Gen[Program] = {
 
     def flattenProgram(prog: Program): List[Object] = {
-      prog.objs ++
-        prog
-          .objs
-          .flatMap(obj => flattenProgram(Program(obj.nestedObjs)))
+      prog ++ prog.flatMap(obj => flattenProgram(obj.nestedObjs))
     }
 
     def addExtendedOrSimpleObj(
@@ -185,7 +177,7 @@ object MutualRecursionTestGen {
             genObject(scope, container)
         )
           .retryUntil(!_.callGraph.containsSingleObjectCycles)
-    } yield Program(scope.objs ++ List(newObj))
+    } yield scope ++ List(newObj)
 
     // Type 1 -> add to topLevel
     // Type 2 -> Add to some obj as nested
@@ -202,12 +194,12 @@ object MutualRecursionTestGen {
             if (deeper) {
               mapRandom(currentLevel)(randomObj =>
                 addObjRec(randomObj, Some(randomObj.name))
-                  .map(nextLevel => randomObj.copy(nestedObjs = nextLevel.objs))
-              ).map(objs => Program(objs))
+                  .map(nextLevel => randomObj.copy(nestedObjs = nextLevel))
+              ).map(objs => objs)
             } else {
               for {
                 newProg <- addExtendedOrSimpleObj(
-                  Program(currentLevel),
+                  currentLevel,
                   flattenProgram(prog),
                   containerName
                 )
@@ -215,20 +207,20 @@ object MutualRecursionTestGen {
             }
         } yield next
       }
-      if (prog.objs.isEmpty) addExtendedOrSimpleObj(prog, List.empty, None)
+      if (prog.isEmpty) addExtendedOrSimpleObj(prog, List.empty, None)
       else
         addObjRec(
           Object(
             name = ObjectName(None, "THE VALUE OF THIS STRING DOESN'T MATTER"),
             parent = None,
-            nestedObjs = prog.objs,
+            nestedObjs = prog,
             callGraph = Map()
           ),
           None
         )
     }
 
-    (1 to size).foldLeft(Gen.const(Program(List.empty))) { case (acc, _) =>
+    (1 to size).foldLeft[Gen[Program]](Gen.const(List())) { case (acc, _) =>
       for {
         oldProg <- acc
         newProg <- addObj(oldProg)
@@ -273,11 +265,10 @@ object MutualRecursionTestGen {
     display: Object => String
   ): String = {
     val cycles = prog
-      .objs
       .flatMap(_.callGraph.findCycles.map(cc => commentMarker + cc.show))
       .mkString("\n")
 
-    val progText = prog.objs.map(display).mkString("\n")
+    val progText = prog.map(display).mkString("\n")
 
     s"""$cycles
        |
@@ -291,7 +282,7 @@ object MutualRecursionTestGen {
       n = 20,
       dir = Path("analysis/src/test/resources/mutualrec/generated"),
       programGen = genProgram(3).retryUntil(p =>
-        p.objs.exists(_.callGraph.containsMultiObjectCycles)
+        p.exists(_.callGraph.containsMultiObjectCycles)
       ),
       converters = List(
         (p => textFromProgram(p, "# ", _.toEO), "eo"),

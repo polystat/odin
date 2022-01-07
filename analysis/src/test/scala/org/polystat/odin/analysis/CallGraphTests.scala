@@ -2,16 +2,10 @@ package org.polystat.odin.analysis
 
 import org.scalatest.wordspec.AnyWordSpec
 
-import org.polystat.odin.analysis.mutualrec.advanced.{
-  CallGraph,
-  MethodName,
-  ObjectName
-}
+import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.polystat.odin.analysis.mutualrec.advanced.Program._
 
 class CallGraphTests extends AnyWordSpec {
-
-  import CallGraph._
-  import MethodName._
 
   val cc1: CallChain = List("a" % "s", "a" % "b", "a" % "d")
   val cc2: CallChain = List("a" % "b", "a" % "d", "a" % "s")

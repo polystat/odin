@@ -1,16 +1,17 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
-import cats.syntax.either._
-import cats.Traverse
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
-import org.polystat.odin.core.ast.EOProg
+import cats.syntax.flatMap._
+import cats.syntax.functor._
+import cats.{MonadError, Traverse}
 import higherkindness.droste.data.Fix
-import org.polystat.odin.core.ast._
+import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.core.ast.EOProg
+import org.polystat.odin.core.ast._
 
 object Analyzer {
-  type ErrorOr[A] = Either[String, A]
 
   case class ObjectInfo(
     parent: Option[ObjectName],
@@ -46,9 +47,9 @@ object Analyzer {
 
   sealed case class Tree[A](node: A, children: List[Tree[A]]) {
 
-    def find(predicate: A => Boolean): Option[Tree[A]] =
+    def find(predicate: A => Boolean): Option[A] =
       if (predicate(node))
-        Some(Tree(node, children))
+        Some(node)
       else
         untilDefined(children)(_.find(predicate))
 
@@ -110,54 +111,55 @@ object Analyzer {
       case _ => None
     }
 
-  def extractCalls(
+  def extractCalls[F[_]](
     body: Vector[EOExpr[EOExprOnly]]
-  )(getContainer: String => Option[ObjectName]): ErrorOr[Set[PartialCall]] =
-    body.foldLeft[ErrorOr[Set[PartialCall]]](Right(Set.empty)) {
-      case (acc, next) =>
-        next match {
-          case EOCopy(
-                 Fix(EODot(Fix(EOSimpleApp("self")), name)),
-                 args
-               ) =>
-            for {
-              accWithMethod <- args
-                .headOption
-                .map(bnd => Fix.un(bnd.expr))
-                .fold(acc) {
-                  case EOSimpleApp("self") =>
-                    acc.map(_ + ((getContainer(name), name)))
-                  case _ => acc
-                }
-              callsFromArgs <- extractCalls(
-                args.tail.map(bnd => Fix.un(bnd.expr))
-              )(getContainer)
-            } yield accWithMethod.union(callsFromArgs)
+  )(
+    getContainer: String => Option[ObjectName]
+  )(implicit F: MonadError[F, String]): F[Set[PartialCall]] =
+    body.foldLeft[F[Set[PartialCall]]](F.pure(Set.empty)) { case (acc, next) =>
+      next match {
+        case EOCopy(
+               Fix(EODot(Fix(EOSimpleApp("self")), name)),
+               args
+             ) =>
+          for {
+            accWithMethod <- args
+              .headOption
+              .map(bnd => Fix.un(bnd.expr))
+              .fold(acc) {
+                case EOSimpleApp("self") =>
+                  acc.map(_ + ((getContainer(name), name)))
+                case _ => acc
+              }
+            callsFromArgs <- extractCalls(
+              args.tail.map(bnd => Fix.un(bnd.expr))
+            )(getContainer)
+          } yield accWithMethod.union(callsFromArgs)
 
-          case EOCopy(Fix(trg), args) =>
-            for {
-              acc <- acc
-              callsFromTrg <- extractCalls(Vector(trg))(getContainer)
-              callsFromArgs <- extractCalls(
-                args.value.map(bnd => Fix.un(bnd.expr))
-              )(getContainer)
+        case EOCopy(Fix(trg), args) =>
+          for {
+            acc <- acc
+            callsFromTrg <- extractCalls(Vector(trg))(getContainer)
+            callsFromArgs <- extractCalls(
+              args.value.map(bnd => Fix.un(bnd.expr))
+            )(getContainer)
 
-            } yield acc.union(callsFromTrg).union(callsFromArgs)
-          case EODot(Fix(trg), _) =>
-            for {
-              acc <- acc
-              callsFromTrg <- extractCalls(Vector(trg))(getContainer)
-            } yield acc.union(callsFromTrg)
-          case _ => acc
-        }
+          } yield acc.union(callsFromTrg).union(callsFromArgs)
+        case EODot(Fix(trg), _) =>
+          for {
+            acc <- acc
+            callsFromTrg <- extractCalls(Vector(trg))(getContainer)
+          } yield acc.union(callsFromTrg)
+        case _ => acc
+      }
     }
 
-  def extractCallGraph(
+  def extractCallGraph[F[_]: MonadError[*[_], String]](
     container: ObjectName
-  )(methods: Vector[Method]): ErrorOr[PartialCallGraph] = {
+  )(methods: Vector[Method]): F[PartialCallGraph] = {
     def extractCallGraphEntry(
       method: Method
-    ): ErrorOr[PartialCallGraphEntry] = {
+    ): F[PartialCallGraphEntry] = {
       val (methodName, methodBody) = method
       for {
         calls <- extractCalls(
@@ -171,9 +173,11 @@ object Analyzer {
     Traverse[Vector].sequence(methods.map(extractCallGraphEntry)).map(_.toMap)
   }
 
-  def buildTreeFromObj(container: Option[ObjectName])(
+  def buildTreeFromObj[F[_]: MonadError[*[_], String]](
+    container: Option[ObjectName]
+  )(
     obj: NestedObject
-  ): ErrorOr[Tree[PartialObject]] = {
+  ): F[Tree[PartialObject]] = {
 
     val (name, body) = obj
     val bodyInfo = splitObjectBody(body.bndAttrs)
@@ -182,7 +186,7 @@ object Analyzer {
     for {
       cg <- extractCallGraph(objectName)(bodyInfo.methods)
       nestedObjs <- Traverse[Vector].sequence(
-        bodyInfo.nestedObjects.map(buildTreeFromObj(Some(objectName)))
+        bodyInfo.nestedObjects.map(buildTreeFromObj[F](Some(objectName)))
       )
     } yield Tree(
       node =
@@ -195,83 +199,97 @@ object Analyzer {
     )
   }
 
-  def buildTree(
+  def buildTree[F[_]: MonadError[*[_], String]](
     prog: EOProg[EOExprOnly]
-  ): ErrorOr[Vector[Tree[PartialObject]]] =
+  ): F[Vector[Tree[PartialObject]]] =
     Traverse[Vector].sequence(
-      splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj(None))
+      splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj[F](None))
     )
 
-  def resolveParent(
+  def resolveParent[F[_]](
     progTree: Tree[PartialObject] // only for lookup
-  )(parentName: ObjectName): ErrorOr[ParentInfo] = {
-    progTree
-      .find(_.name == parentName)
-      .toRight("aboba")
-      .flatMap {
-        case Tree(
-               PartialObject(parentObjName, parentCg, maybeParentOfParent),
-               _
-             ) =>
-          for {
-
-            parent <- maybeParentOfParent match {
-              case Some(parentOfParent) =>
-                for {
-                  parentOfParent <- resolveParent(progTree)(parentOfParent)
-                  cg <- convertPartialCgWithParent(parentCg, parentOfParent)
-                } yield ParentInfo(
+  )(
+    of: ObjectName, // object whose parent is being resolved, used for error reporting
+    maybeParentName: Option[ObjectName], // parent object name
+  )(implicit F: MonadError[F, String]): F[Option[ParentInfo]] = {
+    // returns:
+    // F.pure(None) - parent was not found and should not be found
+    // F.raiseError(...) - some exceptional case
+    // F.pure(Some(...)) - parent was found
+    maybeParentName match {
+      case Some(parentName) =>
+        progTree
+          .find(_.name == parentName)
+          .fold[F[Option[ParentInfo]]](
+            F.raiseError(
+              s"Parent (or decoratee) object \"${parentName.show}\" of object \"${of.show}\" " +
+                s"is specified, but not defined in the program!"
+            )
+          ) {
+            case PartialObject(parentObjName, parentCg, maybeParentOfParent) =>
+              for {
+                parentOfParent <-
+                  resolveParent(progTree)(parentObjName, maybeParentOfParent)
+                cg <- convertPartialCg(parentObjName, parentCg, parentOfParent)
+              } yield Some(
+                ParentInfo(
                   name = parentObjName,
-                  callGraph = parentOfParent.callGraph.extendWith(cg),
-                  parent = Some(parentOfParent)
+                  callGraph =
+                    parentOfParent.fold(cg)(_.callGraph.extendWith(cg)),
+                  parent = parentOfParent
                 )
-              case None =>
-                convertPartialCgNoParent(parentCg).map(cg =>
-                  ParentInfo(
-                    name = parentObjName,
-                    parent = None,
-                    callGraph = cg,
-                  )
-                )
-
-            }
-          } yield parent
-      }
+              )
+          }
+      case None => F.pure(None)
+    }
   }
 
-  def convertPartialCgWithParent(
-    pcg: PartialCallGraph,
-    parent: ParentInfo
-  ): ErrorOr[CallGraph] = {
+  def convertPartialCg[F[_]](
+    objectName: ObjectName, // where call graph is defined, used for error reporting
+    pcg: PartialCallGraph, // call graph to resolve
+    maybeParent: Option[ParentInfo] // the parent object to resolve methods from parent obj
+  )(implicit F: MonadError[F, String]): F[CallGraph] = {
 
-    def convertCall(
+    def createErrorMsg(methodName: String): String = {
+      s"Method \"$methodName\" was called from the object \"${objectName.show}\"," +
+        s" although it is not defined there!"
+    }
+
+    def resolveCallWithParent(
       parent: ParentInfo
-    )(pc: PartialCall): ErrorOr[MethodName] = {
+    )(pc: PartialCall): F[MethodName] = {
       pc match {
-        case (Some(whereDefined), name) => Right(MethodName(whereDefined, name))
+        case (Some(whereDefined), name) =>
+          F.pure(MethodName(whereDefined, name))
         case (None, name) =>
           parent
             .callGraph
             .keySet
             .find(_.name == name)
-            .fold(parent.parent match {
+            .fold[F[MethodName]](parent.parent match {
               case Some(parentOfParent) => parent
                   .callGraph
                   .keySet
                   .find(_.name == name)
-                  .fold(convertCall(parentOfParent)(pc))(Right(_))
-              case None =>
-                Left(s"Method \"$name\" was called, but it doesn't exist!")
-            })(Right(_))
+                  .fold[F[MethodName]](
+                    resolveCallWithParent(parentOfParent)(pc)
+                  )(F.pure)
+              case None => F.raiseError(createErrorMsg(name))
+            })(F.pure)
       }
     }
 
-    convertPartialCg(convertCall(parent))(pcg)
-  }
+    def resolveCallNoParent(pc: PartialCall): F[MethodName] = pc match {
+      case (Some(whereDefined), name) =>
+        F.pure(MethodName(whereDefined, name))
+      case (None, name) => F.raiseError(createErrorMsg(name))
+    }
 
-  def convertPartialCg(
-    resolveCall: PartialCall => ErrorOr[MethodName]
-  )(pcg: PartialCallGraph): ErrorOr[CallGraph] =
+    val resolveCall: PartialCall => F[MethodName] = maybeParent match {
+      case Some(parent) => resolveCallWithParent(parent)
+      case None => resolveCallNoParent
+    }
+
     Traverse[List]
       .sequence(pcg.toList.map { case (methodName, partialCalls) =>
         Traverse[List]
@@ -279,53 +297,29 @@ object Analyzer {
           .map(calls => (methodName, calls.toSet))
       })
       .map(_.toMap)
-
-  val convertPartialCgNoParent: PartialCallGraph => ErrorOr[CallGraph] =
-    convertPartialCg {
-      case (Some(whereDefined), name) =>
-        Right(MethodName(whereDefined, name))
-      case (None, name) => Left(
-          s"Method \"$name\" is called, but is not defined in the object!"
-        )
-    }
-
-  def restoreObjectFromTree(
-    progTree: Tree[PartialObject] // only for lookup
-  )(tree: Tree[PartialObject]): ErrorOr[Object] = {
-    val PartialObject(partialObjName, pcg, maybeParent) = tree.node
-    maybeParent match {
-      case Some(parent) =>
-        for {
-          parentInfo <- resolveParent(progTree)(parent).leftMap(_ =>
-            s"Parent object ${parent.show} of ${partialObjName.show} is specified, but not defined in the program!"
-          )
-          cg <- convertPartialCgWithParent(pcg, parentInfo)
-          nestedObjs <- Traverse[List]
-            .sequence(tree.children.map(restoreObjectFromTree(progTree)))
-        } yield Object(
-          parent = Some(parentInfo),
-          name = partialObjName,
-          callGraph = parentInfo.callGraph.extendWith(cg),
-          nestedObjs = nestedObjs,
-        )
-      case None =>
-        for {
-          nestedObjs <- Traverse[List].sequence(
-            tree.children.map(restoreObjectFromTree(progTree))
-          )
-          cg <- convertPartialCgNoParent(pcg)
-        } yield Object(
-          name = partialObjName,
-          parent = None,
-          nestedObjs = nestedObjs,
-          callGraph = cg
-        )
-    }
   }
 
-  def buildProgram(
+  def restoreObjectFromTree[F[_]](
+    progTree: Tree[PartialObject] // only for lookup
+  )(tree: Tree[PartialObject])(implicit F: MonadError[F, String]): F[Object] = {
+    val PartialObject(partialObjName, pcg, maybeParent) = tree.node
+    for {
+      parent <- resolveParent[F](progTree)(partialObjName, maybeParent)
+      cg <- convertPartialCg[F](partialObjName, pcg, parent)
+      nestedObjs <- Traverse[List].sequence(
+        tree.children.map(restoreObjectFromTree[F](progTree))
+      )
+    } yield Object(
+      name = partialObjName,
+      parent = parent,
+      callGraph = parent.fold(cg)(_.callGraph.extendWith(cg)),
+      nestedObjs = nestedObjs
+    )
+  }
+
+  def buildProgram[F[_]](
     trees: Vector[Tree[PartialObject]]
-  ): ErrorOr[Program] = {
+  )(implicit F: MonadError[F, String]): F[Program] = {
 
     val dummyObj: PartialObject = PartialObject(
       name = ObjectName(None, "THIS NAME DOESN'T MATTER"),
@@ -336,15 +330,17 @@ object Analyzer {
     Traverse[Vector]
       .sequence(
         trees
-          .map(restoreObjectFromTree(Tree(dummyObj, trees.toList)))
+          .map(restoreObjectFromTree[F](Tree(dummyObj, trees.toList)))
       )
-      .map(objs => Program(objs.toList))
+      .map(objs => objs.toList)
   }
 
   def findErrors(prog: Program): List[OdinAnalysisError] =
     prog.findMultiObjectCycles.map(cc => OdinAnalysisError(cc.show))
 
-  def analyzeAst(prog: EOProg[EOExprOnly]): ErrorOr[List[OdinAnalysisError]] =
+  def analyzeAst[F[_]](
+    prog: EOProg[EOExprOnly]
+  )(implicit F: MonadError[F, String]): F[List[OdinAnalysisError]] =
     for {
       tree <- buildTree(prog)
       program <- buildProgram(tree)
