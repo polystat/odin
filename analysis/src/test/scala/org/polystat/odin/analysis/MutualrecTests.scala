@@ -13,6 +13,7 @@ import pprint.pprintln
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.scalatest.Assertion
 import fs2.io.file.Files
+import org.scalacheck.Gen
 
 import scala.util.Try
 
@@ -35,10 +36,14 @@ class MutualrecTests extends AnyWordSpec with Checkers {
 
   "odin" should {
     "find mutual recursion in auto-generated tests" in {
+      val gen = Gen
+        .choose(2, 100)
+        .flatMap(n =>
+          genProgram(n).retryUntil(p => p.findMultiObjectCycles.nonEmpty)
+        )
+
       val prop = Prop
-        .forAllNoShrink(
-          genProgram(15).retryUntil(p => p.findMultiObjectCycles.nonEmpty)
-        ) { prog =>
+        .forAllNoShrink(gen) { prog =>
           val code = prog.toEO + "\n"
           Try(if (odinErrors(code).isEmpty) pprintln(prog, height = 10000))
             .recover(_ => pprintln(prog, height = 10000))
