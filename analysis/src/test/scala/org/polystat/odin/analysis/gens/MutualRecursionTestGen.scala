@@ -15,14 +15,18 @@ import scala.util.Try
 
 object MutualRecursionTestGen {
 
-  // TODO: allow this to generate programs with more than 26 objects
+  // NOTE: there can only be 26*27 different object names
   def genObjectName(
     p: Program,
     containerObjName: Option[ObjectName]
   ): Gen[ObjectName] = {
     Gen
-      .listOfN(1, Gen.alphaLowerChar)
-      .map(_.mkString)
+      .oneOf(1, 2)
+      .flatMap(n =>
+        Gen
+          .listOfN(n, Gen.alphaLowerChar)
+          .map(_.mkString)
+      )
       .retryUntil(!p.containsObjectWithName(_))
       .map(ObjectName(containerObjName, _))
   }
