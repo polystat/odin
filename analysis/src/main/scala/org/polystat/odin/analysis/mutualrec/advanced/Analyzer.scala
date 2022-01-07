@@ -3,12 +3,13 @@ package org.polystat.odin.analysis.mutualrec.advanced
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.{MonadError, Traverse}
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
-import org.polystat.odin.core.ast.EOProg
 import higherkindness.droste.data.Fix
-import org.polystat.odin.core.ast._
+import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.core.ast.EOProg
+import org.polystat.odin.core.ast._
 
 object Analyzer {
 
@@ -331,7 +332,7 @@ object Analyzer {
         trees
           .map(restoreObjectFromTree[F](Tree(dummyObj, trees.toList)))
       )
-      .map(objs => Program(objs.toList))
+      .map(objs => objs.toList)
   }
 
   def findErrors(prog: Program): List[OdinAnalysisError] =
