@@ -5,8 +5,8 @@ import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 object Program {
   type Program = List[Object]
 
-  case class ObjectName(parent: Option[ObjectName], name: String) {
-    def show: String = parent.fold(name)(p => s"${p.show}.$name")
+  case class ObjectName(container: Option[ObjectName], name: String) {
+    def show: String = container.fold(name)(p => s"${p.show}.$name")
   }
 
   case class MethodName(whereDefined: ObjectName, name: String) {
