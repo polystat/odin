@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import org.polystat.odin.analysis
 import org.polystat.odin.interop.java.OdinAnalysisErrorInterop.fromOdinAnalysisError
-import org.polystat.odin.analysis.EOOdinAnalyzer.{advancedMutualRecursionAnalyzer, naiveMutualRecursionAnalyzer}
+import org.polystat.odin.analysis.EOOdinAnalyzer.advancedMutualRecursionAnalyzer
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 
 import java.util
