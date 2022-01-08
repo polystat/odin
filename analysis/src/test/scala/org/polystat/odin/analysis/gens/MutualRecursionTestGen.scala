@@ -15,14 +15,18 @@ import scala.util.Try
 
 object MutualRecursionTestGen {
 
-  // TODO: allow this to generate programs with more than 26 objects
+  // NOTE: there can only be 26*27 different object names
   def genObjectName(
     p: Program,
     containerObjName: Option[ObjectName]
   ): Gen[ObjectName] = {
     Gen
-      .listOfN(1, Gen.alphaLowerChar)
-      .map(_.mkString)
+      .oneOf(1, 2)
+      .flatMap(n =>
+        Gen
+          .listOfN(n, Gen.alphaLowerChar)
+          .map(_.mkString)
+      )
       .retryUntil(!p.containsObjectWithName(_))
       .map(ObjectName(containerObjName, _))
   }
@@ -55,13 +59,17 @@ object MutualRecursionTestGen {
       )
     } yield lst
 
-  def randomlySplit[T](list: List[T]): Gen[(List[T], List[T])] =
-    for {
-      part1 <- Gen
-        .atLeastOne(list)
-        .map(_.toList)
-      part2 = list.filter(!part1.contains(_))
-    } yield (part1, part2)
+  def randomlySplit[T](list: List[T]): Gen[(List[T], List[T])] = {
+    if (list.isEmpty)
+      Gen.const((List(), List()))
+    else
+      for {
+        part1 <- Gen
+          .atLeastOne(list)
+          .map(_.toList)
+        part2 = list.filter(!part1.contains(_))
+      } yield (part1, part2)
+  }
 
   def genMethodName: Gen[String] =
     Gen
@@ -93,7 +101,7 @@ object MutualRecursionTestGen {
 
     // new method definitions
     newMethodNames <-
-      between(1, 2, genMethodName)
+      between(0, 2, genMethodName)
         .retryUntil(names =>
           names.forall(n => !obj.callGraph.containsMethodWithName(n))
         )
@@ -143,7 +151,7 @@ object MutualRecursionTestGen {
       objectName <- genObjectName(scope, containerObj)
       nestedObjects <- genNestedObjs(objectName)
       methods <-
-        between(1, 4, genMethodName)
+        between(0, 4, genMethodName)
           .map(_.map(MethodName(objectName, _)))
       cg <- genCallGraph(methods, methods)
     } yield Object(

@@ -335,8 +335,13 @@ object Analyzer {
       .map(objs => objs.toList)
   }
 
-  def findErrors(prog: Program): List[OdinAnalysisError] =
-    prog.findMultiObjectCycles.map(cc => OdinAnalysisError(cc.show))
+  private[analysis] def produceChains[F[_]: MonadError[*[_], String]](
+    prog: EOProg[EOExprOnly]
+  ): F[List[CallChain]] =
+    for {
+      tree <- buildTree(prog)
+      program <- buildProgram(tree)
+    } yield program.findMultiObjectCycles
 
   def analyzeAst[F[_]](
     prog: EOProg[EOExprOnly]
@@ -344,6 +349,6 @@ object Analyzer {
     for {
       tree <- buildTree(prog)
       program <- buildProgram(tree)
-    } yield findErrors(program)
+    } yield program.findMultiObjectCycles.map(cc => OdinAnalysisError(cc.show))
 
 }
