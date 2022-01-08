@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import org.polystat.odin.analysis
 import org.polystat.odin.interop.java.OdinAnalysisErrorInterop.fromOdinAnalysisError
-import org.polystat.odin.analysis.EOOdinAnalyzer.naiveMutualRecursionAnalyzer
+import org.polystat.odin.analysis.EOOdinAnalyzer.{advancedMutualRecursionAnalyzer, naiveMutualRecursionAnalyzer}
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 
 import java.util
@@ -31,7 +31,7 @@ object EOOdinAnalyzer {
     ): java.util.List[OdinAnalysisErrorInterop] =
       analysis
         .EOOdinAnalyzer
-        .analyzeSourceCode[String, IO](naiveMutualRecursionAnalyzer)(eoRepr)(
+        .analyzeSourceCode[String, IO](advancedMutualRecursionAnalyzer)(eoRepr)(
           sourceCodeEoParser()
         )
         .map(fromOdinAnalysisError)
@@ -58,7 +58,7 @@ object EOOdinAnalyzer {
     ): util.List[OdinAnalysisErrorInterop] =
       analysis
         .EOOdinAnalyzer
-        .analyzeSourceCode[String, IO](naiveMutualRecursionAnalyzer)(eoRepr)(
+        .analyzeSourceCode[String, IO](advancedMutualRecursionAnalyzer)(eoRepr)(
           xmirToEoProgEoParser
         )
         .map(fromOdinAnalysisError)
