@@ -30,8 +30,8 @@ class MutualrecTests extends AnyWordSpec with Checkers {
     .withWorkers(4)
 
   def odinErrors(
-                  code: String
-                ): Either[String, List[CallChain]] = {
+    code: String
+  ): Either[String, List[CallChain]] = {
     Parser
       .parse(code)
       .flatMap(
@@ -65,10 +65,10 @@ class MutualrecTests extends AnyWordSpec with Checkers {
       check(prop, params)
     }
 
-    def runTestsFrom[F[_] : Sync : Files](
-                                           path: String,
-                                           check: (String, String) => Assertion,
-                                         ): F[Unit] =
+    def runTestsFrom[F[_]: Sync: Files](
+      path: String,
+      check: (String, String) => Assertion,
+    ): F[Unit] =
       for {
         files <- files.readEoCodeFromResources[F](path)
       } yield files.foreach { case (name, code) =>
@@ -77,55 +77,71 @@ class MutualrecTests extends AnyWordSpec with Checkers {
 
     "manual tests" should {
 
-      "pass" should {
+      "find mutual recursion in" should {
         val fileNameToChain = Map(
-          "mutual_rec_somewhere.eo" -> {
-            List(
-              List("c" % "g", "b" % "f", "c" % "g")
-            )
-          },
-          "nested_eo.eo" -> {
-            //            val nestedA = ObjectName(None, "nestedA")
-            //            val a = ObjectName(Some(nestedA), "a")
-            //            val nestedA_a_g = MethodName(a, "g")
-            //            val nestedB = ObjectName(Some(a), "nestedB")
-            //            val nestedB_f = MethodName(nestedB, "f")
-            //
-            //            List(
-            //              List(nestedA_a_g, nestedB_f, nestedA_a_g)
-            //            )
-          },
-          "nested_objects.eo" -> "",
-          "nested_objs.eo" -> "",
-          "realistic.eo" -> "",
+          "mutual_rec_somewhere.eo" ->
+            """
+              |c.g -> b.f -> c.g
+              |b.f -> c.g -> b.f
+              |""".stripMargin,
+          "nested_eo.eo" ->
+            """
+              |nestedA.a.g -> nestedB.f -> nestedA.a.g
+              |nestedB.f -> nestedA.a.g -> nestedB.f
+              |""".stripMargin,
+          "nested_objects.eo" ->
+            """
+              |nested_objects.abstractions.base.f -> nested_objects.implementations.derived.g -> nested_objects.abstractions.base.f
+              |nested_objects.implementations.derived.g -> nested_objects.abstractions.base.f -> nested_objects.implementations.derived.g
+              |""".stripMargin,
+          "realistic.eo" ->
+            """
+              |c.new.g -> a.new.f -> c.new.g
+              |a.new.f -> c.new.g -> a.new.f
+              |""".stripMargin,
         )
 
         runTestsFrom[IO](
           "/mutualrec/with_recursion",
           (fileName, code) => {
-            val expectedError =
-              EOOdinAnalyzer.OdinAnalysisError(fileNameToChain(fileName))
-            assert(odinErrors(code) == expectedError)
+            val passes =
+              for {
+                expectedErrors <-
+                  MutualrecTests.parseCallChains(fileNameToChain(fileName))
+                actualErrors <- odinErrors(code)
+              } yield {
+                actualErrors.map(_.show).foreach(println)
+                actualErrors.toSet == expectedErrors.toSet
+              }
+
+            assert(passes.getOrElse(false))
+          }
+        ).unsafeRunSync()
+      }
+
+      "not find mutual recursion" should {
+        runTestsFrom[IO](
+          "/mutualrec/no_recursion",
+          (_, code) => {
+            assert(
+              odinErrors(code)
+                .map(errors => errors.isEmpty)
+                .getOrElse(false)
+            )
           }
         ).unsafeRunSync()
       }
 
       "fail" should {
         runTestsFrom[IO](
-          "/mutualrec/no_recursion",
-          (_, code) => {
-            odinErrors(code)
-              .map(errors => assert(errors.isEmpty))
-              .getOrElse(assert(condition = false))
-          }
-        ).unsafeRunSync()
-      }
-
-      "crash" should {
-        runTestsFrom[IO](
           "/mutualrec/failing",
-          (_, code) => {
-            assertThrows[java.lang.Exception](odinErrors(code))
+          (fileName, code) => {
+            val expectedError = Map(
+              "decoration.eo" -> Left(
+                """Method "f" was called from the object "derived", although it is not defined there!"""
+              )
+            )
+            assert(odinErrors(code) == expectedError(fileName))
           }
         ).unsafeRunSync()
       }
@@ -133,25 +149,21 @@ class MutualrecTests extends AnyWordSpec with Checkers {
     }
 
   }
-
-}
 
 }
 
 object MutualrecTests {
 
-  val simpleName: P[String] = {
+  import cats.syntax.foldable._
+
+  val simpleName: P[String] =
     P.charsWhile((('a' to 'z') ++ ('A' to 'Z') ++ List('_')).contains(_))
 
-  }
-
   def stringsToMethodName(strs: NonEmptyList[String]): Option[MethodName] = {
-    def stringsToObjName(strs: List[String]): Option[ObjectName] = {
-      strs match {
-        case Nil => None
-        case obj :: tail => Some(ObjectName(stringsToObjName(tail), obj))
+    def stringsToObjName(strs: List[String]): Option[ObjectName] =
+      strs.foldLeft[Option[ObjectName]](None) { case (acc, next) =>
+        Some(ObjectName(acc, next))
       }
-    }
 
     stringsToObjName(strs.init).map(MethodName(_, strs.last))
   }
@@ -159,7 +171,11 @@ object MutualrecTests {
   val methodName: P[MethodName] = simpleName
     .repSep(P.string("."))
     .flatMap(strs =>
-      stringsToMethodName(strs).fold[P0[MethodName]](P.fail)(P.pure)
+      stringsToMethodName(strs).fold[P0[MethodName]](
+        P.failWith(
+          s"Method name ${strs.combineAll} lacks an accompanying object binding!"
+        )
+      )(P.pure)
     )
 
   val cc: P[CallChain] =
@@ -167,16 +183,12 @@ object MutualrecTests {
       .repSep(P.string(" -> "))
       .map(_.toList)
 
-  val ccs: P[List[CallChain]] = cc.repSep(P.string("\n")).map(_.toList)
+  val eol: P[Unit] = P.string("\r\n") | P.string("\n")
 
-  def main(args: Array[String]): Unit = {
-    ccs
-      .parseAll(
-        """a -> b -> c
-          |nestedA.a.g -> nestedB.f -> nestedA.a.g
-          |""".stripMargin
-      )
-      .foreach(println)
-  }
+  val ccs: P[List[CallChain]] =
+    eol.?.with1 *> (cc.repSep(eol).map(_.toList) <* eol.?)
+
+  def parseCallChains(str: String): Either[P.Error, List[CallChain]] =
+    ccs.parseAll(str)
 
 }
