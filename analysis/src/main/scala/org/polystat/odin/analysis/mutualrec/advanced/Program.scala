@@ -144,6 +144,14 @@ object Program {
         )
         .distinct
 
+    def findMultiObjectCyclesWithObject: List[(ObjectName, CallChain)] = {
+      objs
+        .flatMap(obj =>
+          obj.callGraph.findMultiObjectCycles.map((obj.name, _)) ++
+            obj.nestedObjs.findMultiObjectCyclesWithObject
+        )
+    }
+
     def toEO: String = objs.map(_.toEO).mkString("\n")
     def toCPP: String = objs.map(_.toCPP).mkString("\n")
 

@@ -343,12 +343,40 @@ object Analyzer {
       program <- buildProgram(tree)
     } yield program.findMultiObjectCycles
 
+  def filterCycleShifts(
+    ccs: List[(ObjectName, CallChain)]
+  ): List[(ObjectName, CallChain)] = {
+
+    val ord = new Ordering[(ObjectName, CallChain)] {
+      def compare(
+        i: (ObjectName, CallChain),
+        j: (ObjectName, CallChain)
+      ): Int =
+        if (i._2.isShiftOf(j._2)) 1 else 0
+    }
+
+    collection.immutable.SortedSet(ccs: _*)(ord).toList
+  }
+
   def analyzeAst[F[_]](
     prog: EOProg[EOExprOnly]
   )(implicit F: MonadError[F, String]): F[List[OdinAnalysisError]] =
     for {
       tree <- buildTree(prog)
       program <- buildProgram(tree)
-    } yield program.findMultiObjectCycles.map(cc => OdinAnalysisError(cc.show))
+    } yield filterCycleShifts(program.findMultiObjectCyclesWithObject).map {
+      case (objName, ccs) =>
+
+        val fancyChain = ccs
+          .map(methodName =>
+            if (objName == methodName.whereDefined) methodName.show
+            else methodName
+              .copy(whereDefined = objName)
+              .show + s" (was last redefined in \"${methodName.whereDefined.show}\")"
+          )
+          .mkString(" -> ")
+
+        OdinAnalysisError(s"${objName.show}: $fancyChain")
+    }
 
 }
