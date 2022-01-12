@@ -366,7 +366,6 @@ object Analyzer {
       program <- buildProgram(tree)
     } yield filterCycleShifts(program.findMultiObjectCyclesWithObject).map {
       case (objName, ccs) =>
-
         val fancyChain = ccs
           .map(methodName =>
             if (objName == methodName.whereDefined) methodName.show
