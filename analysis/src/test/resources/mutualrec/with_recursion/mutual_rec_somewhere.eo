@@ -1,0 +1,18 @@
+[] > a
+  memory > x
+  [self] > inc
+    self.x.write (self.x.add 1) > @
+
+[] > b
+  a > @
+  [self] > f
+    self.g self > @
+  [self] > g
+    self > @
+
+[] > c
+  b > @
+  [self] > g
+    self.f self > @
+
+

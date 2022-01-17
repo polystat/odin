@@ -4,6 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import org.polystat.odin.analysis
 import org.polystat.odin.interop.java.OdinAnalysisErrorInterop.fromOdinAnalysisError
+import org.polystat.odin.analysis.EOOdinAnalyzer.advancedMutualRecursionAnalyzer
+import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -20,14 +22,6 @@ trait EOOdinAnalyzer[R] {
 object EOOdinAnalyzer {
 
   class EOOdinSourceCodeAnalyzer() extends EOOdinAnalyzer[String] {
-    import org.polystat.odin.parser.EoParser.sourceCodeEoParser
-
-    private val delegate = analysis
-      .EOOdinAnalyzer
-      .impl[String, IO](
-        implicitly,
-        sourceCodeEoParser(2)
-      )
 
     implicit private val runtime: IORuntime = IORuntime.global
 
@@ -35,8 +29,11 @@ object EOOdinAnalyzer {
     override def analyze(
       eoRepr: String
     ): java.util.List[OdinAnalysisErrorInterop] =
-      delegate
-        .analyzeSourceCode(eoRepr)
+      analysis
+        .EOOdinAnalyzer
+        .analyzeSourceCode[String, IO](advancedMutualRecursionAnalyzer)(eoRepr)(
+          sourceCodeEoParser()
+        )
         .map(fromOdinAnalysisError)
         .compile
         .toList
@@ -53,18 +50,17 @@ object EOOdinAnalyzer {
     }
     import org.polystat.odin.parser.xmir.XmirToAst.string
 
-    private val delegate = analysis
-      .EOOdinAnalyzer
-      .impl[String, IO]
-
     implicit private val runtime: IORuntime = IORuntime.global
 
     @throws[Exception]
     override def analyze(
       eoRepr: String
     ): util.List[OdinAnalysisErrorInterop] =
-      delegate
-        .analyzeSourceCode(eoRepr)
+      analysis
+        .EOOdinAnalyzer
+        .analyzeSourceCode[String, IO](advancedMutualRecursionAnalyzer)(eoRepr)(
+          xmirToEoProgEoParser
+        )
         .map(fromOdinAnalysisError)
         .compile
         .toList

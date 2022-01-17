@@ -1,0 +1,17 @@
+# a.new.f -> c.new.g -> a.new.f
+
+[] > a
+  [] > new
+    b.new > @
+    [self x y] > f
+      self.g self y x > @
+
+[] > b
+  [] > new
+    c.new > @
+[] > c
+  [] > new
+    [self y x] > g
+      self.f self x y > @
+    [self x y] > f
+      self > @

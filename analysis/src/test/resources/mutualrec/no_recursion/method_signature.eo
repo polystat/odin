@@ -1,0 +1,27 @@
++package sandbox.mutualrec
++alias stdout org.eolang.io.stdout
++alias sprintf org.eolang.txt.sprintf
+
+# Analysis should consider only the methods
+# with the special signature:
+# [self <other args>] > <method_name>
+# 'self' is supposed to be the reference
+# to the calling objects
+
+# methods with different signatures should be ignored
+
+[] > base
+  [a] > g
+    a > @
+  [a] > f
+    ^.g a > @
+
+[] > derived
+  base > @
+  [a] > g
+    ^.f a > @
+
+[] > method_signature
+  derived > d
+  stdout > @
+    d.f 1

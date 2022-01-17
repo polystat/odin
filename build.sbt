@@ -104,7 +104,7 @@ lazy val utils = project
   .settings(publishSettings)
   .settings(
     name := "utils",
-    libraryDependencies ++= Dependencies.common,
+    libraryDependencies ++= Dependencies.utils,
   )
 
 lazy val core = project
@@ -133,7 +133,8 @@ lazy val analysis = project
     core
   )
   .settings(
-    name := "analysis"
+    name := "analysis",
+    libraryDependencies ++= Dependencies.scalaTest ++ Dependencies.pprint
   )
 
 val backendsBaseDirectory: File = file("backends")

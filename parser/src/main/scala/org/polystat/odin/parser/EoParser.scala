@@ -2,7 +2,6 @@ package org.polystat.odin.parser
 
 import cats.{ApplicativeError, Functor, MonadError}
 import cats.syntax.functor._
-import cats.syntax.flatMap._
 import cats.syntax.either._
 import org.polystat.odin.core.ast.{EOBnd, EOMetas, EOProg}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -29,23 +28,17 @@ object EoParser {
     ae: ApplicativeError[F, Throwable]
   ): EoParser[String, F, EOProg[EOExprOnly]] =
     new EoParser[String, F, EOProg[EOExprOnly]] {
-      import fastparse.Parser
+      import eo.Parser
 
       override def parse(
         eoRepr: String
-      ): F[EOProg[EOExprOnly]] = Parser
-        .parse(eoRepr, indentationStep)
-        .fold(
-          onFailure = (label, index, extra) => {
-            val errorMessage =
-              new IllegalArgumentException(
-                s"""[$index] Parsing failed with error: $label. Extra:
-                   |$extra""".stripMargin
-              )
-            ApplicativeError[F, Throwable].raiseError(errorMessage)
-          },
-          onSuccess = (ast, _) => ApplicativeError[F, Throwable].pure(ast)
+      ): F[EOProg[EOExprOnly]] = {
+        ae.fromEither(
+          Parser
+            .parse(eoRepr, indentationStep)
+            .leftMap(new IllegalArgumentException(_))
         )
+      }
 
     }
 
@@ -57,10 +50,7 @@ object EoParser {
 
       override def parse(eoRepr: EORepr): F[Vector[EOBnd[EOExprOnly]]] = for {
         parseResult <- parseXMIR[F, EORepr](eoRepr)
-        result <- MonadError[F, Throwable].fromEither(
-          parseResult.leftMap(new RuntimeException(_))
-        )
-      } yield result
+      } yield parseResult
 
     }
 

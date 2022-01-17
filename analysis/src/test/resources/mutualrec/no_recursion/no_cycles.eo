@@ -1,0 +1,18 @@
+[] > a
+  b > @
+  [self] > g
+    seq > @
+      self.f self
+      self.i self
+
+[] > b
+  [self] > f
+    seq > @
+      stdout "calls nothing"
+  [self] > i
+    seq > @
+      self.f self
+      self.h self
+  [self] > h
+    seq > @
+      self.f self
