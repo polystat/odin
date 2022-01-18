@@ -1,3 +1,7 @@
+# v0.2.0.1
+
+- Added documentation to mutual recursion analyzer (see [#24]( https://github.com/polystat/odin/pull/24 ));
+
 # v0.2.0
 
 - Improved the algorithm of mutual recursion analyzer (see [#11]( https://github.com/polystat/odin/pull/11 ));
