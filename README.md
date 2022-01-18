@@ -6,6 +6,9 @@ Odin (object dependency inspector) — a static analyzer for [EO programming lan
 
 > The project is still in active development stage and might not be usable or fully documented yet.
 
+# Documentation
+Documentation for the mutual recursion analyzer is available [here](docs/analysis/mutual_recursion_analyzer.md)
+
 # Running
 
 To run the project you will need [sbt](https://www.scala-sbt.org/1.x/docs/Setup.html) and JDK 8+.
