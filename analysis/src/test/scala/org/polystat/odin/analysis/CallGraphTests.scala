@@ -1,14 +1,21 @@
 package org.polystat.odin.analysis
 
-import org.scalatest.wordspec.AnyWordSpec
-
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 
-class CallGraphTests extends AnyWordSpec {
+class CallChainTests extends munit.FunSuite {
 
   val cc1: CallChain = List("a" % "s", "a" % "b", "a" % "d")
   val cc2: CallChain = List("a" % "b", "a" % "d", "a" % "s")
+
+  test("be shift-equivalent") {
+    assert(cc1 isShiftOf cc2)
+    assert(cc2 isShiftOf cc1)
+  }
+
+}
+
+class CallGraphTests extends munit.FunSuite {
 
   val exampleCgBefore: CallGraph = Map(
     "a" % "s" -> Set("a" % "b"),
@@ -33,63 +40,54 @@ class CallGraphTests extends AnyWordSpec {
   val exampleNoCycles: CallGraph =
     exampleCgBefore.updated("a" % "d", Set("a" % "f"))
 
-  "call graph" should {
-    "correctly detect cycles" in {
-      assert(!exampleNoCycles.containsCycles)
-      assert(exampleCgBefore.containsCycles)
-      assert(!exampleCgExtends.containsCycles)
-      assert(exampleCgAfter.containsCycles)
-    }
-
-    "correctly extend another call graph" in {
-
-      assert(exampleCgBefore.extendWith(exampleCgExtends).size == 5)
-      assert(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
-      assert(
-        exampleCgBefore.extendWith(exampleCgExtends) !=
-          exampleCgExtends.extendWith(exampleCgBefore)
-      )
-
-    }
-    "correctly find cycles" in {
-      val cycles: Set[CallChain] = Set(
-        List(
-          MethodName(ObjectName(None, "a"), "s"),
-          MethodName(ObjectName(None, "a"), "b"),
-          MethodName(ObjectName(None, "a"), "d"),
-          MethodName(ObjectName(None, "a"), "s")
-        ),
-        List(
-          MethodName(ObjectName(None, "a"), "b"),
-          MethodName(ObjectName(None, "a"), "d"),
-          MethodName(ObjectName(None, "a"), "s"),
-          MethodName(ObjectName(None, "a"), "b")
-        ),
-        List(
-          MethodName(ObjectName(None, "a"), "c"),
-          MethodName(ObjectName(None, "a"), "b"),
-          MethodName(ObjectName(None, "a"), "d"),
-          MethodName(ObjectName(None, "a"), "s"),
-          MethodName(ObjectName(None, "a"), "b")
-        ),
-        List(
-          MethodName(ObjectName(None, "a"), "d"),
-          MethodName(ObjectName(None, "a"), "s"),
-          MethodName(ObjectName(None, "a"), "b"),
-          MethodName(ObjectName(None, "a"), "d")
-        )
-      )
-
-      assert(exampleCgBefore.findCycles.toSet == cycles)
-    }
+  test("correctly detect cycles") {
+    assert(!exampleNoCycles.containsCycles)
+    assert(exampleCgBefore.containsCycles)
+    assert(!exampleCgExtends.containsCycles)
+    assert(exampleCgAfter.containsCycles)
   }
 
-  "call chain" should {
-    "be shift-equivalent" in {
-      assert(cc1 isShiftOf cc2)
-      assert(cc2 isShiftOf cc1)
-    }
+  test("correctly extend another call graph") {
+
+    assert(exampleCgBefore.extendWith(exampleCgExtends).size == 5)
+    assert(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
+    assert(
+      exampleCgBefore.extendWith(exampleCgExtends) !=
+        exampleCgExtends.extendWith(exampleCgBefore)
+    )
+
   }
 
-  //
+  test("correctly find cycles") {
+    val cycles: Set[CallChain] = Set(
+      List(
+        MethodName(ObjectName(None, "a"), "s"),
+        MethodName(ObjectName(None, "a"), "b"),
+        MethodName(ObjectName(None, "a"), "d"),
+        MethodName(ObjectName(None, "a"), "s")
+      ),
+      List(
+        MethodName(ObjectName(None, "a"), "b"),
+        MethodName(ObjectName(None, "a"), "d"),
+        MethodName(ObjectName(None, "a"), "s"),
+        MethodName(ObjectName(None, "a"), "b")
+      ),
+      List(
+        MethodName(ObjectName(None, "a"), "c"),
+        MethodName(ObjectName(None, "a"), "b"),
+        MethodName(ObjectName(None, "a"), "d"),
+        MethodName(ObjectName(None, "a"), "s"),
+        MethodName(ObjectName(None, "a"), "b")
+      ),
+      List(
+        MethodName(ObjectName(None, "a"), "d"),
+        MethodName(ObjectName(None, "a"), "s"),
+        MethodName(ObjectName(None, "a"), "b"),
+        MethodName(ObjectName(None, "a"), "d")
+      )
+    )
+
+    assertEquals(exampleCgBefore.findCycles.toSet, cycles)
+  }
+
 }

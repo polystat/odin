@@ -1,154 +1,118 @@
 package org.polystat.odin.analysis
 
+import cats.ApplicativeError
 import cats.data.NonEmptyList
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Sync}
-import cats.syntax.functor._
-import org.polystat.odin.utils.files
-import org.scalacheck.{Prop, Test}
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.scalacheck.Checkers
-import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
-import pprint.pprintln
-import org.polystat.odin.analysis.mutualrec.advanced.Program._
-import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
-import org.polystat.odin.analysis.mutualrec.advanced.Analyzer
-import org.scalatest.Assertion
-import fs2.io.file.Files
-import org.polystat.odin.parser.eo.Parser
-import org.scalacheck.Gen
 import cats.parse.{Parser => P, Parser0 => P0}
+import cats.implicits._
+import fs2.io.file.Files
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.polystat.odin.analysis.mutualrec.advanced.Analyzer
+import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
+import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.polystat.odin.parser.eo.Parser
+import org.polystat.odin.utils.files
+import org.scalacheck.{Gen, Test}
+import org.scalacheck.effect.PropF
+import pprint.pprintln
 
-import scala.util.Try
+class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
 
-class MutualrecTests extends AnyWordSpec with Checkers {
+  import MutualrecTests.parseCallChains
 
-  val params: Test.Parameters = Test
+  override def scalaCheckTestParameters: Test.Parameters = Test
     .Parameters
     .default
     .withMinSuccessfulTests(1000)
     .withWorkers(4)
 
-  def odinErrors(
+  def odinErrors[F[_]](
     code: String
-  ): Either[String, List[CallChain]] = {
-    Parser
-      .parse(code)
-      .flatMap(
-        Analyzer
-          .produceChains[Either[String, *]](_)
+  )(implicit F: ApplicativeError[F, Throwable]): F[List[CallChain]] = {
+    F.fromEither(
+      Parser
+        .parse(code)
+        .flatMap(
+          Analyzer
+            .produceChains[Either[String, *]](_)
+        )
+        .leftMap(new Exception(_))
+    )
+  }
+
+  test("find mutual recursion in auto-generated tests") {
+    val gen = Gen
+      .choose(2, 100)
+      .flatMap(n =>
+        genProgram(n).retryUntil(p => p.findMultiObjectCycles.nonEmpty)
       )
+
+    PropF.forAllNoShrinkF(gen) { prog =>
+      val code = prog.toEO + "\n"
+      odinErrors[IO](code)
+        .map(errors =>
+          assertEquals(errors.toSet, prog.findMultiObjectCycles.toSet)
+        )
+        .onError(_ => IO.delay(pprintln(prog, height = 10000)))
+    }
   }
 
-  "odin" should {
-    "find mutual recursion in auto-generated tests" in {
-      val gen = Gen
-        .choose(2, 100)
-        .flatMap(n =>
-          genProgram(n).retryUntil(p => p.findMultiObjectCycles.nonEmpty)
-        )
-
-      val prop = Prop
-        .forAllNoShrink(gen) { prog =>
-          val code = prog.toEO + "\n"
-          val assertion = for {
-            errors <- odinErrors(code)
-            _ <- Right(
-              Try(if (errors.isEmpty) pprintln(prog, height = 10000))
-                .recover(_ => pprintln(prog, height = 10000))
-            )
-          } yield errors.toSet == prog.findMultiObjectCycles.toSet
-
-          assertion.getOrElse(false)
-
+  def runTestsFrom[F[_]: Sync: Files](path: String)(
+    check: (String, String) => F[Unit]
+  ): F[Unit] =
+    files
+      .readEoCodeFromResources[F](path)
+      .map(files =>
+        files.foreach { case (name, code) =>
+          test(name)(check(name, code))
         }
-      check(prop, params)
-    }
+      )
 
-    def runTestsFrom[F[_]: Sync: Files](
-      path: String,
-      check: (String, String) => Assertion,
-    ): F[Unit] =
-      for {
-        files <- files.readEoCodeFromResources[F](path)
-      } yield files.foreach { case (name, code) =>
-        registerTest(name)(check(name, code))
-      }
+  val fileNameToChain = Map(
+    "mutual_rec_somewhere.eo" ->
+      """
+        |c.g -> b.f -> c.g
+        |b.f -> c.g -> b.f
+        |""".stripMargin,
+    "nested_eo.eo" ->
+      """
+        |nestedA.a.g -> nestedB.f -> nestedA.a.g
+        |nestedB.f -> nestedA.a.g -> nestedB.f
+        |""".stripMargin,
+    "nested_objects.eo" ->
+      """
+        |nested_objects.abstractions.base.f -> nested_objects.implementations.derived.g -> nested_objects.abstractions.base.f
+        |nested_objects.implementations.derived.g -> nested_objects.abstractions.base.f -> nested_objects.implementations.derived.g
+        |""".stripMargin,
+    "realistic.eo" ->
+      """
+        |c.new.g -> a.new.f -> c.new.g
+        |a.new.f -> c.new.g -> a.new.f
+        |""".stripMargin,
+  )
 
-    "manual tests" should {
+  val expectedError = Map(
+    "decoration.eo" ->
+      """Method "f" was called from the object "derived", although it is not defined there!"""
+  )
 
-      "find mutual recursion in" should {
-        val fileNameToChain = Map(
-          "mutual_rec_somewhere.eo" ->
-            """
-              |c.g -> b.f -> c.g
-              |b.f -> c.g -> b.f
-              |""".stripMargin,
-          "nested_eo.eo" ->
-            """
-              |nestedA.a.g -> nestedB.f -> nestedA.a.g
-              |nestedB.f -> nestedA.a.g -> nestedB.f
-              |""".stripMargin,
-          "nested_objects.eo" ->
-            """
-              |nested_objects.abstractions.base.f -> nested_objects.implementations.derived.g -> nested_objects.abstractions.base.f
-              |nested_objects.implementations.derived.g -> nested_objects.abstractions.base.f -> nested_objects.implementations.derived.g
-              |""".stripMargin,
-          "realistic.eo" ->
-            """
-              |c.new.g -> a.new.f -> c.new.g
-              |a.new.f -> c.new.g -> a.new.f
-              |""".stripMargin,
-        )
+  runTestsFrom[IO]("/mutualrec/with_recursion") { (fileName, code) =>
+    for {
+      expectedErrors <- parseCallChains[IO](fileNameToChain(fileName))
+      actualErrors <- odinErrors[IO](code)
+      _ <- actualErrors.traverse_(e => IO.println(e.show))
+    } yield assertEquals(actualErrors.toSet, expectedErrors.toSet)
+  }.unsafeRunSync()
 
-        runTestsFrom[IO](
-          "/mutualrec/with_recursion",
-          (fileName, code) => {
-            val passes =
-              for {
-                expectedErrors <-
-                  MutualrecTests.parseCallChains(fileNameToChain(fileName))
-                actualErrors <- odinErrors(code)
-              } yield {
-                actualErrors.map(_.show).foreach(println)
-                actualErrors.toSet == expectedErrors.toSet
-              }
+  runTestsFrom[IO]("/mutualrec/no_recursion") { (_, code) =>
+    odinErrors[IO](code).map(errors => assert(errors.isEmpty))
+  }.unsafeRunSync()
 
-            assert(passes.getOrElse(false))
-          }
-        ).unsafeRunSync()
-      }
-
-      "not find mutual recursion" should {
-        runTestsFrom[IO](
-          "/mutualrec/no_recursion",
-          (_, code) => {
-            assert(
-              odinErrors(code)
-                .map(errors => errors.isEmpty)
-                .getOrElse(false)
-            )
-          }
-        ).unsafeRunSync()
-      }
-
-      "fail" should {
-        runTestsFrom[IO](
-          "/mutualrec/failing",
-          (fileName, code) => {
-            val expectedError = Map(
-              "decoration.eo" -> Left(
-                """Method "f" was called from the object "derived", although it is not defined there!"""
-              )
-            )
-            assert(odinErrors(code) == expectedError(fileName))
-          }
-        ).unsafeRunSync()
-      }
-
-    }
-
-  }
+  runTestsFrom[IO]("/mutualrec/failing") { (fileName, code) =>
+    interceptIO[Exception](odinErrors[IO](code))
+      .map(error => assertEquals(error.getMessage, expectedError(fileName)))
+  }.unsafeRunSync()
 
 }
 
@@ -188,7 +152,13 @@ object MutualrecTests {
   val ccs: P[List[CallChain]] =
     eol.?.with1 *> (cc.repSep(eol).map(_.toList) <* eol.?)
 
-  def parseCallChains(str: String): Either[P.Error, List[CallChain]] =
-    ccs.parseAll(str)
+  def parseCallChains[F[_]](
+    str: String
+  )(implicit F: ApplicativeError[F, Throwable]): F[List[CallChain]] =
+    F.fromEither(
+      ccs
+        .parseAll(str)
+        .leftMap(error => new Exception(error.toString))
+    )
 
 }
