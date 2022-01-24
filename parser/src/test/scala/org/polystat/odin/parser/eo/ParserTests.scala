@@ -11,7 +11,9 @@ import org.polystat.odin.utils.files
 import org.scalacheck.{Gen, Prop, Test}
 import ParserTests._
 
-abstract class ParserTests extends munit.CatsEffectSuite with munit.ScalaCheckSuite {
+abstract class ParserTests
+  extends munit.CatsEffectSuite
+     with munit.ScalaCheckSuite {
 
   override def scalaCheckTestParameters: Test.Parameters = Test
     .Parameters
@@ -75,7 +77,7 @@ class TokenTests extends ParserTests {
     }
   }
 
-  val stringTests = List(
+  val stringTests: List[TestCase[String]] = List(
     TestCase(
       label = "basic escapes",
       code =
@@ -103,7 +105,7 @@ class TokenTests extends ParserTests {
   runParserTests("strings - ", Tokens.string.asRight, stringTests.pure[IO])
     .unsafeRunSync()
 
-  val charTests = List(
+  val charTests: List[TestCase[Char]] = List(
     TestCase(label = "new line", code = "\'\\n\'", Some('\n')),
     TestCase(label = "tab", code = "\'\\t\'", Some('\t')),
     TestCase(label = "A", code = "'A'", Some('A')),
@@ -221,7 +223,11 @@ class ProgramTests extends ParserTests {
     )
   }
 
-  runParserTests("hand-crafted examples - ", programParser, correctTests = examplesFromSources)
+  runParserTests(
+    "hand-crafted examples - ",
+    programParser,
+    correctTests = examplesFromSources
+  )
     .unsafeRunSync()
 
   runParserTests(
@@ -301,4 +307,5 @@ object ParserTests {
       Some(MutualRecExample.ast)
     )
   )
+
 }

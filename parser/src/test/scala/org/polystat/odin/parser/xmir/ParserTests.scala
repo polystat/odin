@@ -126,7 +126,7 @@ class ParserTests extends munit.CatsEffectSuite {
     """"hello" > world
       |""".stripMargin
 
-  val tests = List(
+  val tests: List[(String, String)] = List(
     "a lot of code" -> code,
     "very simple" -> verySimple,
     "simple" -> simple,

@@ -69,7 +69,7 @@ class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
         }
       )
 
-  val fileNameToChain = Map(
+  val fileNameToChain: Map[String, String] = Map(
     "mutual_rec_somewhere.eo" ->
       """
         |c.g -> b.f -> c.g
@@ -92,7 +92,7 @@ class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
         |""".stripMargin,
   )
 
-  val expectedError = Map(
+  val expectedError: Map[String, String] = Map(
     "decoration.eo" ->
       """Method "f" was called from the object "derived", although it is not defined there!"""
   )
