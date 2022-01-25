@@ -1,10 +1,5 @@
 package org.polystat.odin.analysis.inlining
 
-// import com.github.tarao.nonempty.collection.NonEmpty
-// import eu.timepit.refined.api.Refined
-// import eu.timepit.refined.auto._
-// import eu.timepit.refined.numeric.NonNegative
-
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.eo.Parser
@@ -80,9 +75,13 @@ object Context {
           obj.copy(bndAttrs = bndAttrs.map(bndExprHelper(newCtx, newDepth)))
 
         case app: EOSimpleApp[Fix[EOExpr]] => resolveLocator(ctx, app)
-        case copy @ EOCopy(_, args) =>
-          copy.copy(args = args.map(bndHelper(ctx, depth)))
-
+        case EOCopy(Fix(trg), args) =>
+          EOCopy(
+            trg = Fix(exprHelper(ctx, depth)(trg)),
+            args = args.map(bndHelper(ctx, depth))
+          )
+        case dot @ EODot(Fix(src), _) =>
+          dot.copy(src = Fix(exprHelper(ctx, depth)(src)))
         case other => other
       }
 
@@ -112,22 +111,13 @@ object Context {
   def main(args: Array[String]): Unit = {
     val code: String =
       """
-        |[] > a
-        |  [self] > g
-        |    self.f self > @
-        |  [self] > h
-        |    self.i self > @
-        |
-        |
-        |[] > a
-        |  [self] > s
-        |    2 > @
-        |  [self] > f
-        |    [] > aboba
-        |      s > @
-        |    self.h self > @
-        |  [self] > i
-        |    self.g self > @
+        |[] > outer
+        |  [] > self
+        |    228 > magic
+        |    self.bebra "ya hui" > @
+        |  [] > method
+        |    self.magic > @
+        |     
         |""".stripMargin
 
     println(Parser.parse(code).map(setLocators))
