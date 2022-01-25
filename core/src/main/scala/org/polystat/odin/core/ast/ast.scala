@@ -1,8 +1,8 @@
 package org.polystat.odin.core.ast
 
 import com.github.tarao.nonempty.collection.NonEmpty
-import eu.timepit.refined.numeric._
-import eu.timepit.refined.api.Refined
+// import eu.timepit.refined.numeric._
+// import eu.timepit.refined.api.Refined
 
 import scala.util.matching.Regex
 
@@ -87,7 +87,7 @@ sealed case class EOSimpleApp[+A](name: String) extends EOApp[A]
 
 sealed case class EOSimpleAppWithLocator[+A](
   name: String,
-  locator: BigInt Refined NonNegative
+  locator: BigInt
 ) extends EOApp[A]
 
 sealed case class EODot[+A](src: A, name: String) extends EOApp[A]
