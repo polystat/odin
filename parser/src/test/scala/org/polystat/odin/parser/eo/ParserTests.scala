@@ -186,15 +186,32 @@ class ParserTests extends EOParserTestSuite {
 
 object ParserTests {
 
+  import org.polystat.odin.backend.eolang.ToEO.ops._
+  import org.polystat.odin.backend.eolang.ToEO.instances._
+
   def main(args: Array[String]): Unit = {
-    for (_ <- 1 to 1) {
-      println(
-        Gens
-          .program(indentationStep = 4, recDepthMax = 2)
-          .sample
-          .get
-      )
+    val code =
+      """
+        |a (b (c d)) > rightHorizontal
+        |a > rightVertical
+        |  b > zhopa
+        |    c > bebra
+        |      d
+        |((a b) c) d > leftHorizontal
+        |a b > leftVertical
+        |  c
+        |    d
+        |""".stripMargin
+
+    val parsed = Parser.parse(code)
+
+    parsed.foreach(pprint.pprintln(_))
+
+    parsed match {
+      case Left(value) => println(value)
+      case Right(value) => println(value.toEOPretty)
     }
+
   }
 
 }

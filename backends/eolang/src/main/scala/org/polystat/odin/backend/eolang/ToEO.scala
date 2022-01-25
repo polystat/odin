@@ -194,8 +194,9 @@ object ToEO {
 
         override def toEO(node: EOApp[EOExprOnly]): InlineOrLines = node match {
           case n: EOSimpleApp[EOExprOnly] => n.toEO: Inline
+          case n: EOSimpleAppWithLocator[EOExprOnly] => n.toEO: Inline
           case n: EODot[EOExprOnly] => n.toEO
-          case n: EOCopy[EOExprOnly] => n.toEO: Lines
+          case n: EOCopy[EOExprOnly] => n.toEO
         }
 
       }
@@ -205,6 +206,17 @@ object ToEO {
 
         override def toEO(node: EOSimpleApp[EOExprOnly]): Inline =
           Inline(node.name)
+
+      }
+
+    implicit val simpleAppWithLocatorToEO: ToEO[EOSimpleAppWithLocator[EOExprOnly], Inline] =
+      new ToEO[EOSimpleAppWithLocator[EOExprOnly], Inline] {
+
+        override def toEO(node: EOSimpleAppWithLocator[EOExprOnly]): Inline =
+          Inline(node.locator match {
+            case 0 => s"$$.${node.name}"
+            case n => List.fill(n)("^").appended(node.name).mkString(".")
+          })
 
       }
 
@@ -229,8 +241,10 @@ object ToEO {
         def appCases(name: String)(app: EOApp[EOExprOnly]): InlineOrLines =
           app match {
             case n: EOSimpleApp[EOExprOnly] => dotNotation(name)(n.toEO: Inline)
-            case n: EODot[EOExprOnly] => dotNotation(name)(n.src.toEO)
-            case n: EOCopy[EOExprOnly] => dotNotation(name)(n.toEO: Lines)
+            case n: EODot[EOExprOnly] => dotNotation(name)(toEO(n))
+            case n: EOCopy[EOExprOnly] => dotNotation(name)(n.toEO)
+            case n: EOSimpleAppWithLocator[EOExprOnly] =>
+              dotNotation(name)(n.toEO: Inline)
           }
 
         def dataCases(name: String)(data: EOData[EOExprOnly]): InlineOrLines =
@@ -246,13 +260,36 @@ object ToEO {
 
       }
 
-    implicit val copyToEO: ToEO[EOCopy[EOExprOnly], Lines] =
-      new ToEO[EOCopy[EOExprOnly], Lines] {
+    implicit val copyToEO: ToEO[EOCopy[EOExprOnly], InlineOrLines] =
+      new ToEO[EOCopy[EOExprOnly], InlineOrLines] {
 
-        override def toEO(node: EOCopy[EOExprOnly]): Lines = Lines(
-          node.trg.toEO.toIterable ++
-            node.args.flatMap(_.toEO.toIterable).map(indent)
-        )
+        override def toEO(node: EOCopy[EOExprOnly]): InlineOrLines = {
+
+          node match {
+            case EOCopy(Fix(EOCopy(trg, innerArgs)), outerArgs) =>
+              val innerTrgString: String = trg.toEO.toIterable.mkString
+              val innerArgsString: String =
+                innerArgs.flatMap(_.toEO.toIterable).mkString(" ")
+              val outerArgsString =
+                outerArgs.flatMap(_.toEO.toIterable).map(indent)
+              Lines(s"($innerTrgString $innerArgsString)" +: outerArgsString)
+
+            case EOCopy(Fix(EOSimpleApp(trg)), args) =>
+              val argsString: String = args
+                .flatMap(_.toEO.toIterable)
+                .map(arg => s"$arg")
+                .mkString(" ")
+              Inline(s"($trg $argsString)")
+
+            case EOCopy(other, args) => Lines(
+                other.toEO.toIterable ++
+                  args
+                    .flatMap(_.toEO.toIterable)
+                    .map(indent)
+              )
+
+          }
+        }
 
       }
 
