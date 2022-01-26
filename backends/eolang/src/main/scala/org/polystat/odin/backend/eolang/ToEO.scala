@@ -10,7 +10,7 @@ import inlineorlines._
 import inlineorlines.ops._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
-import org.polystat.odin.utils.text.indent
+import org.polystat.odin.utils.text.{indent, escape}
 
 trait ToEO[T, R] {
   def toEO(node: T): R
@@ -275,11 +275,20 @@ object ToEO {
               Lines(s"($innerTrgString $innerArgsString)" +: outerArgsString)
 
             case EOCopy(Fix(EOSimpleApp(trg)), args) =>
-              val argsString: String = args
-                .flatMap(_.toEO.toIterable)
-                .map(arg => s"$arg")
-                .mkString(" ")
-              Inline(s"($trg $argsString)")
+              val parenthesize =
+                args.forall {
+                  case _: EOBndExpr[EOExprOnly] => false
+                  case EOAnonExpr(Fix(EOCopy(_, _))) => false
+                  case _ => true
+                }
+              val argsIterable = args.flatMap(_.toEO.toIterable)
+              if (parenthesize) {
+                val singleLineArgs: String = argsIterable.mkString(" ")
+                Inline(s"($trg $singleLineArgs)")
+              } else {
+                val argLines: Vector[String] = argsIterable.map(indent)
+                Lines(trg +: argLines)
+              }
 
             case EOCopy(other, args) => Lines(
                 other.toEO.toIterable ++
@@ -331,7 +340,9 @@ object ToEO {
       new ToEO[EOStrData[EOExprOnly], Inline] {
 
         override def toEO(node: EOStrData[EOExprOnly]): Inline =
-          Inline(s"\"${node.str}\"")
+          Inline(
+            "\"" + escape('"', node.str) + "\""
+          )
 
       }
 
