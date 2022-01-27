@@ -18,7 +18,7 @@ import org.polystat.odin.parser.eo.Parser
 //
 // Context: Map[String, Int]
 //
-// 0. Resolve explicit locator chains (^.^.aboba) during parsing
+// 0. Resolve explicit BigInt chains (^.^.aboba) during parsing
 // 1. Create the first context that includes names of all top-lvl EOObjs
 // 1.1. Replace All top-level applications (a > b) with application of
 // 0-locators ($.a > b)
@@ -34,45 +34,93 @@ import org.polystat.odin.parser.eo.Parser
 
 object Context {
 
-  type Context = Map[String, Int]
+  //  type BigInt = BigInt // Refined[BigInt, NonNegative]
+  type Context = Map[String, BigInt]
 
   def resolveLocator(
     ctx: Context,
     app: EOSimpleApp[Fix[EOExpr]]
-  ): EOSimpleAppWithLocator[Fix[EOExpr]] = ???
+  ): EOSimpleAppWithLocator[Fix[EOExpr]] = {
+    val name: String = app.name
+    val depth: BigInt = ctx.getOrElse(name, BigInt(0))
+
+    EOSimpleAppWithLocator(app.name, depth)
+  }
 
   def rebuildContext(
     ctx: Context,
-    depth: Int,
-    objs: List[EOObj[Fix[EOExpr]]]
-  ): Context = ???
+    newDepth: BigInt,
+    objs: Vector[EOBnd[Fix[EOExpr]]]
+  ): Context = {
+    val currentCtx = objs
+      .flatMap {
+        case bndExpr: EOBndExpr[Fix[EOExpr]] => Some(bndExpr)
+        case _ => None
+      }
+      .map(bnd => bnd.bndName.name.name -> newDepth)
+      .toMap
 
-  def traverseAST(code: EOProg[Fix[EOExpr]]): EOProg[Fix[EOExpr]] = {
-    def exprHelper(expr: EOExpr[Fix[EOExpr]]): EOExpr[Fix[EOExpr]] =
+    ctx ++ currentCtx
+  }
+
+  def setLocators(code: EOProg[Fix[EOExpr]]): EOProg[Fix[EOExpr]] = {
+    def exprHelper(ctx: Context, depth: BigInt)(
+      expr: EOExpr[Fix[EOExpr]]
+    ): EOExpr[Fix[EOExpr]] =
       expr match {
-        case EOObj(_, _, bndAttrs) => {
-          ???
-//          bndAttrs.flatMap(bndHelper).toList
-        }
-        case EOSimpleApp(_) => ???
-        case EOCopy(t, args) => EoCopy(args.value.map(bndHelper))
+        case obj @ EOObj(_, _, bndAttrs) =>
+          val newDepth = depth + BigInt(1)
+          val newCtx = rebuildContext(ctx, newDepth, bndAttrs)
 
-        case _ => ???
+          obj.copy(bndAttrs = bndAttrs.map(bndExprHelper(newCtx, newDepth)))
+
+        case app: EOSimpleApp[Fix[EOExpr]] => resolveLocator(ctx, app)
+        case EOCopy(Fix(trg), args) =>
+          EOCopy(
+            trg = Fix(exprHelper(ctx, depth)(trg)),
+            args = args.map(bndHelper(ctx, depth))
+          )
+        case dot @ EODot(Fix(src), _) =>
+          dot.copy(src = Fix(exprHelper(ctx, depth)(src)))
+        case other => other
       }
 
-    def bndHelper(bnd: EOBnd[Fix[EOExpr]]): EOExpr[Fix[EOExpr]] =
+    def bndExprHelper(ctx: Context, depth: BigInt)(
+      bnd: EOBndExpr[Fix[EOExpr]]
+    ): EOBndExpr[Fix[EOExpr]] =
       bnd match {
-        case EOAnonExpr(Fix(expr)) => exprHelper(expr)
-        case EOBndExpr(_, Fix(expr)) => exprHelper(expr)
+        case bnd @ EOBndExpr(_, Fix(expr)) =>
+          bnd.copy(expr = Fix(exprHelper(ctx, depth)(expr)))
       }
 
-//    code.bnds.flatMap(bndHelper).toList
+    def bndHelper(ctx: Context, depth: BigInt)(
+      bnd: EOBnd[Fix[EOExpr]]
+    ): EOBnd[Fix[EOExpr]] =
+      bnd match {
+        case EOAnonExpr(Fix(expr)) =>
+          EOAnonExpr(Fix(exprHelper(ctx, depth)(expr)))
+        case bnd @ EOBndExpr(_, Fix(expr)) =>
+          bnd.copy(expr = Fix(exprHelper(ctx, depth)(expr)))
+      }
+
+    val initialCtx =
+      rebuildContext(Map(), BigInt(0), code.bnds)
+    code.copy(bnds = code.bnds.map(bndHelper(initialCtx, BigInt(0))))
   }
 
   def main(args: Array[String]): Unit = {
-    val code: String = "a.b.c.d.e.f"
+    val code: String =
+      """
+        |[] > outer
+        |  [] > self
+        |    228 > magic
+        |    self.bebra "ya hui" > @
+        |  [] > method
+        |    self.magic > @
+        |     
+        |""".stripMargin
 
-    println(Parser.parse(code))
+    println(Parser.parse(code).map(setLocators))
   }
 
 }
