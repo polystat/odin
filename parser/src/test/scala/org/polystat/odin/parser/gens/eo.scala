@@ -1,30 +1,11 @@
-package org.polystat.odin.parser
+package org.polystat.odin.parser.gens
 
 import org.scalacheck.Gen
 
-object Gens {
-
-  def between[T](
-    min: Int,
-    max: Int,
-    gen: Gen[T],
-    sep: Gen[String] = ""
-  ): Gen[String] = {
-    for {
-      len <- Gen.choose(min, max)
-      gens <- Gen.listOfN(len, gen)
-      sep <- sep
-    } yield gens.mkString(sep)
-  }
-
-  def surroundedBy[T, S](gen: Gen[T], sur: Gen[S]): Gen[String] = for {
-    before <- sur
-    thing <- gen
-    after <- sur
-  } yield s"$before$thing$after"
+object eo {
 
   val wsp: Gen[String] =
-    between(
+    betweenStr(
       1,
       2,
       Gen.frequency(
@@ -33,7 +14,7 @@ object Gens {
       )
     ).map(_.mkString)
 
-  val optWsp: Gen[String] = between(
+  val optWsp: Gen[String] = betweenStr(
     0,
     2,
     Gen.frequency(
@@ -57,20 +38,20 @@ object Gens {
     } yield s"$wsp$eol"
     val comment = for {
       before <- optWsp
-      comment <- between(0, 15, Gen.alphaLowerChar)
+      comment <- betweenStr(0, 15, Gen.alphaLowerChar)
       eol <- eol
     } yield s"$before#$comment$eol"
-    between(0, 2, Gen.oneOf(emptyLine, comment))
+    betweenStr(0, 2, Gen.oneOf(emptyLine, comment))
   }
 
   val digit: Gen[Char] = Gen.numChar
-  val digits: Gen[String] = between(1, 5, digit)
+  val digits: Gen[String] = betweenStr(1, 5, digit)
   val nonZeroDigit: Gen[Char] = Gen.oneOf('1' to '9')
 
   val nonZeroInteger: Gen[String] = for {
     sign <- Gen.oneOf("", "-")
     first <- nonZeroDigit
-    rest <- between(0, 1, digits)
+    rest <- betweenStr(0, 1, digits)
   } yield (sign :: first :: rest :: Nil).mkString
 
   val integer: Gen[String] = Gen.frequency(
@@ -83,7 +64,7 @@ object Gens {
     after <- digits
   } yield s"$before.$after"
 
-  val escapedUnicode: Gen[String] = between(4, 4, digit).map("\\u" + _)
+  val escapedUnicode: Gen[String] = betweenStr(4, 4, digit).map("\\u" + _)
 
   val javaEscape: Gen[String] = Gen.frequency(
     (1, "\\t"),
@@ -108,12 +89,15 @@ object Gens {
     )
   )
 
-  val string: Gen[String] =
-    between(
+  val undelimitedString: Gen[String] =
+    betweenStr(
       0,
       15,
       undelimitedChar
-    ).map(str => s"\"$str\"")
+    )
+
+  val string: Gen[String] =
+    undelimitedString.map(str => s"\"$str\"")
 
   val char: Gen[String] = undelimitedChar
     .retryUntil(_ != "'")
@@ -130,11 +114,11 @@ object Gens {
 
   val identifier: Gen[String] = for {
     fst <- smallLetter
-    rest <- between(0, 3, identifierChar)
+    rest <- betweenStr(0, 3, identifierChar)
   } yield fst +: rest
 
   val packageName: Gen[String] =
-    between(1, 3, identifier, sep = ".")
+    betweenStr(1, 3, identifier, sep = ".")
 
   val packageMeta: Gen[String] = for {
     name <- packageName
@@ -150,7 +134,7 @@ object Gens {
     pkgName <- packageName
     artifactName <- identifier
     version <-
-      between(3, 3, digits.retryUntil(s => !s.startsWith("0")), sep = ".")
+      betweenStr(3, 3, digits.retryUntil(s => !s.startsWith("0")), sep = ".")
   } yield s"$pkgName:$artifactName:$version"
 
   val rtMeta: Gen[String] = for {
@@ -160,9 +144,9 @@ object Gens {
 
   val metas: Gen[String] = for {
     header <- emptyLinesOrComments
-    pkg <- between(0, 1, packageMeta)
+    pkg <- betweenStr(0, 1, packageMeta)
     pkgEol <- eol
-    metas <- between(
+    metas <- betweenStr(
       0,
       5,
       for {
@@ -181,12 +165,12 @@ object Gens {
   val bndName: Gen[String] = for {
     op <- surroundedBy(">", optWsp)
     id <- paramName
-    exclamationMark <- surroundedBy(between(0, 1, "!"), optWsp)
+    exclamationMark <- surroundedBy(betweenStr(0, 1, "!"), optWsp)
   } yield (op :: id :: exclamationMark :: Nil).mkString
 
   val abstractionParams: Gen[String] = for {
-    params <- between(0, 5, paramName, sep = wsp)
-    vararg <- between(0, 1, if (params.nonEmpty) "..." else "")
+    params <- betweenStr(0, 5, paramName, sep = wsp)
+    vararg <- betweenStr(0, 1, if (params.nonEmpty) "..." else "")
   } yield s"[$params$vararg]"
 
   val attributeName: Gen[String] = Gen.frequency(
@@ -215,7 +199,7 @@ object Gens {
 
     val attributeChain = for {
       trg <- simpleApplicationTarget
-      attrs <- between(1, 3, attributeName, sep = ".")
+      attrs <- betweenStr(1, 3, attributeName, sep = ".")
     } yield s"$trg.$attrs"
 
     val applicationTarget = Gen.oneOf(
@@ -238,7 +222,7 @@ object Gens {
         else {
           applicationTarget
         }
-      between(1, 5, arg, sep = wsp)
+      betweenStr(1, 5, arg, sep = wsp)
     }
 
     val justApplication = for {
@@ -256,7 +240,7 @@ object Gens {
         if (recDepth < recDepthMax)
           Gen.oneOf(parenthesized, applicationTarget)
         else applicationTarget
-      elems <- between(0, 4, elem, sep = wsp)
+      elems <- betweenStr(0, 4, elem, sep = wsp)
     } yield s"*$sep$elems"
 
     Gen.oneOf(
@@ -267,7 +251,7 @@ object Gens {
     )
   }
 
-  val nothing: Gen[String] = Gen.oneOf("" :: Nil)
+  val nothing: Gen[String] = Gen.const("")
 
   def wspBetweenObjs(
     recDepth: Int,
@@ -353,7 +337,7 @@ object Gens {
   ): Gen[String] = for {
     before <- wspBetweenObjs(recDepth, indentationStep)
     named <- Gen.oneOf(true, false)
-    objs <- between(
+    objs <- betweenStr(
       1,
       3,
       `object`(
@@ -373,7 +357,7 @@ object Gens {
     recDepthMax: Int,
   ): Gen[String] = for {
     before <- wspBetweenObjs(recDepth, indentationStep)
-    objs <- between(
+    objs <- betweenStr(
       1,
       3,
       `object`(
@@ -391,7 +375,7 @@ object Gens {
     recDepthMax: Int,
   ): Gen[String] = for {
     metas <- metas
-    objs <- between(
+    objs <- betweenStr(
       0,
       4,
       Gen

@@ -5,7 +5,7 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite
 import org.polystat.odin.parser.TestUtils.TestCase
-import org.polystat.odin.parser.Gens
+import org.polystat.odin.parser.gens.eo
 
 class ParserTests extends EOParserTestSuite {
 
@@ -40,7 +40,7 @@ class ParserTests extends EOParserTestSuite {
     "comments or empty lines" in {
       runParserTestsGen(
         Left(Tokens.emptyLinesOrComments),
-        Gens.emptyLinesOrComments
+        eo.emptyLinesOrComments
       )
     }
 
@@ -72,13 +72,13 @@ class ParserTests extends EOParserTestSuite {
       runParserTests(Right(Tokens.string), stringTests)
 
       "pass" in {
-        runParserTestsGen(Right(Tokens.string), Gens.string)
+        runParserTestsGen(Right(Tokens.string), eo.string)
       }
     }
 
     "chars" should {
       "pass" in {
-        runParserTestsGen(Right(Tokens.char), Gens.char)
+        runParserTestsGen(Right(Tokens.char), eo.char)
       }
       val charTests = List(
         TestCase(label = "new line", code = "\'\\n\'", Some('\n')),
@@ -92,39 +92,39 @@ class ParserTests extends EOParserTestSuite {
     }
 
     "identifiers" in {
-      runParserTestsGen(Right(Tokens.identifier), Gens.identifier)
+      runParserTestsGen(Right(Tokens.identifier), eo.identifier)
     }
 
     "integers" in {
-      runParserTestsGen(Right(Tokens.integer), Gens.integer)
+      runParserTestsGen(Right(Tokens.integer), eo.integer)
     }
 
     "floats" in {
-      runParserTestsGen(Right(Tokens.float), Gens.float)
+      runParserTestsGen(Right(Tokens.float), eo.float)
     }
   }
 
   "metas" should {
     "package meta" in {
-      runParserTestsGen(Right(Metas.packageMeta), Gens.packageMeta)
+      runParserTestsGen(Right(Metas.packageMeta), eo.packageMeta)
     }
 
     "alias meta" in {
-      runParserTestsGen(Right(Metas.aliasMeta), Gens.aliasMeta)
+      runParserTestsGen(Right(Metas.aliasMeta), eo.aliasMeta)
     }
 
     "rt meta" in {
-      runParserTestsGen(Right(Metas.rtMeta), Gens.rtMeta)
+      runParserTestsGen(Right(Metas.rtMeta), eo.rtMeta)
     }
 
     "all metas" in {
-      runParserTestsGen(Left(Metas.metas), Gens.metas)
+      runParserTestsGen(Left(Metas.metas), eo.metas)
     }
   }
 
   "abstraction params" should {
     "pass" in {
-      runParserTestsGen(Right(SingleLine.params), Gens.abstractionParams)
+      runParserTestsGen(Right(SingleLine.params), eo.abstractionParams)
     }
     "fail" in {
       shouldFailParsing(Right(SingleLine.params), "[...]")
@@ -137,7 +137,7 @@ class ParserTests extends EOParserTestSuite {
 
   "binding name" should {
     "pass" in {
-      runParserTestsGen(Right(Named.name), Gens.bndName)
+      runParserTestsGen(Right(Named.name), eo.bndName)
     }
 
     val incorrectTests = List[TestCase[EONamedBnd]](
@@ -155,7 +155,7 @@ class ParserTests extends EOParserTestSuite {
     "pass" in {
       runParserTestsGen(
         singleLineApplicationParser,
-        Gens.singleLineApplication(recDepthMax = 4)
+        eo.singleLineApplication(recDepthMax = 4)
       )
     }
   }
@@ -164,7 +164,7 @@ class ParserTests extends EOParserTestSuite {
     "pass" in {
       runParserTestsGen(
         Right(Parser.`object`(0, 4)),
-        Gens.`object`(
+        eo.`object`(
           named = true,
           indentationStep = 4,
           recDepthMax = 2
@@ -177,7 +177,7 @@ class ParserTests extends EOParserTestSuite {
     "pass" in {
       runParserTestsGen(
         Left(Parser.program(0, indentationStep = 2)),
-        Gens.program(indentationStep = 2, recDepthMax = 2)
+        eo.program(indentationStep = 2, recDepthMax = 2)
       )
     }
   }
@@ -196,8 +196,8 @@ object ParserTests {
         |a > rightVertical
         |  b > zhopa
         |    c > bebra
-        |      d
-        |((a b) c) d > leftHorizontal
+        |      'Э'
+        |((((a b) c) d) e) f > leftHorizontal
         |a b > leftVertical
         |  c
         |    d
