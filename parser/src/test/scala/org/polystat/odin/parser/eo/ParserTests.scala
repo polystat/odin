@@ -1,11 +1,13 @@
 package org.polystat.odin.parser.eo
 
 import cats.parse.{Parser => P, Parser0 => P0}
+import org.polystat.odin.backend.eolang.ToEO.ops._
+import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite
 import org.polystat.odin.parser.TestUtils.TestCase
-import org.polystat.odin.parser.gens.eo
+import org.polystat.odin.parser.gens._
 
 class ParserTests extends EOParserTestSuite {
 
@@ -174,10 +176,34 @@ class ParserTests extends EOParserTestSuite {
   }
 
   "program" should {
-    "pass" in {
+    "pass auto-generated programs" in {
       runParserTestsGen(
         Left(Parser.program(0, indentationStep = 2)),
         eo.program(indentationStep = 2, maxDepth = 4)
+      )
+    }
+
+    "pass programs generated from pretty-printed AST" in {
+      import org.scalacheck.Prop
+      check(
+        Prop.forAll(ast.eoProg(4)) { prog =>
+          val code = prog.toEOPretty
+          val parsed: Either[String, EOProg[EOExprOnly]] = Parser.parse(code)
+          val assertion = parsed == Right(prog)
+          if (!assertion) {
+            parsed match {
+              case Left(value) => println(value)
+              case Right(value) =>
+                println("Parsed AST:")
+                pprint.pprintln(value)
+            }
+            println("Expected AST:")
+            pprint.pprintln(prog)
+
+            assertion
+          } else assertion
+        },
+        scalacheckParams
       )
     }
   }
@@ -186,13 +212,14 @@ class ParserTests extends EOParserTestSuite {
 
 object ParserTests {
 
-  import org.polystat.odin.backend.eolang.ToEO.ops._
-  import org.polystat.odin.backend.eolang.ToEO.instances._
-
   def main(args: Array[String]): Unit = {
     val code =
       """
-        |(([a b c] (1 > a)) 1 2 3) > aboba
+        |[a b c] (123 > a) (123 > a)
+        |[a v v] > a
+        |  1 > a
+        |  2 > v
+        |  3 > a
         |
         |""".stripMargin
 
@@ -202,7 +229,10 @@ object ParserTests {
 
     parsed match {
       case Left(value) => println(value)
-      case Right(value) => println(value.toEOPretty)
+      case Right(value) => {
+        println(value.toEOPretty)
+        println(Parser.parse(value.toEOPretty).map(_ == value))
+      }
     }
 
   }

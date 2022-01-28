@@ -5,7 +5,6 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams._
 import higherkindness.droste.data.Fix
 import org.scalacheck.Gen
-import org.polystat.odin.utils.text.escape
 
 object ast {
 
@@ -142,21 +141,4 @@ object ast {
       bnds <- between(0, 4, bndExpr(maxDepth, depth + 1)).map(_.toVector)
     } yield EOObj(params, vararg, bnds)
   }
-
-  def main(args: Array[String]): Unit = {
-    import org.polystat.odin.backend.eolang.ToEO.ops._
-    import org.polystat.odin.backend.eolang.ToEO.instances._
-    import org.polystat.odin.parser.eo
-
-    println(escape('\"',"\u9323"))
-
-    eoProg(2)
-      .sample
-      .foreach(c => {
-        pprint.pprintln(c)
-        println(c.toEOPretty)
-        println(eo.Parser.parse(c.toEOPretty).map(_ == c))
-      })
-  }
-
 }
