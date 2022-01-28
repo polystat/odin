@@ -212,10 +212,13 @@ object ToEO {
       new ToEO[EOSimpleAppWithLocator[EOExprOnly], Inline] {
 
         override def toEO(node: EOSimpleAppWithLocator[EOExprOnly]): Inline =
-          Inline(node.locator match {
-            case 0 => s"$$.${node.name}"
-            case n => List.fill(n)("^").appended(node.name).mkString(".")
-          })
+          Inline(
+            if (node.locator == 0) s"$$.${node.name}"
+            else List
+              .fill(node.locator.toInt)("^")
+              .appended(node.name)
+              .mkString(".")
+          )
 
       }
 
@@ -334,24 +337,11 @@ object ToEO {
       new ToEO[EOCopy[EOExprOnly], InlineOrLines] {
 
         override def toEO(node: EOCopy[EOExprOnly]): InlineOrLines = {
-
-          node match {
-            case EOCopy(Fix(innerCopy @ EOCopy(_, _)), outerArgs) =>
-              val outerArgsString =
-                outerArgs.flatMap(_.toEO.toIterable).map(indent)
-              Lines(
-                ("(" + renderCopySingleLine(innerCopy).value + ")") +:
-                  outerArgsString
-              )
-
-            case EOCopy(other, args) => Lines(
-                other.toEO.toIterable ++
-                  args
-                    .flatMap(_.toEO.toIterable)
-                    .map(indent)
-              )
-
-          }
+          val outerArgsString =
+            node.args.flatMap(_.toEO.toIterable).map(indent)
+          Lines(
+            renderArgSingleLine(EOAnonExpr(node.trg)) +: outerArgsString
+          )
         }
 
       }

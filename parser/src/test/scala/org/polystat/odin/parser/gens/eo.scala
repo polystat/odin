@@ -188,8 +188,8 @@ object eo {
   )
 
   def singleLineApplication(
-    recDepthMax: Int,
-    recDepth: Int = 0,
+    maxDepth: Int,
+    depth: Int = 0,
   ): Gen[String] = {
 
     val simpleApplicationTarget = Gen.oneOf(
@@ -197,58 +197,82 @@ object eo {
       attributeName
     )
 
-    val attributeChain = for {
-      trg <- simpleApplicationTarget
+    def parenthesized(maxDepth: Int, depth: Int): Gen[String] =
+      if (depth < maxDepth)
+        singleLineApplication(
+          depth = depth,
+          maxDepth = maxDepth
+        )
+          .map(s => s"($s)")
+      else
+        simpleApplicationTarget
+
+    def singleLineEoBnd(maxDepth: Int, depth: Int): Gen[String] = for {
+      expr <- singleLineApplication(maxDepth, depth)
+      bndName <- eo.bndName
+    } yield List("(", expr, bndName, ")").mkString
+
+    def singleLineAbstraction(maxDepth: Int, depth: Int): Gen[String] = for {
+      params <- eo.abstractionParams
+      args <- betweenStr(1, 4, singleLineEoBnd(maxDepth, depth + 1), wsp)
+        .flatMap(args =>
+          if (args.nonEmpty) wsp.map(_ + args)
+          else args
+        )
+    } yield List(params, args).mkString
+
+    def attributeChain(maxDepth: Int, depth: Int): Gen[String] = for {
+      trg <-
+        Gen.oneOf(simpleApplicationTarget, parenthesized(maxDepth, depth + 1))
       attrs <- betweenStr(1, 3, attributeName, sep = ".")
     } yield s"$trg.$attrs"
 
-    val applicationTarget = Gen.oneOf(
+    def applicationTarget(maxDepth: Int, depth: Int): Gen[String] = Gen.oneOf(
+      parenthesized(maxDepth, depth),
       simpleApplicationTarget,
-      attributeChain
+      attributeChain(maxDepth, depth)
     )
 
-    val parenthesized = Gen.lzy(
-      singleLineApplication(
-        recDepth = recDepth + 1,
-        recDepthMax = recDepthMax
-      )
-        .map(s => s"($s)")
-    )
-
-    val horizontalApplicationArgs = {
+    def horizontalApplicationArgs(maxDepth: Int, depth: Int): Gen[String] = {
       val arg =
-        if (recDepth < recDepthMax)
-          Gen.oneOf(parenthesized, applicationTarget)
-        else {
-          applicationTarget
-        }
+        if (depth < maxDepth)
+          applicationTarget(maxDepth, depth + 1)
+        else
+          simpleApplicationTarget
       betweenStr(1, 5, arg, sep = wsp)
     }
 
-    val justApplication = for {
+    def justApplication(maxDepth: Int, depth: Int): Gen[String] = for {
       trg <-
-        if (recDepth < recDepthMax)
-          Gen.oneOf(parenthesized, applicationTarget)
-        else applicationTarget
+        if (depth < maxDepth)
+          applicationTarget(maxDepth, depth + 1)
+        else
+          simpleApplicationTarget
       sep <- wsp
-      args <- horizontalApplicationArgs
+      args <- horizontalApplicationArgs(maxDepth, depth + 1)
     } yield (trg :: sep :: args :: Nil).mkString
 
-    val singleLineArray = for {
+    def singleLineArray(maxDepth: Int, depth: Int): Gen[String] = for {
       sep <- optWsp
       elem =
-        if (recDepth < recDepthMax)
-          Gen.oneOf(parenthesized, applicationTarget)
-        else applicationTarget
+        if (depth < maxDepth)
+          Gen.oneOf(
+            parenthesized(maxDepth, depth + 1),
+            applicationTarget(maxDepth, depth + 1)
+          )
+        else simpleApplicationTarget
       elems <- betweenStr(0, 4, elem, sep = wsp)
     } yield s"*$sep$elems"
 
-    Gen.oneOf(
-      justApplication,
-      applicationTarget,
-      parenthesized,
-      singleLineArray
-    )
+    if (depth < maxDepth)
+      Gen.oneOf(
+        justApplication(maxDepth, depth),
+        applicationTarget(maxDepth, depth + 1),
+        singleLineArray(maxDepth, depth),
+        singleLineAbstraction(maxDepth, depth),
+      )
+    else
+      simpleApplicationTarget
   }
 
   val nothing: Gen[String] = Gen.const("")
@@ -264,7 +288,7 @@ object eo {
   def `object`(
     named: Boolean,
     indentationStep: Int,
-    recDepthMax: Int,
+    maxDepth: Int,
     recDepth: Int = 0,
     includeInverseDot: Boolean = true,
   ): Gen[String] = {
@@ -273,11 +297,11 @@ object eo {
       name <- if (named) bndName else nothing
       ifAttrs <- Gen.oneOf(true, false)
       attrs <-
-        if (recDepth < recDepthMax && ifAttrs)
+        if (recDepth < maxDepth && ifAttrs)
           boundAttributes(
             recDepth = recDepth + 1,
             indentationStep = indentationStep,
-            recDepthMax = recDepthMax,
+            maxDepth = maxDepth,
           )
         else nothing
     } yield (params :: name :: attrs :: Nil).mkString
@@ -288,21 +312,21 @@ object eo {
       attrs <- verticalApplicationArgs(
         recDepth = recDepth + 1,
         indentationStep = indentationStep,
-        recDepthMax = recDepthMax,
-        includeInverseDot = recDepth < recDepthMax
+        maxDepth = maxDepth,
+        includeInverseDot = recDepth < maxDepth
       )
     } yield (id :: "." :: name :: attrs :: Nil).mkString
 
     val regularApplication = for {
-      trg <- singleLineApplication(recDepthMax = recDepthMax)
+      trg <- singleLineApplication(maxDepth = maxDepth)
       name <- if (named) bndName else nothing
       ifArgs <- Gen.oneOf(true, false)
       args <-
-        if (recDepth < recDepthMax && ifArgs)
+        if (recDepth < maxDepth && ifArgs)
           verticalApplicationArgs(
             recDepth = recDepth + 1,
             indentationStep = indentationStep,
-            recDepthMax = recDepthMax,
+            maxDepth = maxDepth,
           )
         else nothing
     } yield (trg :: name :: args :: Nil).mkString
@@ -311,11 +335,11 @@ object eo {
       name <- if (named) bndName else nothing
       ifHasItems <- Gen.oneOf(true, false)
       items <-
-        if (recDepth < recDepthMax && ifHasItems)
+        if (recDepth < maxDepth && ifHasItems)
           verticalApplicationArgs(
             recDepth = recDepth + 1,
             indentationStep = indentationStep,
-            recDepthMax = recDepthMax,
+            maxDepth = maxDepth,
           )
         else nothing
     } yield ("*" :: name :: items :: Nil).mkString
@@ -332,7 +356,7 @@ object eo {
   def verticalApplicationArgs(
     recDepth: Int,
     indentationStep: Int,
-    recDepthMax: Int,
+    maxDepth: Int,
     includeInverseDot: Boolean = true,
   ): Gen[String] = for {
     before <- wspBetweenObjs(recDepth, indentationStep)
@@ -344,7 +368,7 @@ object eo {
         recDepth = recDepth,
         named = named,
         indentationStep = indentationStep,
-        recDepthMax = recDepthMax,
+        maxDepth = maxDepth,
         includeInverseDot = includeInverseDot
       ),
       sep = wspBetweenObjs(recDepth, indentationStep)
@@ -354,7 +378,7 @@ object eo {
   def boundAttributes(
     recDepth: Int,
     indentationStep: Int,
-    recDepthMax: Int,
+    maxDepth: Int,
   ): Gen[String] = for {
     before <- wspBetweenObjs(recDepth, indentationStep)
     objs <- betweenStr(
@@ -364,7 +388,7 @@ object eo {
         recDepth = recDepth,
         named = true,
         indentationStep = indentationStep,
-        recDepthMax = recDepthMax
+        maxDepth = maxDepth
       ),
       sep = wspBetweenObjs(recDepth, indentationStep)
     )
@@ -372,7 +396,7 @@ object eo {
 
   def program(
     indentationStep: Int,
-    recDepthMax: Int,
+    maxDepth: Int,
   ): Gen[String] = for {
     metas <- metas
     objs <- betweenStr(
@@ -384,11 +408,15 @@ object eo {
           `object`(
             named = named,
             indentationStep = indentationStep,
-            recDepthMax = recDepthMax
+            maxDepth = maxDepth
           )
         ),
       sep = wspBetweenObjs(0, indentationStep = indentationStep)
     )
   } yield (metas :: objs :: Nil).mkString
+
+  def main(args: Array[String]): Unit = {
+    singleLineApplication(5).sample.foreach(println)
+  }
 
 }

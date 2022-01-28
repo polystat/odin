@@ -155,7 +155,7 @@ class ParserTests extends EOParserTestSuite {
     "pass" in {
       runParserTestsGen(
         singleLineApplicationParser,
-        eo.singleLineApplication(recDepthMax = 4)
+        eo.singleLineApplication(maxDepth = 4)
       )
     }
   }
@@ -167,7 +167,7 @@ class ParserTests extends EOParserTestSuite {
         eo.`object`(
           named = true,
           indentationStep = 4,
-          recDepthMax = 2
+          maxDepth = 4
         )
       )
     }
@@ -177,7 +177,7 @@ class ParserTests extends EOParserTestSuite {
     "pass" in {
       runParserTestsGen(
         Left(Parser.program(0, indentationStep = 2)),
-        eo.program(indentationStep = 2, recDepthMax = 2)
+        eo.program(indentationStep = 2, maxDepth = 4)
       )
     }
   }
@@ -192,15 +192,8 @@ object ParserTests {
   def main(args: Array[String]): Unit = {
     val code =
       """
-        |a (b (c d)) > rightHorizontal
-        |a > rightVertical
-        |  b > zhopa
-        |    c > bebra
-        |      'Э'
-        |((((a b) c) d) e) f > leftHorizontal
-        |a b > leftVertical
-        |  c
-        |    d
+        |(([a b c] (1 > a)) 1 2 3) > aboba
+        |
         |""".stripMargin
 
     val parsed = Parser.parse(code)

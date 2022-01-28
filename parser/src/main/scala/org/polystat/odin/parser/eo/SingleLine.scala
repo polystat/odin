@@ -55,28 +55,46 @@ object SingleLine {
       val simpleApplicationTarget: P[EOExprOnly] =
         data | attributeName.map(name => Fix[EOExpr](EOSimpleApp(name)))
 
+      val parenthesized: P[EOExprOnly] =
+        recurse.between(P.char('('), P.char(')'))
+
+      val singleLineBndExpr: P[EOBndExpr[EOExprOnly]] =
+        (recurse ~ bndName)
+          .between(P.char('('), P.char(')'))
+          .map { case (expr, name) =>
+            EOBndExpr(name, expr)
+          }
+
+      val singleLineAbstraction: P[EOExprOnly] = (
+        params.soft ~ (wsp.soft *> singleLineBndExpr.repSep(wsp))
+      ).map { case ((freeAttrs, vararg), bnds) =>
+        Fix(
+          EOObj(
+            freeAttrs,
+            vararg,
+            bnds.toList.toVector
+          )
+        )
+      }
+
       val attributeChain: P[EOExprOnly] = (
-        (simpleApplicationTarget.soft <* P.char('.')).soft ~
+        ((parenthesized | simpleApplicationTarget).soft <* P.char('.')).soft ~
           attributeName.repSep(1, P.char('.'))
       ).map { case (trg, attrs) =>
         attrs.foldLeft(trg)((acc, id) => Fix[EOExpr](EODot(acc, id)))
       }
 
-      val parenthesized: P[EOExprOnly] =
-        recurse.between(P.char('('), P.char(')'))
-
       val applicationTarget: P[EOExprOnly] =
-        parenthesized | attributeChain | simpleApplicationTarget
+        attributeChain | parenthesized | simpleApplicationTarget
 
       val justApplication: P[EOExprOnly] = (
-        (applicationTarget.soft <* wsp) ~
-          applicationTarget.repSep0(0, wsp)
+        (applicationTarget.soft <* wsp).soft ~
+          (applicationTarget.map(EOAnonExpr(_)) | singleLineBndExpr)
+            .repSep(1, wsp)
       ).map { case (trg, args) =>
         NonEmpty
-          .from(args)
-          .map(args =>
-            Fix[EOExpr](EOCopy(trg, args.map(EOAnonExpr(_)).toVector))
-          )
+          .from(args.toList)
+          .map(args => Fix[EOExpr](EOCopy(trg, args.toVector)))
           .getOrElse(trg)
       }
 
@@ -92,6 +110,7 @@ object SingleLine {
       }
 
       singleLineArray |
+        singleLineAbstraction |
         justApplication |
         applicationTarget
 
