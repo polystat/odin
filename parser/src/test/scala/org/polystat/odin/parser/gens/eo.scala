@@ -214,12 +214,14 @@ object eo {
 
     def singleLineAbstraction(maxDepth: Int, depth: Int): Gen[String] = for {
       params <- eo.abstractionParams
-      args <- betweenStr(1, 4, singleLineEoBnd(maxDepth, depth + 1), wsp)
-        .flatMap(args =>
-          if (args.nonEmpty) wsp.map(_ + args)
-          else args
-        )
-    } yield List(params, args).mkString
+      args <- between(0, 4, singleLineEoBnd(maxDepth, depth + 1))
+      wsp <-  wsp
+    } yield {
+      if (args.isEmpty)
+        List[String]("(", params, ")").mkString
+      else
+        List[String](params, wsp, args.mkString(" ")).mkString
+    }
 
     def attributeChain(maxDepth: Int, depth: Int): Gen[String] = for {
       trg <-
@@ -414,9 +416,4 @@ object eo {
       sep = wspBetweenObjs(0, indentationStep = indentationStep)
     )
   } yield (metas :: objs :: Nil).mkString
-
-  def main(args: Array[String]): Unit = {
-    singleLineApplication(5).sample.foreach(println)
-  }
-
 }

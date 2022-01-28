@@ -58,21 +58,19 @@ object SingleLine {
       val parenthesized: P[EOExprOnly] =
         recurse.between(P.char('('), P.char(')'))
 
-      val singleLineBndExpr: P[EOBndExpr[EOExprOnly]] =
-        (recurse ~ bndName)
-          .between(P.char('('), P.char(')'))
-          .map { case (expr, name) =>
-            EOBndExpr(name, expr)
-          }
-
+      val singleLineBndExpr: P[EOBndExpr[EOExprOnly]] = (
+        (P.char('(').soft *> (recurse ~ bndName)) <* P.char(')')
+      ).map { case (expr, name) =>
+        EOBndExpr(name, expr)
+      }
       val singleLineAbstraction: P[EOExprOnly] = (
-        params.soft ~ (wsp.soft *> singleLineBndExpr.repSep(wsp))
+        params.soft ~ (wsp.soft *> singleLineBndExpr.repSep(wsp)).?
       ).map { case ((freeAttrs, vararg), bnds) =>
         Fix(
           EOObj(
             freeAttrs,
             vararg,
-            bnds.toList.toVector
+            bnds.map(_.toList.toVector).getOrElse(Vector.empty)
           )
         )
       }
@@ -89,7 +87,7 @@ object SingleLine {
 
       val justApplication: P[EOExprOnly] = (
         (applicationTarget.soft <* wsp).soft ~
-          (applicationTarget.map(EOAnonExpr(_)) | singleLineBndExpr)
+          (applicationTarget.backtrack.map(EOAnonExpr(_)) | singleLineBndExpr)
             .repSep(1, wsp)
       ).map { case (trg, args) =>
         NonEmpty

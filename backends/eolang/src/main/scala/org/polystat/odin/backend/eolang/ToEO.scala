@@ -241,16 +241,24 @@ object ToEO {
         obj.freeAttrs.map(_.name).mkString(" ") +
         obj
           .varargAttr
-          .fold[String]("")(" " + _.name + Constants.SYMBS.VARARG_MOD) +
+          .fold[String]("") { vararg =>
+            val prefix = if (obj.freeAttrs.isEmpty) "" else " "
+            prefix + vararg.name + Constants.SYMBS.VARARG_MOD
+          } +
         Constants.SYMBS.FREE_ATTR_DECL_ED
 
       val bndAttrs: String =
-        obj
-          .bndAttrs
-          .map(bnd => s"(${renderEOBndSingleLine(bnd).value})")
-          .mkString(" ")
+        if (obj.bndAttrs.isEmpty)
+          ""
+        else {
+          " " +
+            obj
+              .bndAttrs
+              .map(bnd => s"(${renderEOBndSingleLine(bnd).value})")
+              .mkString(" ")
+        }
 
-      Inline(s"$params $bndAttrs")
+      Inline(List(params, bndAttrs).mkString)
     }
 
     def renderAppSingleLine(app: EOApp[EOExprOnly]): Inline = {
@@ -339,9 +347,14 @@ object ToEO {
         override def toEO(node: EOCopy[EOExprOnly]): InlineOrLines = {
           val outerArgsString =
             node.args.flatMap(_.toEO.toIterable).map(indent)
-          Lines(
-            renderArgSingleLine(EOAnonExpr(node.trg)) +: outerArgsString
-          )
+
+          Fix.un(node.trg) match {
+            case EOObj(_, _, _) => renderCopySingleLine(node)
+            case trg =>
+              Lines(
+                renderArgSingleLine(EOAnonExpr(Fix(trg))) +: outerArgsString
+              )
+          }
         }
 
       }
@@ -419,7 +432,9 @@ object ToEO {
       new ToEO[EOCharData[EOExprOnly], Inline] {
 
         override def toEO(node: EOCharData[EOExprOnly]): Inline =
-          Inline(s"'${node.char}'")
+          Inline(
+            "\'" + escape('\'', node.char.toString) + "\'"
+          )
 
       }
 
