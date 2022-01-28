@@ -137,7 +137,7 @@ class ParserTests extends EOParserTestSuite {
 
   "binding name" should {
     "pass" in {
-      runParserTestsGen(Right(Named.name), eo.bndName)
+      runParserTestsGen(Right(SingleLine.bndName), eo.bndName)
     }
 
     val incorrectTests = List[TestCase[EONamedBnd]](
@@ -146,7 +146,7 @@ class ParserTests extends EOParserTestSuite {
     )
 
     runParserTests[EONamedBnd](
-      Right(Named.name),
+      Right(SingleLine.bndName),
       incorrectTests = incorrectTests
     )
   }

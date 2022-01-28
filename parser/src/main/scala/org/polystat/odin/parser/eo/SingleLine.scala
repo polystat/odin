@@ -27,7 +27,7 @@ object SingleLine {
   )
 
   val bndName: P[EONamedBnd] = (
-    P.char('>').surroundedBy(optWsp) *>
+    (optWsp.with1.soft *> P.char('>') *> optWsp) *>
       ((identifier | P.string("@").string) <* optWsp) ~
       (P.charIn('!') <* optWsp).?
   ).map {
