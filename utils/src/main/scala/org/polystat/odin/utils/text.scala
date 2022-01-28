@@ -20,7 +20,6 @@ object text {
       ('t', '\t')
     )
 
-
   private val encodeTable =
     decodeTable.iterator.map { case (v, k) => (k, s"\\$v") }.toMap
 
@@ -31,13 +30,11 @@ object text {
       s"\\u$strPad$strHex"
     }.toArray
 
-
-
   def escape(quoteChar: Char, str: String): String = {
     // We can ignore escaping the opposite character used for the string
     // x isn't escaped anyway and is kind of a hack here
     val ignoreEscape =
-    if (quoteChar == '\'') '"' else if (quoteChar == '"') '\'' else 'x'
+      if (quoteChar == '\'') '"' else if (quoteChar == '"') '\'' else 'x'
     str.flatMap { c =>
       if (c == ignoreEscape) c.toString
       else

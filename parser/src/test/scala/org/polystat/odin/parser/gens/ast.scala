@@ -141,4 +141,5 @@ object ast {
       bnds <- between(0, 4, bndExpr(maxDepth, depth + 1)).map(_.toVector)
     } yield EOObj(params, vararg, bnds)
   }
+
 }

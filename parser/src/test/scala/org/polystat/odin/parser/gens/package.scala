@@ -10,9 +10,7 @@ package object gens {
     gen: Gen[T],
     sep: Gen[String] = ""
   ): Gen[String] = {
-    sep.flatMap(sep =>
-      between(min, max, gen).map(_.mkString(sep))
-    )
+    sep.flatMap(sep => between(min, max, gen).map(_.mkString(sep)))
   }
 
   def between[T](

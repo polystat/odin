@@ -215,7 +215,7 @@ object eo {
     def singleLineAbstraction(maxDepth: Int, depth: Int): Gen[String] = for {
       params <- eo.abstractionParams
       args <- between(0, 4, singleLineEoBnd(maxDepth, depth + 1))
-      wsp <-  wsp
+      wsp <- wsp
     } yield {
       if (args.isEmpty)
         List[String]("(", params, ")").mkString
@@ -416,4 +416,5 @@ object eo {
       sep = wspBetweenObjs(0, indentationStep = indentationStep)
     )
   } yield (metas :: objs :: Nil).mkString
+
 }
