@@ -35,17 +35,22 @@ object Context {
   def rebuildContext(
     ctx: Context,
     currentDepth: BigInt,
-    objs: Vector[EOBnd[Fix[EOExpr]]]
+    objs: Vector[EOBnd[Fix[EOExpr]]],
+    freeAttrs: Option[Vector[LazyName]]
   ): Context = {
-    val currentCtx = objs
+    val objCtx = objs
       .flatMap {
         case bndExpr: EOBndExpr[Fix[EOExpr]] => Some(bndExpr)
         case _ => None
       }
       .map(bnd => bnd.bndName.name.name -> currentDepth)
       .toMap
+    val argCtx = freeAttrs match {
+      case Some(value) => value.map(lName => lName.name -> currentDepth).toMap
+      case None => Map.empty
+    }
 
-    ctx ++ currentCtx
+    ctx ++ objCtx ++ argCtx
   }
 
   def setLocators(code: EOProg[Fix[EOExpr]]): EOProg[Fix[EOExpr]] = {
@@ -53,9 +58,9 @@ object Context {
       expr: EOExpr[Fix[EOExpr]]
     ): EOExpr[Fix[EOExpr]] =
       expr match {
-        case obj @ EOObj(_, _, bndAttrs) =>
+        case obj @ EOObj(freeAttrs, _, bndAttrs) =>
           val newDepth = depth + 1
-          val newCtx = rebuildContext(ctx, newDepth, bndAttrs)
+          val newCtx = rebuildContext(ctx, newDepth, bndAttrs, Some(freeAttrs))
 
           obj.copy(bndAttrs = bndAttrs.map(bndExprHelper(newCtx, newDepth)))
 
@@ -89,7 +94,7 @@ object Context {
       }
 
     val initialCtx =
-      rebuildContext(Map(), 0, code.bnds)
+      rebuildContext(Map(), 0, code.bnds, None)
     code.copy(bnds = code.bnds.map(bndHelper(initialCtx, 0)))
   }
 
@@ -98,13 +103,13 @@ object Context {
       """
         |[] > outer
         |  [] > self
-        |    228 > magic
+        |    256 > magic
         |    [] > dummy
-        |      [] > cock
-        |        22 > @
-        |      outer.self cock > @
+        |      [outer] > cock
+        |        outer > @
+        |      outer.self > @
         |    self "yahoo" > @
-        |  [] > method
+        |  [self] > method
         |    self.magic > @
         |     
         |""".stripMargin
