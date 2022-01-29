@@ -23,12 +23,13 @@ object Context {
 
   def resolveLocator(
     ctx: Context,
-    app: EOSimpleApp[Fix[EOExpr]]
+    app: EOSimpleApp[Fix[EOExpr]],
+    currentDepth: BigInt
   ): EOSimpleAppWithLocator[Fix[EOExpr]] = {
     val name: String = app.name
     val depth: BigInt = ctx.getOrElse(name, 0)
 
-    EOSimpleAppWithLocator(app.name, depth)
+    EOSimpleAppWithLocator(app.name, currentDepth - depth)
   }
 
   def rebuildContext(
@@ -58,7 +59,7 @@ object Context {
 
           obj.copy(bndAttrs = bndAttrs.map(bndExprHelper(newCtx, newDepth)))
 
-        case app: EOSimpleApp[Fix[EOExpr]] => resolveLocator(ctx, app)
+        case app: EOSimpleApp[Fix[EOExpr]] => resolveLocator(ctx, app, depth)
         case EOCopy(Fix(trg), args) =>
           EOCopy(
             trg = Fix(exprHelper(ctx, depth)(trg)),
@@ -99,7 +100,9 @@ object Context {
         |  [] > self
         |    228 > magic
         |    [] > dummy
-        |      outer.self 22 > @
+        |      [] > cock
+        |        22 > @
+        |      outer.self cock > @
         |    self "yahoo" > @
         |  [] > method
         |    self.magic > @
