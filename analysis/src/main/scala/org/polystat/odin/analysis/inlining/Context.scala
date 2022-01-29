@@ -3,21 +3,9 @@ package org.polystat.odin.analysis.inlining
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.eo.Parser
+import org.polystat.odin.backend.eolang.ToEO.instances.progToEO
+import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
 
-// + alias aboba.hui.stdout
-// [] > outer
-//   [] > self
-//     228 > magic
-//     ^.^.stdout "ya hui" > @
-//   [self] > method
-//     # EODot(EODot(EODot(EOSimpleApp("^"), "^"), "self"), "magic") ->
-//     #   EODot(EOSimpleAppWithLocator("self", 2), "magic")
-//     ^.self.magic > @
-//
-// $.outer > wannabe-outer
-//
-// Context: Map[String, Int]
-//
 // 0. Resolve explicit BigInt chains (^.^.aboba) during parsing
 // 1. Create the first context that includes names of all top-lvl EOObjs
 // 1.1. Replace All top-level applications (a > b) with application of
@@ -28,13 +16,9 @@ import org.polystat.odin.parser.eo.Parser
 // into EOSimpleAppWithLocator()
 // 2.2 Upon meeting a EOObj() -> use its contents to update the context and pass
 // it in the next recursive call
-//
-//
-//
 
 object Context {
 
-  //  type BigInt = BigInt // Refined[BigInt, NonNegative]
   type Context = Map[String, BigInt]
 
   def resolveLocator(
@@ -42,14 +26,14 @@ object Context {
     app: EOSimpleApp[Fix[EOExpr]]
   ): EOSimpleAppWithLocator[Fix[EOExpr]] = {
     val name: String = app.name
-    val depth: BigInt = ctx.getOrElse(name, BigInt(0))
+    val depth: BigInt = ctx.getOrElse(name, 0)
 
     EOSimpleAppWithLocator(app.name, depth)
   }
 
   def rebuildContext(
     ctx: Context,
-    newDepth: BigInt,
+    currentDepth: BigInt,
     objs: Vector[EOBnd[Fix[EOExpr]]]
   ): Context = {
     val currentCtx = objs
@@ -57,7 +41,7 @@ object Context {
         case bndExpr: EOBndExpr[Fix[EOExpr]] => Some(bndExpr)
         case _ => None
       }
-      .map(bnd => bnd.bndName.name.name -> newDepth)
+      .map(bnd => bnd.bndName.name.name -> currentDepth)
       .toMap
 
     ctx ++ currentCtx
@@ -69,7 +53,7 @@ object Context {
     ): EOExpr[Fix[EOExpr]] =
       expr match {
         case obj @ EOObj(_, _, bndAttrs) =>
-          val newDepth = depth + BigInt(1)
+          val newDepth = depth + 1
           val newCtx = rebuildContext(ctx, newDepth, bndAttrs)
 
           obj.copy(bndAttrs = bndAttrs.map(bndExprHelper(newCtx, newDepth)))
@@ -104,8 +88,8 @@ object Context {
       }
 
     val initialCtx =
-      rebuildContext(Map(), BigInt(0), code.bnds)
-    code.copy(bnds = code.bnds.map(bndHelper(initialCtx, BigInt(0))))
+      rebuildContext(Map(), 0, code.bnds)
+    code.copy(bnds = code.bnds.map(bndHelper(initialCtx, 0)))
   }
 
   def main(args: Array[String]): Unit = {
@@ -114,13 +98,21 @@ object Context {
         |[] > outer
         |  [] > self
         |    228 > magic
-        |    self.bebra "ya hui" > @
+        |    [] > dummy
+        |      outer.self 22 > @
+        |    self "yahoo" > @
         |  [] > method
         |    self.magic > @
         |     
         |""".stripMargin
 
-    println(Parser.parse(code).map(setLocators))
+    Parser
+      .parse(code)
+      .map(setLocators) match {
+      case Left(value) => println(value)
+      case Right(value) => println(value.toEOPretty)
+    }
+
   }
 
 }
