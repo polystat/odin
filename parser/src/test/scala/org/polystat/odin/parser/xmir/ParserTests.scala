@@ -97,7 +97,9 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
       |[] > derived
       |  base > @
       |  0 > a
-      |  base.^.f > stuff
+      |  ^.^.^.base.f > stuff
+      |  $.base > lmao
+      |  ^.base > rofl
       |"str" > str
       |'c' > char
       |123
