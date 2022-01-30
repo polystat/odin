@@ -183,30 +183,6 @@ class ParserTests extends EOParserTestSuite {
       )
     }
 
-    "prog == prog->pretty->parsed" in {
-      import org.scalacheck.Prop
-      check(
-        Prop.forAll(ast.eoProg(4)) { prog =>
-          val code = prog.toEOPretty
-          val parsed: Either[String, EOProg[EOExprOnly]] = Parser.parse(code)
-          val assertion = parsed == Right(prog)
-          if (!assertion) {
-            parsed match {
-              case Left(value) => println(value)
-              case Right(value) =>
-                println("Parsed AST:")
-                pprint.pprintln(value)
-            }
-            println("Expected AST:")
-            pprint.pprintln(prog)
-
-            assertion
-          } else assertion
-        },
-        scalacheckParams
-      )
-    }
-
     "prog->pretty == prog->pretty->parsed->pretty" in {
       import org.scalacheck.Prop
       check(
@@ -233,6 +209,11 @@ object ParserTests {
         |  1 > a
         |  2 > v
         |  3 > a
+        |^.^.^.aboba
+        |$.self
+        |$
+        |^
+        |
         |
         |""".stripMargin
 
