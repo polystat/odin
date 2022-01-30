@@ -175,8 +175,6 @@ object eo {
 
   val attributeName: Gen[String] = Gen.frequency(
     (1, "@"),
-    (1, "$"),
-    (1, "^"),
     (10, identifier)
   )
 
@@ -192,9 +190,21 @@ object eo {
     depth: Int = 0,
   ): Gen[String] = {
 
+    val nameWithLocator = Gen.oneOf(
+      identifier.map(name => "$." + name),
+      Gen
+        .choose(1, 5)
+        .flatMap(n =>
+          identifier.map(name => List.fill(n)("^").mkString(".") + "." + name)
+        )
+    )
+
     val simpleApplicationTarget = Gen.oneOf(
       data,
-      attributeName
+      attributeName,
+      Gen.const("^"),
+      Gen.const("$"),
+      nameWithLocator
     )
 
     def parenthesized(maxDepth: Int, depth: Int): Gen[String] =

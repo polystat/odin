@@ -36,11 +36,7 @@ object SingleLine {
     case (name, None) => EOAnyNameBnd(LazyName(name))
   }
 
-  val attributeName: P[String] =
-    identifier |
-      P.string("@").string |
-      P.string("$").string |
-      P.string("^").string
+  val attributeName: P[String] = identifier | P.string("@").string
 
   val data: P[EOExprOnly] = (
     float.map(EOFloatData(_)) |
@@ -52,8 +48,26 @@ object SingleLine {
   val singleLineApplication: P[EOExprOnly] =
     P.recursive[EOExprOnly](recurse => {
 
+      val self: P[String] = P.char('$').string
+
+      val parent: P[String] = P.char('^').string
+
+      val nameWithLocator: P[EOExprOnly] =
+        (self *> P.char('.') *> identifier)
+          .map(name => Fix[EOExpr](EOSimpleAppWithLocator(name, 0)))
+          .orElse(
+            ((parent.void.repSep(P.char('.')) <* P.char('.')) ~ identifier)
+              .map { case (parents, name) =>
+                Fix[EOExpr](EOSimpleAppWithLocator(name, parents.length))
+              }
+          )
+
       val simpleApplicationTarget: P[EOExprOnly] =
-        data | attributeName.map(name => Fix[EOExpr](EOSimpleApp(name)))
+        data |
+          attributeName.map(name => Fix[EOExpr](EOSimpleApp(name))) |
+          nameWithLocator.backtrack |
+          self.map(parent => Fix[EOExpr](EOSimpleApp(parent))) |
+          parent.map(self => Fix[EOExpr](EOSimpleApp(self)))
 
       val parenthesized: P[EOExprOnly] =
         recurse.between(P.char('('), P.char(')'))

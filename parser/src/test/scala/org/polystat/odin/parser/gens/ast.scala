@@ -21,7 +21,20 @@ object ast {
     eo.float.map(float => EOFloatData[EOExprOnly](float.toFloat))
 
   val simpleApp: Gen[EOSimpleApp[EOExprOnly]] =
-    eo.attributeName.map(EOSimpleApp[EOExprOnly])
+    Gen
+      .oneOf(
+        eo.attributeName,
+        Gen.const("^"),
+        Gen.const("$")
+      )
+      .map(EOSimpleApp[EOExprOnly])
+
+  val simpleAppWithLocator: Gen[EOSimpleAppWithLocator[EOExprOnly]] =
+    Gen
+      .choose(0, 5)
+      .flatMap(n =>
+        eo.identifier.map(name => EOSimpleAppWithLocator[EOExprOnly](name, n))
+      )
 
   val eoData: Gen[EOData[EOExprOnly]] = Gen.oneOf(
     stringData,
@@ -81,6 +94,7 @@ object ast {
         eoCopy(maxDepth, depth + 1),
         eoDot(maxDepth, depth + 1),
         simpleApp,
+        simpleAppWithLocator
       )
     else
       simpleApp
