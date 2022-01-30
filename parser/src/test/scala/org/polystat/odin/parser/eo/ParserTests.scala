@@ -183,7 +183,7 @@ class ParserTests extends EOParserTestSuite {
       )
     }
 
-    "pass programs generated from pretty-printed AST" in {
+    "prog == prog->pretty->parsed" in {
       import org.scalacheck.Prop
       check(
         Prop.forAll(ast.eoProg(4)) { prog =>
@@ -202,6 +202,19 @@ class ParserTests extends EOParserTestSuite {
 
             assertion
           } else assertion
+        },
+        scalacheckParams
+      )
+    }
+
+    "prog->pretty == prog->pretty->parsed->pretty" in {
+      import org.scalacheck.Prop
+      check(
+        Prop.forAll(ast.eoProg(4)) { prog =>
+          val expected: Either[String, String] = Right(prog.toEOPretty)
+          val actual: Either[String, String] =
+            Parser.parse(prog.toEOPretty).map(_.toEOPretty)
+          expected == actual
         },
         scalacheckParams
       )
