@@ -52,8 +52,8 @@ object Anon {
     }
 
     P.defer(
-      application |
-        abstraction |
+      abstraction.backtrack |
+        application |
         verticalArray
     )
   }

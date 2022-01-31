@@ -1,6 +1,5 @@
 package org.polystat.odin.backend.eolang
 
-import cats.implicits.toBifunctorOps
 import higherkindness.droste.data.Fix
 import EOBndRepr.instances._
 import ToEO.ops.ToEOOps
@@ -10,7 +9,7 @@ import inlineorlines._
 import inlineorlines.ops._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
-import org.polystat.odin.utils.text.indent
+import org.polystat.odin.utils.text.{escape, indent}
 
 trait ToEO[T, R] {
   def toEO(node: T): R
@@ -66,7 +65,7 @@ object ToEO {
 
         override def toEO(node: EOMetas): Lines = Lines(
           node.pack.map(p => s"${Constants.SYMBS.META_PREFIX}package $p") ++
-            node.metas.map(_.toEO.value)
+            node.metas.map(_.toEO.value).appended("\n")
         )
 
       }
@@ -194,8 +193,9 @@ object ToEO {
 
         override def toEO(node: EOApp[EOExprOnly]): InlineOrLines = node match {
           case n: EOSimpleApp[EOExprOnly] => n.toEO: Inline
-          case n: EODot[EOExprOnly] => n.toEO
-          case n: EOCopy[EOExprOnly] => n.toEO: Lines
+          case n: EOSimpleAppWithLocator[EOExprOnly] => n.toEO: Inline
+          case n: EODot[EOExprOnly] => n.toEO: Inline
+          case n: EOCopy[EOExprOnly] => n.toEO
         }
 
       }
@@ -208,51 +208,154 @@ object ToEO {
 
       }
 
-    implicit val dotToEO: ToEO[EODot[EOExprOnly], InlineOrLines] =
-      new ToEO[EODot[EOExprOnly], InlineOrLines] {
-        def usualDotNotation(n: String)(s: String): String = s"$s.$n"
+    implicit val simpleAppWithLocatorToEO: ToEO[EOSimpleAppWithLocator[EOExprOnly], Inline] =
+      new ToEO[EOSimpleAppWithLocator[EOExprOnly], Inline] {
 
-        def reverseDotNotation(n: String)(
-          ls: Iterable[String]
-        ): Iterable[String] =
-          Vector(s"$n.") ++ ls.map(indent)
-
-        def dotNotation(n: String)(eoExpr: InlineOrLines): InlineOrLines =
-          eoExpr.bimap(
-            usualDotNotation(n),
-            reverseDotNotation(n)
+        override def toEO(node: EOSimpleAppWithLocator[EOExprOnly]): Inline =
+          Inline(
+            if (node.locator == 0) s"$$.${node.name}"
+            else List
+              .fill(node.locator.toInt)("^")
+              .appended(node.name)
+              .mkString(".")
           )
 
-        def objCases(name: String)(obj: EOObj[EOExprOnly]): InlineOrLines =
-          dotNotation(name)(obj.toEO)
+      }
 
-        def appCases(name: String)(app: EOApp[EOExprOnly]): InlineOrLines =
-          app match {
-            case n: EOSimpleApp[EOExprOnly] => dotNotation(name)(n.toEO: Inline)
-            case n: EODot[EOExprOnly] => dotNotation(name)(n.src.toEO)
-            case n: EOCopy[EOExprOnly] => dotNotation(name)(n.toEO: Lines)
-          }
+    implicit val dotToEO: ToEO[EODot[EOExprOnly], Inline] =
+      new ToEO[EODot[EOExprOnly], Inline] {
 
-        def dataCases(name: String)(data: EOData[EOExprOnly]): InlineOrLines =
-          dotNotation(name)(data.toEO)
-
-        override def toEO(node: EODot[EOExprOnly]): InlineOrLines = {
-          Fix.un(node.src) match {
-            case n: EOObj[EOExprOnly] => objCases(node.name)(n)
-            case n: EOApp[EOExprOnly] => appCases(node.name)(n)
-            case n: EOData[EOExprOnly] => dataCases(node.name)(n)
-          }
+        override def toEO(node: EODot[EOExprOnly]): Inline = {
+          Inline(
+            List[String](
+              renderArgSingleLine(EOAnonExpr(node.src)),
+              node.name
+            ).mkString(".")
+          )
         }
 
       }
 
-    implicit val copyToEO: ToEO[EOCopy[EOExprOnly], Lines] =
-      new ToEO[EOCopy[EOExprOnly], Lines] {
+    def renderObjSingleLine(obj: EOObj[EOExprOnly]): Inline = {
+      val params: String = Constants.SYMBS.FREE_ATTR_DECL_ST +
+        obj.freeAttrs.map(_.name).mkString(" ") +
+        obj
+          .varargAttr
+          .fold[String]("") { vararg =>
+            val prefix = if (obj.freeAttrs.isEmpty) "" else " "
+            prefix + vararg.name + Constants.SYMBS.VARARG_MOD
+          } +
+        Constants.SYMBS.FREE_ATTR_DECL_ED
 
-        override def toEO(node: EOCopy[EOExprOnly]): Lines = Lines(
-          node.trg.toEO.toIterable ++
+      val bndAttrs: String =
+        if (obj.bndAttrs.isEmpty)
+          ""
+        else {
+          " " +
+            obj
+              .bndAttrs
+              .map(bnd => s"(${renderEOBndSingleLine(bnd).value})")
+              .mkString(" ")
+        }
+
+      Inline(List(params, bndAttrs).mkString)
+    }
+
+    def renderAppSingleLine(app: EOApp[EOExprOnly]): Inline = {
+      app match {
+        case app: EOSimpleApp[EOExprOnly] => simpleAppToEO.toEO(app)
+        case awl: EOSimpleAppWithLocator[EOExprOnly] =>
+          simpleAppWithLocatorToEO.toEO(awl)
+        case dot: EODot[EOExprOnly] => dotToEO.toEO(dot)
+        case cp: EOCopy[EOExprOnly] => renderCopySingleLine(cp)
+      }
+    }
+
+    def renderEOExprSingleLine(expr: EOExprOnly): Inline = {
+      Fix.un(expr) match {
+        case obj: EOObj[EOExprOnly] => renderObjSingleLine(obj)
+        case app: EOApp[EOExprOnly] => renderAppSingleLine(app)
+        case data: EOData[EOExprOnly] => renderDataSingleLine(data)
+      }
+    }
+
+    def renderNamedBndSingleLine(name: EONamedBnd): String = {
+      name match {
+        case EOAnyNameBnd(name) => name match {
+            case LazyName(name) => name
+            case ConstName(name) => name + Constants.SYMBS.CONST_MOD
+          }
+        case EODecoration => Constants.ATTRS.DECORATION
+      }
+    }
+
+    def renderEOBndSingleLine(bnd: EOBnd[EOExprOnly]): Inline = {
+      bnd match {
+        case EOAnonExpr(expr) => renderEOExprSingleLine(expr)
+        case EOBndExpr(bndName, expr) =>
+          Inline(
+            List[String](
+              renderEOExprSingleLine(expr).value,
+              Constants.SYMBS.BINDING,
+              renderNamedBndSingleLine(bndName)
+            ).mkString(" ")
+          )
+      }
+    }
+
+    def renderArraySingleLine(arr: EOArray[EOExprOnly]): Inline = {
+      val elems: String = arr.elems.map(renderArgSingleLine).mkString(" ")
+      Inline(s"${Constants.SYMBS.ARRAY_START} $elems")
+    }
+
+    def renderDataSingleLine(data: EOData[EOExprOnly]): Inline = {
+      data match {
+        case arr: EOArray[EOExprOnly] => renderArraySingleLine(arr)
+        case d: EORegexData[EOExprOnly] => d.toEO
+        case d: EOStrData[EOExprOnly] => d.toEO
+        case d: EOIntData[EOExprOnly] => d.toEO
+        case d: EOCharData[EOExprOnly] => d.toEO
+        case d: EOBoolData[EOExprOnly] => d.toEO
+        case d: EOFloatData[EOExprOnly] => d.toEO
+        case d: EOBytesData[EOExprOnly] => d.toEO
+      }
+    }
+
+    def renderArgSingleLine(arg: EOBnd[EOExprOnly]): String =
+      arg match {
+        case bnd: EOBndExpr[EOExprOnly] =>
+          "(" + renderEOBndSingleLine(bnd).value + ")"
+        case eoCopy @ EOAnonExpr(_ @Fix(EOCopy(_, _))) =>
+          "(" + renderEOBndSingleLine(eoCopy).value + ")"
+        case array @ EOAnonExpr(_ @Fix(EOArray(_))) =>
+          "(" + renderEOBndSingleLine(array).value + ")"
+        case array @ EOAnonExpr(_ @Fix(EOObj(_, _, _))) =>
+          "(" + renderEOBndSingleLine(array).value + ")"
+        case other => renderEOBndSingleLine(other).value
+      }
+
+    def renderCopySingleLine(copy: EOCopy[EOExprOnly]): Inline = {
+      val trg: String = renderArgSingleLine(EOAnonExpr(copy.trg))
+      val args: String = copy.args.map(renderArgSingleLine).mkString(" ")
+
+      Inline(List(trg, args).mkString(" "))
+    }
+
+    implicit val copyToEO: ToEO[EOCopy[EOExprOnly], InlineOrLines] =
+      new ToEO[EOCopy[EOExprOnly], InlineOrLines] {
+
+        override def toEO(node: EOCopy[EOExprOnly]): InlineOrLines = {
+          val outerArgsString =
             node.args.flatMap(_.toEO.toIterable).map(indent)
-        )
+
+          Fix.un(node.trg) match {
+            case EOObj(_, _, _) => renderCopySingleLine(node)
+            case trg =>
+              Lines(
+                renderArgSingleLine(EOAnonExpr(Fix(trg))) +: outerArgsString
+              )
+          }
+        }
 
       }
 
@@ -294,7 +397,9 @@ object ToEO {
       new ToEO[EOStrData[EOExprOnly], Inline] {
 
         override def toEO(node: EOStrData[EOExprOnly]): Inline =
-          Inline(s"\"${node.str}\"")
+          Inline(
+            "\"" + escape('"', node.str) + "\""
+          )
 
       }
 
@@ -327,7 +432,9 @@ object ToEO {
       new ToEO[EOCharData[EOExprOnly], Inline] {
 
         override def toEO(node: EOCharData[EOExprOnly]): Inline =
-          Inline(s"'${node.char}'")
+          Inline(
+            "\'" + escape('\'', node.char.toString) + "\'"
+          )
 
       }
 

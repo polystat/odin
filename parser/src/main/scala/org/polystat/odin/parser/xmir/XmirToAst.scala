@@ -2,8 +2,6 @@ package org.polystat.odin.parser.xmir
 
 import cats.effect.Sync
 import cats.implicits._
-import cats.Traverse
-import cats.data.Validated
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
@@ -136,15 +134,23 @@ object XmirToAst {
         }
       }
 
+      private[this] def transformEoDot(dot: EODot[EOExprOnly]): EOExprOnly = {
+        Fix(Fix.un(dot.src) match {
+          case src: EODot[EOExprOnly] => dot.copy(src = transformEoDot(src))
+          case EOSimpleApp("^") =>
+            EOSimpleAppWithLocator[EOExprOnly](dot.name, 1)
+          case EOSimpleApp("$") =>
+            EOSimpleAppWithLocator[EOExprOnly](dot.name, 0)
+          case EOSimpleAppWithLocator("^", loc) =>
+            EOSimpleAppWithLocator[EOExprOnly](dot.name, loc + 1)
+          case _ => dot
+        })
+      }
+
       private[this] def combineErrors[A](
         eithers: Seq[Either[String, A]]
-      ): Either[String, Seq[A]] = {
-        Traverse[Seq]
-          .traverse(eithers)(either =>
-            Validated.fromEither(either.leftMap(_ + "\n"))
-          )
-          .toEither
-      }
+      ): Either[String, Seq[A]] =
+        eithers.parSequence
 
       private[this] val bndFromTuple: ((Option[EONamedBnd], EOExprOnly)) => EOBnd[EOExprOnly] = {
         case (Some(name), value) => EOBndExpr(name, value)
@@ -250,7 +256,7 @@ object XmirToAst {
               name <- name
               of <- parsedOf
               (_, expr) <- of
-            } yield (None, Fix[EOExpr](EODot(expr, name)))
+            } yield (None, transformEoDot(EODot(expr, name)))
           case Elem(_, "abstraction", attrs, _, children @ _*) =>
             val name = extractName(attrs.asAttrMap)
             val (varargSeq, freeSeq) = children

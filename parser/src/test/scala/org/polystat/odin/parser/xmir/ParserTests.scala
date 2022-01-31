@@ -5,10 +5,11 @@ import cats.effect.{IO, Sync}
 import cats.implicits._
 import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.MutualRecExample
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
+import org.polystat.odin.parser.ast_tests.FullProgramExamples
 import org.scalatest.Assertion
 import org.scalatest.wordspec.AsyncWordSpec
+
 import scala.xml.Elem
 
 class ParserTests extends AsyncWordSpec with AsyncIOSpec {
@@ -96,7 +97,9 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
       |[] > derived
       |  base > @
       |  0 > a
-      |  base.^.f > stuff
+      |  ^.^.^.base.f > stuff
+      |  $.base > lmao
+      |  ^.base > rofl
       |"str" > str
       |'c' > char
       |123
@@ -132,8 +135,7 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
       "very simple" -> verySimple,
       "simple" -> simple,
       "division by zero" -> divByZero,
-      "mutual_recursion_example" -> MutualRecExample.code
-    )
+    ) ++ FullProgramExamples.correct.init.map(tc => (tc.label, tc.code))
 
     tests.foreach { case (label, code) =>
       registerAsyncTest(label) {
