@@ -224,14 +224,14 @@ class ProgramTests extends ParserTests {
       Left(Parser.program(0, indentationStep = 2)),
       eo.program(indentationStep = 2, maxDepth = 2)
     )
+  }
 
-    property("program - prog->pretty == prog->pretty->parsed->pretty") {
-      Prop.forAll(ast.eoProg(4)) { prog =>
-        val expected: Either[String, String] = Right(prog.toEOPretty)
-        val actual: Either[String, String] =
-          Parser.parse(prog.toEOPretty).map(_.toEOPretty)
-        assert(expected == actual)
-      }
+  property("program - prog->pretty == prog->pretty->parsed->pretty") {
+    Prop.forAll(ast.eoProg(4)) { prog =>
+      val expected: Either[String, String] = Right(prog.toEOPretty)
+      val actual: Either[String, String] =
+        Parser.parse(prog.toEOPretty).map(_.toEOPretty)
+      assertEquals(actual, expected)
     }
   }
 
