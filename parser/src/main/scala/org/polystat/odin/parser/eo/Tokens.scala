@@ -32,11 +32,11 @@ object Tokens {
   }.map(_.toFloat)
 
   val integer: P[Int] = Numbers.signedIntString.map(_.toInt)
-  val string: P[String] = JsonStringUtil.escapedString('\"')
+  val string: P[String] = StringUtils.escapedString('\"')
 
   val char: P[Char] =
     (
-      JsonStringUtil.escapedToken.backtrack |
+      StringUtils.escapedToken.backtrack |
         P.charWhere(c => c != '\n' && c != '\'')
     )
       .surroundedBy(P.char('\''))

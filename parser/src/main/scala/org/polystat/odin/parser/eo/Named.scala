@@ -12,16 +12,6 @@ import org.polystat.odin.parser.eo.Tokens._
 
 object Named {
 
-  val name: P[EONamedBnd] = (
-    (optWsp.with1.soft *> (P.char('>') *> optWsp) *>
-      (identifier | P.string("@").string)) ~
-      (optWsp *> P.char('!').?) <* optWsp
-  ).map {
-    case ("@", None) => EODecoration
-    case (name, Some(_)) => EOAnyNameBnd(ConstName(name))
-    case (name, None) => EOAnyNameBnd(LazyName(name))
-  }
-
   type ApplicationArgs = NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]
 
   def `object`(
@@ -31,7 +21,7 @@ object Named {
 
     val abstraction =
       (
-        params.soft ~ name ~
+        params.soft ~ SingleLine.bndName ~
           boundAttributes(indent, indentationStep).?
       ).map { case (((params, vararg), name), attrs) =>
         EOBndExpr(
@@ -41,21 +31,21 @@ object Named {
       }
 
     val inverseDotApplication = (
-      (identifier.soft <* P.char('.')).soft ~ name ~
+      (identifier.soft <* P.char('.')).soft ~ SingleLine.bndName ~
         verticalApplicationArgs(indent, indentationStep)
     ).map { case ((attr, name), args) =>
       EOBndExpr(name, createInverseDot(attr, args))
     }
 
     val verticalArray = (
-      (P.char('*').soft *> name).soft ~
+      (P.char('*').soft *> SingleLine.bndName).soft ~
         verticalApplicationArgs(indent, indentationStep)
     ).map { case (name, args) =>
       EOBndExpr(name, createArrayFromNonEmpty(Some(args)))
     }
 
     val regularApplication = (
-      singleLineApplication.soft ~ name ~
+      singleLineApplication.soft ~ SingleLine.bndName ~
         verticalApplicationArgs(indent, indentationStep).?
     ).map {
       case ((trg, name), Some(args)) =>

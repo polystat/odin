@@ -27,7 +27,7 @@ object SingleLine {
   )
 
   val bndName: P[EONamedBnd] = (
-    P.char('>').surroundedBy(optWsp) *>
+    (optWsp.with1.soft *> P.char('>') *> optWsp) *>
       ((identifier | P.string("@").string) <* optWsp) ~
       (P.charIn('!') <* optWsp).?
   ).map {
@@ -36,11 +36,7 @@ object SingleLine {
     case (name, None) => EOAnyNameBnd(LazyName(name))
   }
 
-  val attributeName: P[String] =
-    identifier |
-      P.string("@").string |
-      P.string("$").string |
-      P.string("^").string
+  val attributeName: P[String] = identifier | P.string("@").string
 
   val data: P[EOExprOnly] = (
     float.map(EOFloatData(_)) |
@@ -52,31 +48,65 @@ object SingleLine {
   val singleLineApplication: P[EOExprOnly] =
     P.recursive[EOExprOnly](recurse => {
 
+      val self: P[String] = P.char('$').string
+
+      val parent: P[String] = P.char('^').string
+
+      val nameWithLocator: P[EOExprOnly] =
+        (self *> P.char('.') *> identifier)
+          .map(name => Fix[EOExpr](EOSimpleAppWithLocator(name, 0)))
+          .orElse(
+            ((parent.void.repSep(P.char('.')) <* P.char('.')) ~ identifier)
+              .map { case (parents, name) =>
+                Fix[EOExpr](EOSimpleAppWithLocator(name, parents.length))
+              }
+          )
+
       val simpleApplicationTarget: P[EOExprOnly] =
-        data | attributeName.map(name => Fix[EOExpr](EOSimpleApp(name)))
+        data |
+          attributeName.map(name => Fix[EOExpr](EOSimpleApp(name))) |
+          nameWithLocator.backtrack |
+          self.map(parent => Fix[EOExpr](EOSimpleApp(parent))) |
+          parent.map(self => Fix[EOExpr](EOSimpleApp(self)))
+
+      val parenthesized: P[EOExprOnly] =
+        recurse.between(P.char('('), P.char(')'))
+
+      val singleLineBndExpr: P[EOBndExpr[EOExprOnly]] = (
+        (P.char('(').soft *> (recurse ~ bndName)) <* P.char(')')
+      ).map { case (expr, name) =>
+        EOBndExpr(name, expr)
+      }
+      val singleLineAbstraction: P[EOExprOnly] = (
+        params.soft ~ (wsp.soft *> singleLineBndExpr.repSep(wsp)).?
+      ).map { case ((freeAttrs, vararg), bnds) =>
+        Fix(
+          EOObj(
+            freeAttrs,
+            vararg,
+            bnds.map(_.toList.toVector).getOrElse(Vector.empty)
+          )
+        )
+      }
 
       val attributeChain: P[EOExprOnly] = (
-        (simpleApplicationTarget.soft <* P.char('.')).soft ~
+        ((parenthesized | simpleApplicationTarget).soft <* P.char('.')).soft ~
           attributeName.repSep(1, P.char('.'))
       ).map { case (trg, attrs) =>
         attrs.foldLeft(trg)((acc, id) => Fix[EOExpr](EODot(acc, id)))
       }
 
-      val parenthesized: P[EOExprOnly] =
-        recurse.between(P.char('('), P.char(')'))
-
       val applicationTarget: P[EOExprOnly] =
-        parenthesized | attributeChain | simpleApplicationTarget
+        attributeChain | parenthesized | simpleApplicationTarget
 
       val justApplication: P[EOExprOnly] = (
-        (applicationTarget.soft <* wsp) ~
-          applicationTarget.repSep0(0, wsp)
+        (applicationTarget.soft <* wsp).soft ~
+          (applicationTarget.backtrack.map(EOAnonExpr(_)) | singleLineBndExpr)
+            .repSep(1, wsp)
       ).map { case (trg, args) =>
         NonEmpty
-          .from(args)
-          .map(args =>
-            Fix[EOExpr](EOCopy(trg, args.map(EOAnonExpr(_)).toVector))
-          )
+          .from(args.toList)
+          .map(args => Fix[EOExpr](EOCopy(trg, args.toVector)))
           .getOrElse(trg)
       }
 
@@ -92,6 +122,7 @@ object SingleLine {
       }
 
       singleLineArray |
+        singleLineAbstraction |
         justApplication |
         applicationTarget
 

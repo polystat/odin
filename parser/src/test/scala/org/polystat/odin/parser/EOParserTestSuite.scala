@@ -5,6 +5,10 @@ import org.scalatest.wordspec.AnyWordSpec
 import TestUtils._
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.parser.ast_tests.{
+  FullProgramExamples,
+  SingleLineExamples
+}
 import org.scalacheck.{Gen, Prop, Test}
 import org.scalatestplus.scalacheck.Checkers
 
@@ -102,17 +106,9 @@ trait EOParserTestSuite extends AnyWordSpec with Checkers {
     "/eo_sources"
   ).map(filename => TestCase(fileNameOf(filename), readCodeFrom(filename)))
 
-  val mutualRecursionExample: Tests[EOProg[EOExprOnly]] = List(
-    TestCase(
-      "Mutual Recursion Example",
-      MutualRecExample.code,
-      Some(MutualRecExample.ast)
-    )
-  )
-
-  "existing programs" should {
+  "full programs" should {
     runParserTests(programParser, correctTests = examplesFromSources)
-    runParserTests(programParser, correctTests = mutualRecursionExample)
+    runParserTests(programParser, correctTests = FullProgramExamples.correct)
 
   }
 
