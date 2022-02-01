@@ -10,8 +10,8 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.Checkers
 import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
 import pprint.pprintln
-import org.polystat.odin.analysis.mutualrec.advanced.Program._
-import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.polystat.odin.analysis.data.Program._
+import org.polystat.odin.analysis.data.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer
 import org.scalatest.Assertion
 import fs2.io.file.Files

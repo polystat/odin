@@ -1,6 +1,6 @@
-package org.polystat.odin.analysis.mutualrec.advanced
+package org.polystat.odin.analysis.data
 
-import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.polystat.odin.analysis.data.CallGraph._
 
 object Program {
   type Program = List[Object]

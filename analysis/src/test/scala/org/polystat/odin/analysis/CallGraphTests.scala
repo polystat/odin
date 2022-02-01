@@ -2,8 +2,8 @@ package org.polystat.odin.analysis
 
 import org.scalatest.wordspec.AnyWordSpec
 
-import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
-import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.polystat.odin.analysis.data.CallGraph._
+import org.polystat.odin.analysis.data.Program._
 
 class CallGraphTests extends AnyWordSpec {
 

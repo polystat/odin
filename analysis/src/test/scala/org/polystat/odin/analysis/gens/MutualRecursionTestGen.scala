@@ -1,6 +1,6 @@
 package org.polystat.odin.analysis.gens
 
-import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.polystat.odin.analysis.data.CallGraph._
 import cats.effect.IO
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.implicits.global
@@ -9,7 +9,7 @@ import org.scalacheck.Gen
 import fs2.Stream
 import fs2.text.utf8
 import cats.syntax.flatMap._
-import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.polystat.odin.analysis.data.Program._
 
 import scala.util.Try
 
