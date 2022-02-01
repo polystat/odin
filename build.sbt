@@ -119,7 +119,10 @@ lazy val core = project
 lazy val parser = project
   .settings(commonSettings)
   .settings(publishSettings)
-  .dependsOn(core)
+  .dependsOn(
+    core,
+    `eolang-backend`
+  )
   .settings(
     name := "parser",
     libraryDependencies ++= Dependencies.parser

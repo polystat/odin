@@ -3,11 +3,14 @@ package org.polystat.odin.parser.eo
 import cats.effect.IO
 import cats.implicits._
 import cats.parse.{Parser => P, Parser0 => P0}
+import org.polystat.odin.backend.eolang.ToEO.ops._
+import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.{Gens, MutualRecExample, SingleLineExamples}
 import org.polystat.odin.parser.TestUtils.TestCase
 import org.polystat.odin.utils.files
+import org.polystat.odin.parser.gens._
+import org.polystat.odin.parser.ast_tests._
 import org.scalacheck.{Gen, Prop, Test}
 import ParserTests._
 
@@ -67,12 +70,12 @@ class TokenTests extends ParserTests {
   property("comments or empty lines") {
     runParserTestGen(
       Tokens.emptyLinesOrComments.asLeft,
-      Gens.emptyLinesOrComments
+      eo.emptyLinesOrComments
     )
   }
 
   property("strings - generated tests") {
-    Prop.forAllNoShrink(Gens.string) { string =>
+    Prop.forAllNoShrink(eo.string) { string =>
       shouldParse(Tokens.string.asRight, string)
     }
   }
@@ -117,23 +120,23 @@ class TokenTests extends ParserTests {
   runParserTests("chars - ", Tokens.char.asRight, charTests.pure[IO])
 
   property("chars - generated tests") {
-    runParserTestGen(Tokens.char.asRight, Gens.char)
+    runParserTestGen(Tokens.char.asRight, eo.char)
   }
 
   property("identifiers") {
-    Prop.forAllNoShrink(Gens.identifier) { id =>
+    Prop.forAllNoShrink(eo.identifier) { id =>
       shouldProduceAST[String](id)(Tokens.identifier.asRight, id)
     }
   }
 
   property("integers") {
-    Prop.forAllNoShrink(Gens.integer) { int =>
+    Prop.forAllNoShrink(eo.integer) { int =>
       shouldProduceAST[Int](int.toInt)(Tokens.integer.asRight, int)
     }
   }
 
   property("floats") {
-    Prop.forAllNoShrink(Gens.float) { float =>
+    Prop.forAllNoShrink(eo.float) { float =>
       shouldProduceAST[Float](float.toFloat)(Tokens.float.asRight, float)
     }
 
@@ -144,19 +147,19 @@ class TokenTests extends ParserTests {
 class MetasTests extends ParserTests {
 
   property("package meta") {
-    runParserTestGen(Metas.aliasMeta.asRight, Gens.aliasMeta)
+    runParserTestGen(Metas.aliasMeta.asRight, eo.aliasMeta)
   }
 
   property("alias meta") {
-    runParserTestGen(Metas.aliasMeta.asRight, Gens.aliasMeta)
+    runParserTestGen(Metas.aliasMeta.asRight, eo.aliasMeta)
   }
 
   property("rt meta") {
-    runParserTestGen(Metas.rtMeta.asRight, Gens.rtMeta)
+    runParserTestGen(Metas.rtMeta.asRight, eo.rtMeta)
   }
 
   property("all metas") {
-    runParserTestGen(Metas.metas.asLeft, Gens.metas)
+    runParserTestGen(Metas.metas.asLeft, eo.metas)
   }
 
 }
@@ -164,7 +167,7 @@ class MetasTests extends ParserTests {
 class AbstractionParamsTests extends ParserTests {
 
   property("should parse") {
-    runParserTestGen(SingleLine.params.asRight, Gens.abstractionParams)
+    runParserTestGen(SingleLine.params.asRight, eo.abstractionParams)
   }
 
   test("should fail") {
@@ -180,7 +183,7 @@ class AbstractionParamsTests extends ParserTests {
 class BindingNameTests extends ParserTests {
 
   property("pass") {
-    runParserTestGen(Named.name.asRight, Gens.bndName)
+    runParserTestGen(SingleLine.bndName.asRight, eo.bndName)
   }
 
   val incorrectTests: List[TestCase[EONamedBnd]] = List[TestCase[EONamedBnd]](
@@ -190,7 +193,7 @@ class BindingNameTests extends ParserTests {
 
   runParserTests[EONamedBnd](
     "binding name should fail parsing - ",
-    Named.name.asRight,
+    SingleLine.bndName.asRight,
     incorrectTests = incorrectTests.pure[IO]
   ).unsafeRunSync()
 
@@ -201,17 +204,17 @@ class ProgramTests extends ParserTests {
   property("single line application - generated tests") {
     runParserTestGen(
       singleLineApplicationParser,
-      Gens.singleLineApplication(recDepthMax = 4)
+      eo.singleLineApplication(maxDepth = 4)
     )
   }
 
   property("object - generated tests") {
     runParserTestGen(
       Right(Parser.`object`(0, 4)),
-      Gens.`object`(
+      eo.`object`(
         named = true,
         indentationStep = 4,
-        recDepthMax = 2
+        maxDepth = 2
       )
     )
   }
@@ -219,8 +222,17 @@ class ProgramTests extends ParserTests {
   property("program - generated tests") {
     runParserTestGen(
       Left(Parser.program(0, indentationStep = 2)),
-      Gens.program(indentationStep = 2, recDepthMax = 2)
+      eo.program(indentationStep = 2, maxDepth = 2)
     )
+
+    property("program - prog->pretty == prog->pretty->parsed->pretty") {
+      Prop.forAll(ast.eoProg(4)) { prog =>
+        val expected: Either[String, String] = Right(prog.toEOPretty)
+        val actual: Either[String, String] =
+          Parser.parse(prog.toEOPretty).map(_.toEOPretty)
+        assert(expected == actual)
+      }
+    }
   }
 
   runParserTests(
@@ -233,7 +245,7 @@ class ProgramTests extends ParserTests {
   runParserTests(
     "mutual recursion example - ",
     programParser,
-    correctTests = IO.pure(mutualRecursionExample)
+    correctTests = IO.pure(FullProgramExamples.correct)
   ).unsafeRunSync()
 
   runParserTests(
@@ -299,13 +311,5 @@ object ParserTests {
           TestCase(label = name, code = code)
         }
       )
-
-  val mutualRecursionExample: List[TestCase[EOProg[EOExprOnly]]] = List(
-    TestCase(
-      "Mutual Recursion Example",
-      MutualRecExample.code,
-      Some(MutualRecExample.ast)
-    )
-  )
 
 }

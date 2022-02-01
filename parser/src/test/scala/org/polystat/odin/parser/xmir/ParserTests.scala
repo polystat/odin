@@ -6,7 +6,7 @@ import cats.implicits._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
-import org.polystat.odin.parser.MutualRecExample
+import org.polystat.odin.parser.ast_tests.FullProgramExamples
 import scala.xml.Elem
 
 class ParserTests extends munit.CatsEffectSuite {
@@ -96,7 +96,9 @@ class ParserTests extends munit.CatsEffectSuite {
       |[] > derived
       |  base > @
       |  0 > a
-      |  base.^.f > stuff
+      |  ^.^.^.base.f > stuff
+      |  $.base > lmao
+      |  ^.base > rofl
       |"str" > str
       |'c' > char
       |123
@@ -131,8 +133,7 @@ class ParserTests extends munit.CatsEffectSuite {
     "very simple" -> verySimple,
     "simple" -> simple,
     "division by zero" -> divByZero,
-    "mutual_recursion_example" -> MutualRecExample.code
-  )
+  ) ++ FullProgramExamples.correct.init.map(tc => (tc.label, tc.code))
 
   tests.foreach { case (label, code) =>
     test("XMIR parser test - " + label) {

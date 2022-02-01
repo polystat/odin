@@ -8,7 +8,7 @@ package org.polystat.odin.parser.eo
 import cats.data.NonEmptyList
 import cats.parse.Parser.Expectation
 import cats.parse._
-import org.polystat.odin.parser.eo.JsonStringUtil.escape
+import org.polystat.odin.utils.text.escape
 
 class Prettyprint(filename: String = "", input: String) {
   private val locmap = LocationMap(input)
