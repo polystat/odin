@@ -6,7 +6,7 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Parser
 import org.scalatest.wordspec.AnyWordSpec
-import InlingTestCases._
+import SetLocatorsTestCases._
 
 class InliningTests extends AnyWordSpec {
 

@@ -5,7 +5,7 @@ import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
-object InlingTestCases {
+object SetLocatorsTestCases {
 
   case class LocatorTestCase(
     label: String,
