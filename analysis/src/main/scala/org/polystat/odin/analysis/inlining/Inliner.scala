@@ -78,6 +78,7 @@ object Inliner {
     )(
       expr: EOExpr[Fix[EOExpr]]
     ): Either[String, EOExpr[Fix[EOExpr]]] = expr match {
+
       case method @ EOObj(LazyName("self") +: _, _, bndAttrs) =>
         bndAttrs
           .traverse(bndExprHelper(availableMethods, currentDepth + 1))
@@ -86,6 +87,7 @@ object Inliner {
       case obj @ EOObj(_, _, bndAttrs) =>
         val newDepth = currentDepth + 1
         val newMethods = extractMethods(obj, newDepth)
+
         bndAttrs
           .traverse(bndExprHelper(newMethods, newDepth))
           .map(bnds => obj.copy(bndAttrs = bnds))
@@ -95,11 +97,13 @@ object Inliner {
           dot.copy(src = Fix(src))
         )
 
-      case call @ EOCopy(
-             EODot(EOSimpleAppWithLocator("self", locator), _),
-             _
-           ) if availableMethods.depth == currentDepth - locator =>
-        inlineCall(call, availableMethods)
+      case call @ EOCopy(EODot(EOSimpleAppWithLocator("self", locator), _), _)
+           if availableMethods.depth == currentDepth - locator =>
+        call.args.headOption match {
+          case Some(EOAnonExpr(EOSimpleAppWithLocator("self", loc)))
+               if loc == locator => inlineCall(call, availableMethods)
+          case _ => Right(call)
+        }
 
       case other => Right(other)
     }
@@ -147,9 +151,10 @@ object Inliner {
         |      22 > @
         |    [self outer] > innerMethod
         |      [self] > innerInnerMethod
-        |        ^.^.self.bMethod ^.self > @
+        |        ^.self.bMethod ^.self > @
         |      ^.self.bMethod ^.self > @
-        |    self.innerMethod self self > @
+        |    
+        |    $.innerMethod 1 1 > b
         |  self "yahoo" > @
         |  [self] > method
         |    self.magic > @
