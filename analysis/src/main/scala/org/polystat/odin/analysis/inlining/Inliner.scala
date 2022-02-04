@@ -92,13 +92,19 @@ object Inliner {
           dot.copy(src = Fix(src))
         )
 
-      case call @ EOCopy(EODot(EOSimpleAppWithLocator("self", locator), _), _)
-           if availableMethods.depth == currentDepth - locator =>
-        call.args.headOption match {
-          case Some(EOAnonExpr(EOSimpleAppWithLocator("self", loc)))
-               if loc == locator => inlineCall(call, availableMethods)
-          case _ => Right(call)
-        }
+      case call @ EOCopy(
+             EODot(EOSimpleAppWithLocator("self", locator), _),
+             _
+           ) =>
+        // Checking that locator refers to the right obj
+        // -1 accounts for the additional depth of the method)
+        if (availableMethods.depth == currentDepth - locator - 1)
+          call.args.headOption match {
+            case Some(EOAnonExpr(EOSimpleAppWithLocator("self", loc)))
+                 if loc == locator => inlineCall(call, availableMethods)
+            case _ => Right(call)
+          }
+        else Right(call)
 
       case other => Right(other)
     }
@@ -147,7 +153,7 @@ object Inliner {
         |    [self outer] > innerMethod
         |      [self] > innerInnerMethod
         |        ^.self.bMethod ^.self > @
-        |      ^.self.bMethod ^.self > @
+        |      self.bMethod self > @
         |    
         |    $.innerMethod 1 1 > b
         |  self "yahoo" > @
