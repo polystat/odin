@@ -39,10 +39,7 @@ object Context {
     freeAttrs: Option[Vector[LazyName]]
   ): Context = {
     val objCtx = objs
-      .flatMap {
-        case bndExpr: EOBndExpr[Fix[EOExpr]] => Some(bndExpr)
-        case _ => None
-      }
+      .collect { case bndExpr: EOBndExpr[Fix[EOExpr]] => bndExpr }
       .map(bnd => bnd.bndName.name.name -> currentDepth)
       .toMap
     val argCtx = freeAttrs match {
@@ -101,13 +98,14 @@ object Context {
   def main(args: Array[String]): Unit = {
     val code: String =
       """
+        |
         |[] > outer
         |  [] > self
         |    256 > magic
         |    [] > dummy
         |      [outer] > cock
         |        outer > @
-        |      outer.self > @
+        |      outer.self  > @
         |    self "yahoo" > @
         |  [self] > method
         |    self.magic > @
