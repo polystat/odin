@@ -41,10 +41,17 @@ object Inliner {
     call: EOCopy[Fix[EOExpr]],
     availableMethods: MethodList
   ): Either[String, EOExpr[Fix[EOExpr]]] = {
-    def inline(
+
+    def replaceCall(
       call: EOCopy[Fix[EOExpr]],
-      method: Method
-    ): EOExpr[Fix[EOExpr]] = ???
+      method: Method,
+      phi: EOExpr[Fix[EOExpr]]
+    ): EOExpr[Fix[EOExpr]] = {
+      println(method)
+      println(call)
+
+      phi
+    }
 
     call.trg match {
       case EODot(_, methodName) =>
@@ -52,14 +59,24 @@ object Inliner {
           .methods
           .find(method => method.name == methodName)
           .map(method =>
-            if (call.args.length == method.body.freeAttrs.length)
-              Right(inline(call, method))
-            else
+            if (call.args.length == method.body.freeAttrs.length) {
+              val phiExpr = method
+                .body
+                .bndAttrs
+                .find {
+                  case EOBndExpr(EODecoration, _) => true
+                  case _ => false
+                }
+                .map(bnd => Right(bnd.expr))
+                .getOrElse(
+                  Left(s"Method ${method.name} does not have a Phi attribute")
+                )
+
+              phiExpr.map(phi => replaceCall(call, method, Fix.un(phi)))
+            } else
               Left(s"Wrong number of arguments given for method $methodName.")
           )
-          .getOrElse(Right(call))
-
-      case _ => Right(call)
+          .getOrElse(Left(s"Attempt to call non-existent method $methodName."))
     }
   }
 
