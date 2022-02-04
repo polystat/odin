@@ -8,13 +8,8 @@ import org.polystat.odin.backend.eolang.ToEO.instances.progToEO
 import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
 import cats.syntax.traverse._
 
-object Big {
-  def unapply(n: BigInt): Option[Int] = Some(n.toInt)
-}
-
 object Inliner {
   case class Method(name: String, body: EOObj[Fix[EOExpr]])
-
   case class MethodList(methods: List[Method], depth: BigInt)
 
   def extractMethods(
