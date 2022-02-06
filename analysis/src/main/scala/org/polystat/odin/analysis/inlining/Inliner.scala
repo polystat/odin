@@ -37,46 +37,105 @@ object Inliner {
     MethodList(methods, depth)
   }
 
-  def inlineCall(
-    call: EOCopy[Fix[EOExpr]],
-    availableMethods: MethodList
-  ): Either[String, EOExpr[Fix[EOExpr]]] = {
+  //  def propagateArgs(
+  //    call: EOCopy[Fix[EOExpr]],
+  //    methodBody: EOObj[Fix[EOExpr]]
+  //  ): EOExpr[Fix[EOExpr]] = ???
+  //
+  //  def splitMethodBody(
+  //    body: Vector[EOBndExpr[Fix[EOExpr]]],
+  //    usedNames: List[String]
+  //  ): Vector[EOBndExpr[Fix[EOExpr]]] =
+  //    ???
 
-    def replaceCall(
+  def tryInlineCalls(
+    availableMethods: MethodList,
+    currentDepth: BigInt
+  )(
+    binds: Vector[EOBndExpr[Fix[EOExpr]]]
+  ): Either[String, Vector[EOBndExpr[Fix[EOExpr]]]] = {
+
+    def checkCallValidity(
+      bnd: EOBndExpr[Fix[EOExpr]],
       call: EOCopy[Fix[EOExpr]],
-      method: Method,
-      phi: EOExpr[Fix[EOExpr]]
-    ): EOExpr[Fix[EOExpr]] = {
-      println(method)
-      println(call)
+      locator: BigInt,
+      method: Method
+    ): Either[String, Vector[EOBndExpr[Fix[EOExpr]]]] = {
 
-      phi
+      lazy val callHasProperNumOfArgs =
+        call.args.length == method.body.freeAttrs.length
+
+      // -1 accounts for the additional depth of the method
+      lazy val callHasCorrectDepth =
+        availableMethods.depth == currentDepth - locator - 1
+
+      lazy val callHasCorrectSelfInArgs = call.args.headOption match {
+        case Some(EOAnonExpr(EOSimpleAppWithLocator("self", loc)))
+             if loc == locator => true
+        case _ => false
+      }
+
+      lazy val phi = method
+        .body
+        .bndAttrs
+        .find {
+          case EOBndExpr(EODecoration, _) => true
+          case _ => false
+        }
+        .map(bnd => Right(bnd))
+        .getOrElse(
+          Left(s"Method ${method.name} does not have a Phi attribute")
+        )
+
+      (
+        callHasCorrectDepth,
+        callHasCorrectSelfInArgs,
+        callHasProperNumOfArgs
+      ) match {
+        // The bnd does not require inlining
+        case (false, _, _) | (_, false, _) => Right(Vector(bnd))
+        case (true, true, false) => Left(
+            s"Wrong number of arguments given for method ${method.name}."
+          )
+        // The call matches all criteria -> needs inlining
+        case (true, true, true) => phi.map(phi => {
+            Vector(phi)
+          })
+      }
+
     }
 
-    call.trg match {
-      case EODot(_, methodName) =>
-        availableMethods
-          .methods
-          .find(method => method.name == methodName)
-          .map(method =>
-            if (call.args.length == method.body.freeAttrs.length) {
-              val phiExpr = method
-                .body
-                .bndAttrs
-                .find {
-                  case EOBndExpr(EODecoration, _) => true
-                  case _ => false
-                }
-                .map(bnd => Right(bnd.expr))
-                .getOrElse(
-                  Left(s"Method ${method.name} does not have a Phi attribute")
-                )
+    def processIfCall(
+      bnd: EOBndExpr[Fix[EOExpr]]
+    ): Either[String, Vector[EOBndExpr[Fix[EOExpr]]]] =
+      bnd match {
+        case EOBndExpr(
+               _,
+               Fix(
+                 call @ EOCopy(
+                   EODot(EOSimpleAppWithLocator("self", locator), methodName),
+                   _
+                 )
+               )
+             ) =>
+          availableMethods
+            .methods
+            .find(method => method.name == methodName)
+            .map(method => checkCallValidity(bnd, call, locator, method))
+            .getOrElse(
+              Left(s"Attempt to call non-existent method $methodName.")
+            )
 
-              phiExpr.map(phi => replaceCall(call, method, Fix.un(phi)))
-            } else
-              Left(s"Wrong number of arguments given for method $methodName.")
-          )
-          .getOrElse(Left(s"Attempt to call non-existent method $methodName."))
+        case other => Right(Vector(other))
+      }
+
+    val results = binds.map(processIfCall)
+    val errors = results.collect { case err @ Left(_) => err }
+    val successes = results.collect { case err @ Right(_) => err }
+
+    errors.headOption match {
+      case Some(error) => error
+      case None => Right(successes.flatMap(_.value))
     }
   }
 
@@ -89,41 +148,31 @@ object Inliner {
       currentDepth: BigInt
     )(
       expr: EOExpr[Fix[EOExpr]]
-    ): Either[String, EOExpr[Fix[EOExpr]]] = expr match {
+    ): Either[String, EOExpr[Fix[EOExpr]]] = {
+      lazy val newDepth = currentDepth + 1
 
-      case method @ EOObj(LazyName("self") +: _, _, bndAttrs) =>
-        bndAttrs
-          .traverse(bndExprHelper(availableMethods, currentDepth + 1))
-          .map(bnds => method.copy(bndAttrs = bnds))
+      expr match {
+        case method @ EOObj(LazyName("self") +: _, _, bndAttrs) =>
+          bndAttrs
+            .traverse(bndExprHelper(availableMethods, newDepth))
+            .flatMap(tryInlineCalls(availableMethods, newDepth))
+            .map(bnds => method.copy(bndAttrs = bnds))
 
-      case obj @ EOObj(_, _, bndAttrs) =>
-        val newDepth = currentDepth + 1
-        val newMethods = extractMethods(obj, newDepth)
+        case obj @ EOObj(_, _, bndAttrs) =>
+          val newMethods = extractMethods(obj, newDepth)
 
-        bndAttrs
-          .traverse(bndExprHelper(newMethods, newDepth))
-          .map(bnds => obj.copy(bndAttrs = bnds))
+          bndAttrs
+            .traverse(bndExprHelper(newMethods, newDepth))
+            .flatMap(tryInlineCalls(availableMethods, newDepth))
+            .map(bnds => obj.copy(bndAttrs = bnds))
 
-      case dot @ EODot(Fix(src), _) =>
-        exprHelper(availableMethods, currentDepth)(src).map(src =>
-          dot.copy(src = Fix(src))
-        )
+        case dot @ EODot(Fix(src), _) =>
+          exprHelper(availableMethods, currentDepth)(src).map(src =>
+            dot.copy(src = Fix(src))
+          )
 
-      case call @ EOCopy(
-             EODot(EOSimpleAppWithLocator("self", locator), _),
-             _
-           ) =>
-        // Checking that locator refers to the right obj
-        // -1 accounts for the additional depth of the method)
-        if (availableMethods.depth == currentDepth - locator - 1)
-          call.args.headOption match {
-            case Some(EOAnonExpr(EOSimpleAppWithLocator("self", loc)))
-                 if loc == locator => inlineCall(call, availableMethods)
-            case _ => Right(call)
-          }
-        else Right(call)
-
-      case other => Right(other)
+        case other => Right(other)
+      }
     }
 
     def bndExprHelper(
@@ -147,7 +196,6 @@ object Inliner {
           exprHelper(availableMethods, currentDepth)(expr).map(value =>
             EOAnonExpr(Fix(value))
           )
-
         case bnd: EOBndExpr[Fix[EOExpr]] =>
           bndExprHelper(availableMethods, currentDepth)(bnd)
       }
@@ -159,6 +207,7 @@ object Inliner {
   }
 
   def main(args: Array[String]): Unit = {
+
     val code: String =
       """
         |
@@ -171,12 +220,12 @@ object Inliner {
         |      [self] > innerInnerMethod
         |        ^.self.bMethod ^.self > @
         |      self.bMethod self > @
-        |    
+        |
         |    $.innerMethod 1 1 > b
         |  self "yahoo" > @
         |  [self] > method
         |    self.magic > @
-        |     
+        |
         |""".stripMargin
 
     Parser
