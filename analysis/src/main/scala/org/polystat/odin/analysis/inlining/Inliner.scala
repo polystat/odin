@@ -19,11 +19,14 @@ object Inliner {
     val methods = obj
       .bndAttrs
       .flatMap {
+        // Extracting method name
         case EOBndExpr(EOAnyNameBnd(LazyName(methodName)), Fix(expr)) =>
           expr match {
+            // Checking that method has self as the first argument
             case method @ EOObj(LazyName("self") +: _, _, bndAttrs) =>
               bndAttrs
                 .find {
+                  // Checking if method has a Phi attribute
                   case EOBndExpr(EODecoration, _) => true
                   case _ => false
                 }
@@ -36,17 +39,6 @@ object Inliner {
 
     MethodList(methods, depth)
   }
-
-  //  def propagateArgs(
-  //    call: EOCopy[Fix[EOExpr]],
-  //    methodBody: EOObj[Fix[EOExpr]]
-  //  ): EOExpr[Fix[EOExpr]] = ???
-  //
-  //  def splitMethodBody(
-  //    body: Vector[EOBndExpr[Fix[EOExpr]]],
-  //    usedNames: List[String]
-  //  ): Vector[EOBndExpr[Fix[EOExpr]]] =
-  //    ???
 
   def tryInlineCalls(
     availableMethods: MethodList,
@@ -82,25 +74,24 @@ object Inliner {
           case EOBndExpr(EODecoration, _) => true
           case _ => false
         }
-        .map(bnd => Right(bnd))
-        .getOrElse(
-          Left(s"Method ${method.name} does not have a Phi attribute")
-        )
 
       (
         callHasCorrectDepth,
         callHasCorrectSelfInArgs,
-        callHasProperNumOfArgs
+        callHasProperNumOfArgs,
+        phi
       ) match {
         // The bnd does not require inlining
-        case (false, _, _) | (_, false, _) => Right(Vector(bnd))
-        case (true, true, false) => Left(
-            s"Wrong number of arguments given for method ${method.name}."
-          )
+        case (false, _, _, _) | (_, false, _, _) => Right(Vector(bnd))
+
+        // Possible errors
+        case (true, true, false, _) =>
+          Left(s"Wrong number of arguments given for method ${method.name}.")
+        case (true, true, true, None) =>
+          Left(s"Method ${method.name} does not have a Phi attribute")
+
         // The call matches all criteria -> needs inlining
-        case (true, true, true) => phi.map(phi => {
-            Vector(phi)
-          })
+        case (true, true, true, Some(phi)) => Right(Vector(phi))
       }
 
     }
@@ -129,19 +120,24 @@ object Inliner {
         case other => Right(Vector(other))
       }
 
-    val results = binds.map(processIfCall)
-    val errors = results.collect { case err @ Left(_) => err }
-    val successes = results.collect { case err @ Right(_) => err }
-
-    errors.headOption match {
-      case Some(error) => error
-      case None => Right(successes.flatMap(_.value))
-    }
+    binds.flatTraverse(processIfCall)
   }
 
   def inlineCalls(
     prog: EOProg[Fix[EOExpr]]
   ): Either[String, EOProg[Fix[EOExpr]]] = {
+
+    def processObj(
+      availableMethods: MethodList,
+      newDepth: BigInt,
+      obj: EOObj[Fix[EOExpr]]
+    ): Either[String, EOObj[Fix[EOExpr]]] = {
+      obj
+        .bndAttrs
+        .traverse(bndExprHelper(availableMethods, newDepth))
+        .flatMap(tryInlineCalls(availableMethods, newDepth))
+        .map(bnds => obj.copy(bndAttrs = bnds))
+    }
 
     def exprHelper(
       availableMethods: MethodList,
@@ -152,19 +148,11 @@ object Inliner {
       lazy val newDepth = currentDepth + 1
 
       expr match {
-        case method @ EOObj(LazyName("self") +: _, _, bndAttrs) =>
-          bndAttrs
-            .traverse(bndExprHelper(availableMethods, newDepth))
-            .flatMap(tryInlineCalls(availableMethods, newDepth))
-            .map(bnds => method.copy(bndAttrs = bnds))
+        case method @ EOObj(LazyName("self") +: _, _, _) =>
+          processObj(availableMethods, newDepth, method)
 
-        case obj @ EOObj(_, _, bndAttrs) =>
-          val newMethods = extractMethods(obj, newDepth)
-
-          bndAttrs
-            .traverse(bndExprHelper(newMethods, newDepth))
-            .flatMap(tryInlineCalls(availableMethods, newDepth))
-            .map(bnds => obj.copy(bndAttrs = bnds))
+        case obj @ EOObj(Vector(), _, _) =>
+          processObj(extractMethods(obj, newDepth), newDepth, obj)
 
         case dot @ EODot(Fix(src), _) =>
           exprHelper(availableMethods, currentDepth)(src).map(src =>
