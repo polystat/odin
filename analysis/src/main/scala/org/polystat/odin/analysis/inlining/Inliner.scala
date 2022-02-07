@@ -141,7 +141,8 @@ object Inliner {
 
     def exprHelper(
       availableMethods: MethodList,
-      currentDepth: BigInt
+      currentDepth: BigInt,
+      isPhi: Boolean
     )(
       expr: EOExpr[Fix[EOExpr]]
     ): Either[String, EOExpr[Fix[EOExpr]]] = {
@@ -152,10 +153,13 @@ object Inliner {
           processObj(availableMethods, newDepth, method)
 
         case obj @ EOObj(Vector(), _, _) =>
-          processObj(extractMethods(obj, newDepth), newDepth, obj)
+          if (isPhi)
+            processObj(availableMethods, newDepth, obj)
+          else
+            processObj(extractMethods(obj, newDepth), newDepth, obj)
 
         case dot @ EODot(Fix(src), _) =>
-          exprHelper(availableMethods, currentDepth)(src).map(src =>
+          exprHelper(availableMethods, currentDepth, isPhi)(src).map(src =>
             dot.copy(src = Fix(src))
           )
 
@@ -168,10 +172,13 @@ object Inliner {
       currentDepth: BigInt
     )(
       bnd: EOBndExpr[Fix[EOExpr]]
-    ): Either[String, EOBndExpr[Fix[EOExpr]]] =
-      exprHelper(availableMethods, currentDepth)(Fix.un(bnd.expr)).map(expr =>
-        bnd.copy(expr = Fix(expr))
+    ): Either[String, EOBndExpr[Fix[EOExpr]]] = {
+      val isPhi = bnd.bndName == EODecoration
+
+      exprHelper(availableMethods, currentDepth, isPhi)(Fix.un(bnd.expr)).map(
+        expr => bnd.copy(expr = Fix(expr))
       )
+    }
 
     def bndHelper(
       availableMethods: MethodList,
@@ -181,8 +188,8 @@ object Inliner {
     ): Either[String, EOBnd[Fix[EOExpr]]] =
       bnd match {
         case EOAnonExpr(Fix(expr)) =>
-          exprHelper(availableMethods, currentDepth)(expr).map(value =>
-            EOAnonExpr(Fix(value))
+          exprHelper(availableMethods, currentDepth, isPhi = false)(expr).map(
+            value => EOAnonExpr(Fix(value))
           )
         case bnd: EOBndExpr[Fix[EOExpr]] =>
           bndExprHelper(availableMethods, currentDepth)(bnd)
