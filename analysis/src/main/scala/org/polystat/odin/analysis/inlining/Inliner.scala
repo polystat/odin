@@ -127,34 +127,34 @@ object Inliner {
     ): Option[Vector[String]] = {
 
       def exprHelper(
-        upperBndName: String,
-        expr: EOExpr[Fix[EOExpr]]
+        expr: EOExpr[Fix[EOExpr]],
+        upperBndName: Option[String]
       ): Option[String] = expr match {
         // TODO: possibly add even more advanced checks for Objs and etc
         case EOCopy(EOSimpleAppWithLocator("@", _), _) |
              EODot(EOSimpleAppWithLocator("@", _), _) |
              EOSimpleAppWithLocator("@", _) =>
-          Some(upperBndName)
+          upperBndName
         case EOCopy(_, innerBinds)
              if getAttrNamesWithPhi(
                innerBinds.value
-             ).nonEmpty => Some(upperBndName)
+             ).nonEmpty => upperBndName
         case _ => None
       }
 
       def bndHelper(
         bnd: EOBnd[Fix[EOExpr]],
-        upperBndName: String
+        upperBndName: Option[String] = None
       ): Option[String] = bnd match {
-        case EOAnonExpr(Fix(expr)) => exprHelper(upperBndName, expr)
+        case EOAnonExpr(Fix(expr)) => exprHelper(expr, upperBndName)
         case EOBndExpr(bndName, Fix(expr)) =>
-          exprHelper(bndName.name.name, expr)
+          exprHelper(expr, Some(bndName.name.name))
       }
 
       Option(
         binds
           .flatMap(bnd =>
-            bndHelper(bnd, "YOU SHOULD NOT BE SEEING THIS MESSAGE")
+            bndHelper(bnd)
           )
       ).filter(_.nonEmpty)
     }
