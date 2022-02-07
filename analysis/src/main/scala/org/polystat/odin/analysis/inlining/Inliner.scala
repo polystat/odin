@@ -2,7 +2,7 @@ package org.polystat.odin.analysis.inlining
 
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.inlining.Context.setLocators
-import org.polystat.odin.core.ast.{EODecoration, _}
+import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.eo.Parser
 import org.polystat.odin.backend.eolang.ToEO.instances.progToEO
 import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
