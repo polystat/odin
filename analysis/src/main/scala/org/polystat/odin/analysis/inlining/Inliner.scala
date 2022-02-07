@@ -198,23 +198,42 @@ object Inliner {
 
     val code: String =
       """
+        |[] > a
+        |  [self y] > x
+        |    y > @
         |
-        |[] > outer
-        |  256 > magic
-        |  [] > dummy
-        |    [self] > bMethod
-        |      22 > @
-        |    [self outer] > innerMethod
-        |      [self] > innerInnerMethod
-        |        ^.self.bMethod ^.self > @
-        |      self.bMethod self > @
+        |  [self x y] > f
+        |    self.g self x > h
+        |    [] > @
+        |      self.g self y > z
         |
-        |    $.innerMethod 1 1 > b
-        |  self "yahoo" > @
-        |  [self] > method
-        |    self.magic > @
-        |
+        |  [self z] > g
+        |    x > k
+        |    z > l
+        |    [] > @
+        |      l > a
+        |      k > b
+        |      z > c
+        |      self > d
         |""".stripMargin
+//      """
+//        |
+//        |[] > outer
+//        |  256 > magic
+//        |  [] > dummy
+//        |    [self] > bMethod
+//        |      22 > @
+//        |    [self outer] > innerMethod
+//        |      [self] > innerInnerMethod
+//        |        ^.self.bMethod ^.self > @
+//        |      self.bMethod self > @
+//        |
+//        |    $.innerMethod 1 1 > b
+//        |  self "yahoo" > @
+//        |  [self] > method
+//        |    self.magic > @
+//        |
+//        |""".stripMargin
 
     Parser
       .parse(code)
