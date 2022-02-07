@@ -193,7 +193,7 @@ object Inliner {
           )
 
         // The call matches all criteria -> needs inlining
-        case (true, true, true, names) if names.isEmpty =>
+        case (true, true, true, _) =>
           val callNumber = binds.indexOf(bnd)
           val argsObjName = baseArgsObjName(method.name) + "_" + callNumber
 
