@@ -8,6 +8,8 @@ import org.polystat.odin.backend.eolang.ToEO.instances.progToEO
 import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
 import cats.syntax.traverse._
 
+import scala.annotation.tailrec
+
 object Inliner {
   case class Method(name: String, body: EOObj[Fix[EOExpr]])
   case class MethodList(methods: List[Method], depth: BigInt)
@@ -40,6 +42,66 @@ object Inliner {
     MethodList(methods, depth)
   }
 
+  def propagateArgsIntoBody(
+    call: EOCopy[Fix[EOExpr]],
+    methodBody: EOObj[Fix[EOExpr]]
+  ): Vector[EOBndExpr[Fix[EOExpr]]] = {
+    println(call)
+
+    methodBody.bndAttrs
+  }
+
+  def splitMethodBody(
+    methodBody: Vector[EOBndExpr[Fix[EOExpr]]],
+    argsObjName: String,
+    phiName: EONamedBnd
+  ): Vector[EOBndExpr[Fix[EOExpr]]] = {
+    val phi =
+      methodBody
+        .find {
+          case EOBndExpr(EODecoration, _) => true
+          case _ => false
+        }
+        .get
+        .copy(bndName = phiName)
+
+    val tmp = methodBody.filter {
+      case EOBndExpr(EODecoration, _) => false
+      case _ => true
+    }
+
+    val argsObj = EOBndExpr(
+      EOAnyNameBnd(LazyName(argsObjName)),
+      Fix(EOObj(Vector.empty, None, tmp))
+    )
+
+    Vector(argsObj, phi)
+  }
+
+  def inlineCall(
+    method: Method,
+    call: EOCopy[Fix[EOExpr]],
+    argsObjName: String,
+    bndName: EONamedBnd
+  ): Either[String, Vector[EOBndExpr[Fix[EOExpr]]]] = {
+    // Todo make it so phi is searched for only once
+    val hasPhi = method
+      .body
+      .bndAttrs
+      .exists {
+        case EOBndExpr(EODecoration, _) => true
+        case _ => false
+      }
+
+    if (hasPhi) {
+      val newMethodBody = propagateArgsIntoBody(call, method.body)
+      val argsObjAndPhi = splitMethodBody(newMethodBody, argsObjName, bndName)
+
+      Right(argsObjAndPhi)
+    } else
+      Left(s"Method ${method.name} does not have a Phi attribute")
+  }
+
   def tryInlineCalls(
     availableMethods: MethodList,
     currentDepth: BigInt
@@ -47,13 +109,62 @@ object Inliner {
     binds: Vector[EOBndExpr[Fix[EOExpr]]]
   ): Either[String, Vector[EOBndExpr[Fix[EOExpr]]]] = {
 
+    def baseArgsObjName(methodName: String) = {
+      val usedNames =
+        binds.collect { case EOBndExpr(EOAnyNameBnd(bnd: BndName), _) =>
+          bnd.name
+        }
+
+      @tailrec
+      def getName(name: String): String =
+        if (usedNames.exists(_.startsWith(name))) getName(name + "_") else name
+
+      getName(s"local_$methodName")
+    }
+
+    def getAttrNamesWithPhi(
+      binds: Vector[EOBnd[Fix[EOExpr]]]
+    ): Option[Vector[String]] = {
+
+      def exprHelper(
+        upperBndName: String,
+        expr: EOExpr[Fix[EOExpr]]
+      ): Option[String] = expr match {
+        // TODO: possibly add even more advanced checks for Objs and etc
+        case EOCopy(EOSimpleAppWithLocator("@", _), _) |
+             EODot(EOSimpleAppWithLocator("@", _), _) |
+             EOSimpleAppWithLocator("@", _) =>
+          Some(upperBndName)
+        case EOCopy(_, innerBinds)
+             if getAttrNamesWithPhi(
+               innerBinds.value
+             ).nonEmpty => Some(upperBndName)
+        case _ => None
+      }
+
+      def bndHelper(
+        bnd: EOBnd[Fix[EOExpr]],
+        upperBndName: String
+      ): Option[String] = bnd match {
+        case EOAnonExpr(Fix(expr)) => exprHelper(upperBndName, expr)
+        case EOBndExpr(bndName, Fix(expr)) =>
+          exprHelper(bndName.name.name, expr)
+      }
+
+      Option(
+        binds
+          .flatMap(bnd =>
+            bndHelper(bnd, "YOU SHOULD NOT BE SEEING THIS MESSAGE")
+          )
+      ).filter(_.nonEmpty)
+    }
+
     def checkCallValidity(
       bnd: EOBndExpr[Fix[EOExpr]],
       call: EOCopy[Fix[EOExpr]],
       locator: BigInt,
       method: Method
     ): Either[String, Vector[EOBndExpr[Fix[EOExpr]]]] = {
-
       lazy val callHasProperNumOfArgs =
         call.args.length == method.body.freeAttrs.length
 
@@ -67,19 +178,12 @@ object Inliner {
         case _ => false
       }
 
-      lazy val phi = method
-        .body
-        .bndAttrs
-        .find {
-          case EOBndExpr(EODecoration, _) => true
-          case _ => false
-        }
-
       (
         callHasCorrectDepth,
         callHasCorrectSelfInArgs,
         callHasProperNumOfArgs,
-        phi
+        // Checking that attached attributes method to inline do not use 𝜑
+        getAttrNamesWithPhi(method.body.bndAttrs)
       ) match {
         // The bnd does not require inlining
         case (false, _, _, _) | (_, false, _, _) => Right(Vector(bnd))
@@ -87,11 +191,17 @@ object Inliner {
         // Possible errors
         case (true, true, false, _) =>
           Left(s"Wrong number of arguments given for method ${method.name}.")
-        case (true, true, true, None) =>
-          Left(s"Method ${method.name} does not have a Phi attribute")
+        case (true, true, true, Some(names)) =>
+          Left(
+            s"Attached attributes ${names.mkString(", ")} of method ${method.name} use 𝜑."
+          )
 
         // The call matches all criteria -> needs inlining
-        case (true, true, true, Some(phi)) => Right(Vector(phi))
+        case (true, true, true, None) =>
+          val callNumber = binds.indexOf(bnd)
+          val argsObjName = baseArgsObjName(method.name) + "_" + callNumber
+
+          inlineCall(method, call, argsObjName, bnd.bndName)
       }
 
     }
