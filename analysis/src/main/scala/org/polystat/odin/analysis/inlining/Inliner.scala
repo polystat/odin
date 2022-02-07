@@ -165,14 +165,14 @@ object Inliner {
       locator: BigInt,
       method: Method
     ): Either[String, Vector[EOBndExpr[Fix[EOExpr]]]] = {
-      lazy val callHasProperNumOfArgs =
+      val callHasProperNumOfArgs =
         call.args.length == method.body.freeAttrs.length
 
       // -1 accounts for the additional depth of the method
-      lazy val callHasCorrectDepth =
+      val callHasCorrectDepth =
         availableMethods.depth == currentDepth - locator - 1
 
-      lazy val callHasCorrectSelfInArgs = call.args.headOption match {
+      val callHasCorrectSelfInArgs = call.args.headOption match {
         case Some(EOAnonExpr(EOSimpleAppWithLocator("self", loc)))
              if loc == locator => true
         case _ => false
@@ -256,7 +256,7 @@ object Inliner {
     )(
       expr: EOExpr[Fix[EOExpr]]
     ): Either[String, EOExpr[Fix[EOExpr]]] = {
-      lazy val newDepth = currentDepth + 1
+      val newDepth = currentDepth + 1
 
       expr match {
         case method @ EOObj(LazyName("self") +: _, _, _) =>
