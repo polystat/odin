@@ -124,7 +124,7 @@ object Inliner {
 
     def getAttrNamesWithPhi(
       binds: Vector[EOBnd[Fix[EOExpr]]]
-    ): Option[Vector[String]] = {
+    ): Vector[String] = {
 
       def exprHelper(
         expr: EOExpr[Fix[EOExpr]],
@@ -151,12 +151,8 @@ object Inliner {
           exprHelper(expr, Some(bndName.name.name))
       }
 
-      Option(
-        binds
-          .flatMap(bnd =>
-            bndHelper(bnd)
-          )
-      ).filter(_.nonEmpty)
+      binds.flatMap(bnd => bndHelper(bnd))
+
     }
 
     def checkCallValidity(
@@ -191,13 +187,13 @@ object Inliner {
         // Possible errors
         case (true, true, false, _) =>
           Left(s"Wrong number of arguments given for method ${method.name}.")
-        case (true, true, true, Some(names)) =>
+        case (true, true, true, names) if names.nonEmpty =>
           Left(
             s"Attached attributes ${names.mkString(", ")} of method ${method.name} use 𝜑."
           )
 
         // The call matches all criteria -> needs inlining
-        case (true, true, true, None) =>
+        case (true, true, true, names) if names.isEmpty =>
           val callNumber = binds.indexOf(bnd)
           val argsObjName = baseArgsObjName(method.name) + "_" + callNumber
 
