@@ -4,9 +4,10 @@ import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.inlining.Context.setLocators
 import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.eo.Parser
-import org.polystat.odin.backend.eolang.ToEO.instances.progToEO
+import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
 import cats.syntax.traverse._
+import cats.syntax.foldable._
 
 import scala.annotation.tailrec
 
@@ -127,31 +128,36 @@ object Inliner {
     ): Vector[String] = {
 
       def exprHelper(
-        expr: EOExpr[Fix[EOExpr]],
+        expr: Fix[EOExpr],
         upperBndName: Option[String]
-      ): Option[String] = expr match {
-        // TODO: possibly add even more advanced checks for Objs and etc
-        case EOCopy(EOSimpleAppWithLocator("@", _), _) |
-             EODot(EOSimpleAppWithLocator("@", _), _) |
-             EOSimpleAppWithLocator("@", _) =>
+      ): Option[String] = Fix.un(expr) match {
+        case EOCopy(trg, args) =>
+          exprHelper(trg, upperBndName)
+            .orElse(
+              args.value.foldMapK(bndHelper(upperBndName))
+            )
+        case EODot(trg, _) =>
+          exprHelper(trg, upperBndName)
+        case EOObj(_, _, bnds) => bnds.foldMapK(bndHelper(upperBndName))
+        case EOSimpleAppWithLocator("@", _) =>
           upperBndName
-        case EOCopy(_, innerBinds)
-             if getAttrNamesWithPhi(
-               innerBinds.value
-             ).nonEmpty => upperBndName
-        case _ => None
+        case _ =>
+          None
       }
 
       def bndHelper(
-        bnd: EOBnd[Fix[EOExpr]],
-        upperBndName: Option[String] = None
-      ): Option[String] = bnd match {
-        case EOAnonExpr(Fix(expr)) => exprHelper(expr, upperBndName)
-        case EOBndExpr(bndName, Fix(expr)) =>
+        upperBndName: Option[String]
+      )(bnd: EOBnd[Fix[EOExpr]]): Option[String] =
+        bnd match {
+          case EOAnonExpr(expr) => exprHelper(expr, upperBndName)
+          case EOBndExpr(_, expr) => exprHelper(expr, upperBndName)
+        }
+
+      binds.flatMap {
+        case EOAnonExpr(_) => None
+        case EOBndExpr(bndName, expr) =>
           exprHelper(expr, Some(bndName.name.name))
       }
-
-      binds.flatMap(bnd => bndHelper(bnd))
 
     }
 
@@ -321,6 +327,12 @@ object Inliner {
         |      self.g self y > z
         |
         |  [self z] > g
+        |    @ > shopa
+        |    a.b.b.d.@.b > sisa
+        |    sas.@ > pizda
+        |    1.add @ > kuku
+        |    [] (self @ > @) > pipa
+        |    self pisa @ (zhopa (aboba @)) > kaka
         |    x > k
         |    z > l
         |    [] > @
