@@ -394,12 +394,6 @@ object Inliner {
         |      self.g self y > z
         |
         |  [self z] > g
-        |    @ > shopa
-        |    a.b.b.d.@.b > sisa
-        |    sas.@ > pizda
-        |    1.add @ > kuku
-        |    [] (self @ > @) > pipa
-        |    self pisa @ (zhopa (aboba @)) > kaka
         |    x > k
         |    z > l
         |    [] > @
@@ -408,24 +402,6 @@ object Inliner {
         |      z > c
         |      self > d
         |""".stripMargin
-//      """
-//        |
-//        |[] > outer
-//        |  256 > magic
-//        |  [] > dummy
-//        |    [self] > bMethod
-//        |      22 > @
-//        |    [self outer] > innerMethod
-//        |      [self] > innerInnerMethod
-//        |        ^.self.bMethod ^.self > @
-//        |      self.bMethod self > @
-//        |
-//        |    $.innerMethod 1 1 > b
-//        |  self "yahoo" > @
-//        |  [self] > method
-//        |    self.magic > @
-//        |
-//        |""".stripMargin
 
     Parser
       .parse(code)
