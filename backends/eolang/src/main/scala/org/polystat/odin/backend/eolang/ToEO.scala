@@ -11,6 +11,8 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 import org.polystat.odin.utils.text.{escape, indent}
 
+import scala.xml.Properties
+
 trait ToEO[T, R] {
   def toEO(node: T): R
 }
@@ -31,7 +33,7 @@ object ToEO {
           .toEO(node)
           .fold[String](
             identity,
-            _.mkString("\n")
+            _.mkString(Properties.lineSeparator)
           )
 
     }
