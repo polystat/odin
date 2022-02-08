@@ -8,7 +8,7 @@ object SetLocatorsTestCases {
     codeAfter: String,
   )
 
-  val vitaliyTest: LocatorTestCase = LocatorTestCase(
+  val vitaliyTestLocators: LocatorTestCase = LocatorTestCase(
     label = "Test by Vitaliy",
     codeBefore =
       """[] > a
@@ -54,7 +54,7 @@ object SetLocatorsTestCases {
         |""".stripMargin
   )
 
-  val nikolayTest: LocatorTestCase = LocatorTestCase(
+  val nikolayTestLocators: LocatorTestCase = LocatorTestCase(
     label = "Test by Nikolay",
     codeBefore =
       """[] > outer
