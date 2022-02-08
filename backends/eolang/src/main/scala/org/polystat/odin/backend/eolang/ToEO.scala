@@ -10,8 +10,7 @@ import inlineorlines.ops._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 import org.polystat.odin.utils.text.{escape, indent}
-
-import scala.xml.Properties
+import scala.util.Properties
 
 trait ToEO[T, R] {
   def toEO(node: T): R
