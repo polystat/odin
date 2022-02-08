@@ -49,6 +49,14 @@ object InlineCallsTestCases {
         |        ^.local_g_0.k > b
         |        ^.^.y > c
         |        ^.^.self > d
+        |  [self z] > g
+        |    ^.x > k
+        |    $.z > l
+        |    [] > @
+        |      ^.l > a
+        |      ^.k > b
+        |      ^.z > c
+        |      ^.self > d
         |""".stripMargin
   )
 
