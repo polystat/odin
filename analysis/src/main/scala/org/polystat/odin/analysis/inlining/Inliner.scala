@@ -43,64 +43,129 @@ object Inliner {
     MethodList(methods, depth)
   }
 
-  def propagateArgsIntoBody(
-    call: EOCopy[Fix[EOExpr]],
-    methodBody: EOObj[Fix[EOExpr]]
-  ): Vector[EOBndExpr[Fix[EOExpr]]] = {
-    println(call)
-
-    methodBody.bndAttrs
-  }
-
-  def splitMethodBody(
-    methodBody: Vector[EOBndExpr[Fix[EOExpr]]],
+  def inlineHelper(
+    argMap: Map[String, EOBnd[Fix[EOExpr]]],
     argsObjName: String,
-    phiName: EONamedBnd
-  ): Vector[EOBndExpr[Fix[EOExpr]]] = {
-    val phi =
-      methodBody
-        .find {
-          case EOBndExpr(EODecoration, _) => true
-          case _ => false
-        }
-        .get
-        .copy(bndName = phiName)
+    bnd: EOBnd[Fix[EOExpr]],
+    depthOffset: BigInt,
+    is_phi: Boolean = false
+  ): EOBnd[Fix[EOExpr]] = {
 
-    val tmp = methodBody.filter {
-      case EOBndExpr(EODecoration, _) => false
-      case _ => true
+    def exprHelper(
+      depth: BigInt,
+      is_arg: Boolean = false,
+    )(
+      expr: EOExpr[Fix[EOExpr]],
+    ): EOExpr[Fix[EOExpr]] = expr match {
+      case copy @ EOCopy(Fix(trg), args) =>
+        copy.copy(
+          trg = Fix(exprHelper(depth)(trg)),
+          args = args.map(bndHelper(depth))
+        )
+      case dot @ EODot(Fix(src), _) =>
+        dot.copy(src = Fix(exprHelper(depth)(src)))
+
+      // TODO: add proper processing for anonymous objects passed as arguments
+      case obj @ EOObj(_, _, bnds) if !is_arg =>
+        obj.copy(
+          bndAttrs = bnds.map(bndExprHelper(depth + 1))
+        )
+
+      case app @ EOSimpleAppWithLocator(_, depth) if is_arg =>
+        app.copy(locator = depth + 1)
+
+      case app @ EOSimpleAppWithLocator(name, locator) =>
+        // Changing locator to account for additional nestedness
+        if (is_arg) {
+          app.copy(locator = locator + depthOffset + depth)
+        } else
+          argMap.get(name) match {
+            // Is an argument -> replace with passed value and process further
+            case Some(bnd) =>
+              exprHelper(depth + locator, is_arg = true)(Fix.un(bnd.expr))
+            // Not an argument
+            case None =>
+              // Make application refer to the argsObj, as it is in ohi
+              if (is_phi) {
+                val argsObj =
+                  EOSimpleAppWithLocator[Fix[EOExpr]](argsObjName, depth)
+                EODot(Fix(argsObj), name)
+              } else {
+                println(depth)
+                app.copy(locator = locator + depthOffset + depth)
+              }
+          }
+
+      case other =>
+        other
     }
 
-    val argsObj = EOBndExpr(
-      EOAnyNameBnd(LazyName(argsObjName)),
-      Fix(EOObj(Vector.empty, None, tmp))
-    )
+    def bndExprHelper(depth: BigInt)(
+      bnd: EOBndExpr[Fix[EOExpr]]
+    ): EOBndExpr[Fix[EOExpr]] =
+      bnd.copy(expr = Fix(exprHelper(depth)(Fix.un(bnd.expr))))
 
-    Vector(argsObj, phi)
+    def bndHelper(depth: BigInt)(bnd: EOBnd[Fix[EOExpr]]): EOBnd[Fix[EOExpr]] =
+      bnd match {
+        case bnd @ EOAnonExpr(Fix(expr)) =>
+          bnd.copy(expr = Fix(exprHelper(depth)(expr)))
+        case bnd @ EOBndExpr(_, _) => bndExprHelper(depth)(bnd)
+      }
+
+    bndHelper(0)(bnd)
+  }
+
+  def inlineArgs(
+    call: EOCopy[Fix[EOExpr]],
+    methodBody: EOObj[Fix[EOExpr]],
+    argsObjName: String,
+    depthOffset: BigInt
+  ): Vector[EOBndExpr[Fix[EOExpr]]] = {
+    val argMap = methodBody.freeAttrs.map(_.name).zip(call.args).toMap
+
+    methodBody
+      .bndAttrs
+      .map {
+        case bnd @ EOBndExpr(EODecoration, _) =>
+          inlineHelper(argMap, argsObjName, bnd, depthOffset, is_phi = true)
+        case bnd => inlineHelper(argMap, argsObjName, bnd, depthOffset)
+      }
+      .collect { case value: EOBndExpr[Fix[EOExpr]] => value }
   }
 
   def inlineCall(
     method: Method,
     call: EOCopy[Fix[EOExpr]],
     argsObjName: String,
-    bndName: EONamedBnd
+    bndName: EONamedBnd,
+    depthOffset: BigInt
   ): Either[String, Vector[EOBndExpr[Fix[EOExpr]]]] = {
-    // Todo make it so phi is searched for only once
-    val hasPhi = method
-      .body
-      .bndAttrs
-      .exists {
-        case EOBndExpr(EODecoration, _) => true
-        case _ => false
+
+    val newMethodBody = inlineArgs(call, method.body, argsObjName, depthOffset)
+    val phi = newMethodBody
+      .collectFirst { case EOBndExpr(EODecoration, expr) =>
+        expr
       }
+      .map(expr => EOBndExpr(bndName = bndName, expr = expr))
 
-    if (hasPhi) {
-      val newMethodBody = propagateArgsIntoBody(call, method.body)
-      val argsObjAndPhi = splitMethodBody(newMethodBody, argsObjName, bndName)
+    phi match {
+      case Some(phiBnd) =>
+        val bodyWithoutPhi =
+          newMethodBody.filter(_ != EOBndExpr(EODecoration, phiBnd.expr))
 
-      Right(argsObjAndPhi)
-    } else
-      Left(s"Method ${method.name} does not have a Phi attribute")
+        if (bodyWithoutPhi.isEmpty) {
+          Right(Vector(phiBnd))
+        } else {
+          val argsObj = EOBndExpr(
+            EOAnyNameBnd(LazyName(argsObjName)),
+            Fix(EOObj(Vector.empty, None, bodyWithoutPhi))
+          )
+          Right(Vector(argsObj, phiBnd))
+        }
+
+      case None =>
+        Left(s"Method ${method.name} does not have a Phi attribute")
+    }
   }
 
   def tryInlineCalls(
@@ -202,8 +267,10 @@ object Inliner {
         case (true, true, true, _) =>
           val callNumber = binds.indexOf(bnd)
           val argsObjName = baseArgsObjName(method.name) + "_" + callNumber
+          // Used for tracking how deep the resulting phi will be located
+          val depthOffset = availableMethods.depth + locator
 
-          inlineCall(method, call, argsObjName, bnd.bndName)
+          inlineCall(method, call, argsObjName, bnd.bndName, depthOffset)
       }
 
     }
