@@ -53,8 +53,17 @@ object ToEO {
         override def toEO(node: EOProg[EOExprOnly]): InlineOrLines = {
           val metas = node.metas.toEO.toIterable
           val program = node.bnds.flatMap(_.toEO.toIterable)
+          val newlineAfterMetas =
+            if (metas.nonEmpty) Vector("") else Vector()
+          val newlineAfterPrograms =
+            if (program.nonEmpty) Vector("") else Vector()
 
-          Lines(metas ++ program)
+          Lines(
+            metas ++
+              newlineAfterMetas ++
+              program ++
+              newlineAfterPrograms
+          )
         }
 
       }
@@ -65,7 +74,7 @@ object ToEO {
 
         override def toEO(node: EOMetas): Lines = Lines(
           node.pack.map(p => s"${Constants.SYMBS.META_PREFIX}package $p") ++
-            node.metas.map(_.toEO.value).appended("\n")
+            node.metas.map(_.toEO.value)
         )
 
       }
@@ -213,11 +222,13 @@ object ToEO {
 
         override def toEO(node: EOSimpleAppWithLocator[EOExprOnly]): Inline =
           Inline(
-            if (node.locator == 0) s"$$.${node.name}"
-            else List
-              .fill(node.locator.toInt)("^")
-              .appended(node.name)
-              .mkString(".")
+            if (node.locator == 0)
+              s"$$.${node.name}"
+            else
+              List
+                .fill(node.locator.toInt)("^")
+                .appended(node.name)
+                .mkString(".")
           )
 
       }
