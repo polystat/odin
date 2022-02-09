@@ -141,4 +141,78 @@ object InlineCallsTestCases {
         |""".stripMargin
   )
 
+  val factorialTest: InliningTestCase = InliningTestCase(
+    label = "An object with a single method that calls itself",
+    codeBefore =
+      """[] > factorial
+        |  [self i] > calculate
+        |    ($.i.less 2).if > @
+        |      1
+        |      $.i.mul
+        |        $.self.calculate
+        |          $.self
+        |          $.i.sub
+        |            1
+        |""".stripMargin,
+    codeAfter =
+      """[] > factorial
+        |  [self i] > calculate
+        |    ($.i.less 2).if > @
+        |      1
+        |      $.i.mul
+        |        (($.i.sub 1).less 2).if > @
+        |          1
+        |          ($.i.sub 1).mul
+        |            $.self.calculate
+        |              $.self
+        |              ($.i.sub 1).sub 1
+        |""".stripMargin
+  )
+
+  val evenOddTest: InliningTestCase = InliningTestCase(
+    label = "An object with 2 mutually recursive methods",
+    codeBefore =
+      """
+        |# 1 - true
+        |# 0 - false
+        |# Booleans are not parsed yet, sorry((
+        |# Issue link: https://github.com/polystat/odin/issues/31
+        |[] > numeric_ops
+        |  [self n] > is_even
+        |    ($.n.eq 0).if > @
+        |      1
+        |      $.self.is_odd
+        |        $.self
+        |        ($.n.sub 1)
+        |  [self n] > is_odd
+        |    ($.n.eq 0).if > @
+        |      0
+        |      $.self.is_even
+        |        $.self
+        |        ($.n.sub 1)
+        |""".stripMargin,
+    codeAfter =
+      """
+        |[] > numeric_ops
+        |  [self n] > is_even
+        |    ($.n.eq 0).if > @
+        |      1
+        |      (($.n.sub 1).eq 0).if
+        |        0
+        |        $.self.is_even
+        |          $.self
+        |          ($.n.sub 1).sub
+        |            1
+        |  [self n] > is_odd
+        |    ($.n.eq 0).if > @
+        |      0
+        |      (($.n.sub 1).eq 0).if
+        |        1
+        |        $.self.is_odd
+        |          $.self
+        |          ($.n.sub 1).sub
+        |            1
+        |""".stripMargin
+  )
+
 }

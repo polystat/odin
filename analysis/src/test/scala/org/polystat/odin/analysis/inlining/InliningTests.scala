@@ -31,6 +31,8 @@ class InliningTests extends AnyWordSpec {
       vitaliyTestInlining,
       fakeCallTest,
       looksFakeButRealTest,
+      factorialTest,
+      evenOddTest,
     )
 
     inliningTests.foreach { case InliningTestCase(label, before, after) =>
