@@ -29,6 +29,8 @@ class InliningTests extends AnyWordSpec {
     val inliningTests: List[InliningTestCase] = List(
       nikolayTestInlining,
       vitaliyTestInlining,
+      fakeCallTest,
+      looksFakeButRealTest,
     )
 
     inliningTests.foreach { case InliningTestCase(label, before, after) =>

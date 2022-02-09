@@ -97,4 +97,48 @@ object InlineCallsTestCases {
         |""".stripMargin
   )
 
+  val fakeCallTest: InliningTestCase = InliningTestCase(
+    label = "Fake call, should not be transformed",
+    codeBefore =
+      """[] > object
+        |  123 > self
+        |  [self] > fake_call
+        |    ^.self.add ^.self > @
+        |
+        |  # fake add
+        |  [self] > add
+        |    $.self > @
+        |""".stripMargin,
+    codeAfter =
+      """[] > object
+        |  123 > self
+        |  [self] > fake_call
+        |    ^.self.add > @
+        |      ^.self
+        |  [self] > add
+        |    $.self > @
+        |""".stripMargin
+  )
+
+  val looksFakeButRealTest: InliningTestCase = InliningTestCase(
+    label = "Similar to fake call, but is real and should be transformed",
+    codeBefore =
+      """[] > object
+        |  123 > self
+        |  [self] > fake_call
+        |    $.self.add $.self > @
+        |  # fake add
+        |  [self] > add
+        |    $.self > @
+        |""".stripMargin,
+    codeAfter =
+      """[] > object
+        |  123 > self
+        |  [self] > fake_call
+        |    $.self > @
+        |  [self] > add
+        |    $.self > @
+        |""".stripMargin
+  )
+
 }
