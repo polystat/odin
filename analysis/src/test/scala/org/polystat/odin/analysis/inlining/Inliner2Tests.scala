@@ -14,9 +14,13 @@ object Inliner2Tests {
     val code =
       """[] > obj
         |  [self i] > stuff
-        |    i > @
+        |    (i.eq 0).if > @
+        |      1
+        |      i.add ($.self.stuff $.self (i.sub 1))
         |  [self] > method
-        |    [i] > helper
+        |    [self i] > helper
+        |      $.self.lol $.self > wont_work
+        |      ^.self.stuff ^.self (^.self.stuff ^.self 123) > call-by-name
         |      ^.self.stuff ^.self "method.helper" > @
         |    $.self.stuff $.self "method" > @
         |    [] > zhizha
@@ -43,15 +47,17 @@ object Inliner2Tests {
     parsedMethods.foreach(methods =>
       methods.foreach(method =>
         method
-          .calls.zipWithIndex
+          .calls
+          .zipWithIndex
           .foreach { case (call, i) =>
-            println(s"${i+1}." +
-              call
-                .callSite
-                .andThen(call.callLocation)
+            println(
+              s"${i + 1}." +
+                call
+                  .callSite
+                  .andThen(call.callLocation)
 //                .getOption(method.body)
-                .replaceOption(Fix[EOExpr](EOSimpleApp("ABOBA")))(method.body)
-                .map(_.toEOPretty)
+                  .replaceOption(Fix[EOExpr](EOSimpleApp("ABOBA")))(method.body)
+                  .map(_.toEOPretty)
             )
           }
       )
