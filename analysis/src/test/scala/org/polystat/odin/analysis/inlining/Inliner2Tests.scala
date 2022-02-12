@@ -43,25 +43,26 @@ object Inliner2Tests {
         )
         .map(_.bndAttrs.flatMap(createMethod))
 
-    pprint.pprintln(parsedMethods)
-    parsedMethods.foreach(methods =>
-      methods.foreach(method =>
+//    pprint.pprintln(parsedMethods)
+    println("Before inlining:")
+    println(code)
+
+    val inlinedMethod = parsedMethods.map(methods =>
+      methods.flatMap(method =>
         method
           .calls
-          .zipWithIndex
-          .foreach { case (call, i) =>
-            println(
-              s"${i + 1}." +
-                call
-                  .callSite
-                  .andThen(call.callLocation)
-//                .getOption(method.body)
-                  .replaceOption(Fix[EOExpr](EOSimpleApp("ABOBA")))(method.body)
-                  .map(_.toEOPretty)
-            )
+          .foldLeft[Option[EOObj[EOExprOnly]]](Some(method.body)) {
+            case (acc, call) =>
+              val callPosition = call.callSite.andThen(call.callLocation)
+              acc.flatMap(
+                callPosition.replaceOption(Fix[EOExpr](EOSimpleApp("ABOBA")))(_)
+              )
           }
       )
     )
+
+    println("After Inlining:")
+    inlinedMethod.foreach(_.foreach(obj => println(obj.toEOPretty)))
 
   }
 
