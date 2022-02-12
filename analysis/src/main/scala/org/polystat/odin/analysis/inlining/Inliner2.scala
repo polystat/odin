@@ -72,10 +72,11 @@ object Inliner2 {
           case EOObj(_, _, bndAttrs) =>
             bndAttrs.zipWithIndex.flatMap { case (bnd, i) =>
               findCallsRec(
-                bnd.expr,
-                pathToCallSite = pathToCall.andThen(prisms.fixToEOObj),
+                subExpr = bnd.expr,
+                pathToCallSite =
+                  pathToCallSite.andThen(pathToCall).andThen(prisms.fixToEOObj),
                 pathToCall = focusBndAttrAtIndex(i),
-                depth + 1
+                depth = depth + 1
               )
             }
 

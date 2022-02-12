@@ -49,8 +49,8 @@ object Inliner2Tests {
               call
                 .callSite
                 .andThen(call.callLocation)
-                .getOption(method.body)
-//                .replaceOption(Fix[EOExpr](EOSimpleApp("ABOBA")))(method.body)
+//                .getOption(method.body)
+                .replaceOption(Fix[EOExpr](EOSimpleApp("ABOBA")))(method.body)
                 .map(_.toEOPretty)
             )
           }
