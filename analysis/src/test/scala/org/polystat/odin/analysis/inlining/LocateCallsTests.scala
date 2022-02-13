@@ -1,10 +1,7 @@
 package org.polystat.odin.analysis.inlining
 
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.inlining.LocateCalls.{
-  createMethod,
-  MethodInfo
-}
+import org.polystat.odin.analysis.inlining.LocateCalls.createMethod
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Parser

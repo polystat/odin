@@ -1,50 +1,15 @@
 package org.polystat.odin.analysis.inlining
 
-import cats.data.NonEmptyList
-import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
-import monocle.{Iso, Optional}
+import monocle.Iso
 import Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.analysis.inlining.types._
 
 object LocateCalls {
 
-  type Errors = NonEmptyList[String]
-  type CopyArgs = NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]
-
-  type PathToCallSite = Optional[
-    EOObj[EOExprOnly], // method body
-    EOObj[EOExprOnly], // call site object
-  ]
-
-  type PathToCall = Optional[
-    EOObj[EOExprOnly], // call site
-    EOExprOnly, // method call
-  ]
-
-  case class Object(
-    name: EONamedBnd,
-    methods: Map[String, MethodInfo],
-    bnds: Vector[Either[MethodPlaceholder, EOBndExpr[EOExprOnly]]],
-  )
-
-  case class MethodPlaceholder(methodName: String)
-
-  case class MethodInfo(
-    calls: Vector[Call],
-    body: EOObj[EOExprOnly],
-  )
-
-  case class Call(
-    depth: BigInt,
-    methodName: String,
-    callSite: PathToCallSite,
-    callLocation: PathToCall,
-    args: CopyArgs
-  )
-
-  def createMethod(m: EOBndExpr[EOExprOnly]): Option[MethodInfo] = {
+  def createMethod(bnd: EOBndExpr[EOExprOnly]): Option[MethodInfo] = {
     def findCalls(body: EOObj[EOExprOnly]): Vector[Call] = {
       def findCallsRec(
         subExpr: Fix[EOExpr],
@@ -77,6 +42,7 @@ object LocateCalls {
               )
             else
               Vector()
+
           // the new callsite was found
           // pathToCall points to the new callsite
           // pathToCall is reset relative to this new callsite
@@ -91,6 +57,7 @@ object LocateCalls {
                 depth = depth + 1
               )
             }
+
           // looking for calls in copy trg and args
           case EOCopy(trg, args) => findCallsRec(
               subExpr = trg,
@@ -109,6 +76,7 @@ object LocateCalls {
                 depth = depth
               )
             }
+
           // looking for calls in EODot src
           case EODot(src, _) => findCallsRec(
               subExpr = src,
@@ -130,10 +98,12 @@ object LocateCalls {
                 depth = depth
               )
             }
+
           // any other node can not contain calls
           case _ => Vector()
         }
       }
+
       body.bndAttrs.zipWithIndex.flatMap { case (bnd, i) =>
         findCallsRec(
           subExpr = bnd.expr,
@@ -143,9 +113,14 @@ object LocateCalls {
         )
       }
     }
-    Fix.un(m.expr) match {
-      case obj @ EOObj(params, _, _)
-           if params.headOption.exists(_.name == "self") =>
+
+    Fix.un(bnd.expr) match {
+      case obj @ EOObj(params, _, bndAttrs)
+           if params.headOption.exists(_.name == "self") &&
+             bndAttrs.exists {
+               case EOBndExpr(EODecoration, _) => true
+               case _ => false
+             } =>
         Some(MethodInfo(findCalls(obj), obj))
       case _ => None
     }

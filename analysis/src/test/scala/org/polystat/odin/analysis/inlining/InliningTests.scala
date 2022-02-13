@@ -40,7 +40,7 @@ class InliningTests extends AnyWordSpec {
         val expected: Either[String, String] = Right(after)
         val actual: Either[String, String] = Parser
           .parse(before)
-          .flatMap(Inliner.inlineCalls)
+          .flatMap(Inliner_old.inlineCalls)
           .map(_.toEOPretty)
         assert(actual == expected)
       }

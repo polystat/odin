@@ -6,7 +6,7 @@ import monocle.{Lens, Optional, Prism}
 import monocle.macros.GenLens
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import Inliner2.CopyArgs
+import org.polystat.odin.analysis.inlining.types._
 
 object Optics {
 
