@@ -36,6 +36,7 @@ package inlining {
   case class MethodInfo(
     calls: Vector[Call],
     body: EOObj[EOExprOnly],
+    depth: BigInt
   )
 
   case class Call(

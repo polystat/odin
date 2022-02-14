@@ -56,7 +56,10 @@ object LocateCalls {
   def hasSelfAsFirstParam(params: Vector[LazyName]): Boolean =
     params.headOption.exists(_.name == "self")
 
-  def createMethod(bnd: EOBndExpr[EOExprOnly]): Option[MethodInfo] = {
+  def createMethod(
+    bnd: EOBndExpr[EOExprOnly],
+    bndDepth: BigInt
+  ): Option[MethodInfo] = {
     def findCalls(body: EOObj[EOExprOnly]): Vector[Call] = {
       def findCallsRec(
         subExpr: Fix[EOExpr],
@@ -156,7 +159,7 @@ object LocateCalls {
           subExpr = bnd.expr,
           pathToCallSite = Iso.id[EOObj[EOExprOnly]],
           pathToCall = focusBndAttrAtIndex(i),
-          depth = 0
+          depth = bndDepth
         )
       }
     }
@@ -166,7 +169,7 @@ object LocateCalls {
            if hasSelfAsFirstParam(params) &&
              hasPhiAttribute(bndAttrs) &&
              hasNoReferencesToPhi(bndAttrs) =>
-        Some(MethodInfo(findCalls(obj), obj))
+        Some(MethodInfo(findCalls(obj), obj, bndDepth))
       case _ => None
     }
   }

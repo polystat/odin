@@ -11,35 +11,55 @@ import org.polystat.odin.backend.eolang.ToEO.instances._
 object LocateCallsTests {
 
   def main(args: Array[String]): Unit = {
-    val code =
-      """[] > obj
-        |  [self i] > stuff
-        |    (i.eq 0).if > @
-        |      1
-        |      i.add ($.self.stuff $.self (i.sub 1))
-        |  [self] > method
-        |    [self i] > helper
-        |      $.self.lol $.self > will-not-work
-        |      ^.self.stuff ^.self (^.self.stuff ^.self 123) > call-by-name
-        |      ^.self.stuff ^.self "method.helper" > @
-        |    $.self.stuff $.self "method" > @
-        |    [] > zhizha
-        |      ^.self.stuff ^.self "method.zhizha" > @
-        |    [] > foo
-        |      [] > bar
-        |        ^.^.self.stuff ^.^.self "method.foo.bar" > @
-        |    [] > more-stuff
-        |      * > @
-        |        (^.self.stuff ^.self 123).add
-        |          ^.self.stuff ^.self 234
-        |    [] > i
-        |      [] > am
-        |        [] > four
-        |          [] > and
-        |            [] > this 
-        |              [] > is-as-far
-        |                [] > as-I-can-count
-        |                  ^.^.^.^.^.^.^.self.stuff ^.^.^.^.^.^.^.self 711 > @
+//    val code =
+//      """[] > obj
+//        |  [self i] > stuff
+//        |    (i.eq 0).if > @
+//        |      1
+//        |      i.add ($.self.stuff $.self (i.sub 1))
+//        |  [self] > method
+//        |    [self i] > helper
+//        |      $.self.lol $.self > will-not-work
+// | ^.self.stuff ^.self (^.self.stuff ^.self 123) > call-by-name
+//        |      ^.self.stuff ^.self "method.helper" > @
+//        |    $.self.stuff $.self "method" > @
+//        |    [] > zhizha
+//        |      ^.self.stuff ^.self "method.zhizha" > @
+//        |    [] > foo
+//        |      [] > bar
+//        |        ^.^.self.stuff ^.^.self "method.foo.bar" > @
+//        |    [] > more-stuff
+//        |      * > @
+//        |        (^.self.stuff ^.self 123).add
+//        |          ^.self.stuff ^.self 234
+//        |    [] > i
+//        |      [] > am
+//        |        [] > four
+//        |          [] > and
+//        |            [] > this
+//        |              [] > is-as-far
+//        |                [] > as-I-can-count
+// | ^.^.^.^.^.^.^.self.stuff ^.^.^.^.^.^.^.self 711 > @
+//        |""".stripMargin
+    val code: String =
+      """
+        |[] > a
+        |  [self y] > x
+        |    $.y > @
+        |
+        |  [self x y] > f
+        |    $.self.g $.self $.x > h
+        |    [] > @
+        |      ^.self.g ^.self ^.y > z
+        |
+        |  [self z] > g
+        |    ^.x > k
+        |    $.z > l
+        |    [] > @
+        |      ^.l > a
+        |      ^.k > b
+        |      ^.z > c
+        |      ^.self > d
         |""".stripMargin
 
     val parsedMethods: Either[String, Vector[MethodInfo]] =
@@ -51,7 +71,7 @@ object LocateCallsTests {
             case _ => Left("No obj")
           }
         )
-        .map(_.bndAttrs.flatMap(createMethod))
+        .map(_.bndAttrs.flatMap(bnd => createMethod(bnd, 0)))
 
     println("Before replacement:")
     println(code)
