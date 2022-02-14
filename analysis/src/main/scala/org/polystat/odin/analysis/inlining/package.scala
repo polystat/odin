@@ -33,10 +33,13 @@ package inlining {
     bnds: Vector[Either[MethodPlaceholder, EOBndExpr[EOExprOnly]]],
   )
 
+//  case class Assert()
+
   case class MethodInfo(
     calls: Vector[Call],
     body: EOObj[EOExprOnly],
-    depth: BigInt
+    depth: BigInt,
+//    asserts: Vector[Assert]
   )
 
   case class Call(
