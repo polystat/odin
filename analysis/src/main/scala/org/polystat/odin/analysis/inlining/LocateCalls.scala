@@ -1,5 +1,6 @@
 package org.polystat.odin.analysis.inlining
 
+import cats.syntax.foldable._
 import higherkindness.droste.data.Fix
 import monocle.Iso
 import Optics._
@@ -8,6 +9,52 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.analysis.inlining.types._
 
 object LocateCalls {
+
+  def hasNoReferencesToPhi(
+    binds: Vector[EOBnd[Fix[EOExpr]]]
+  ): Boolean = {
+
+    def exprHelper(
+      expr: Fix[EOExpr],
+      upperBndName: Option[String]
+    ): Option[String] = Fix.un(expr) match {
+      case EOCopy(trg, args) =>
+        exprHelper(trg, upperBndName)
+          .orElse(
+            args.value.foldMapK(bndHelper(upperBndName))
+          )
+      case EODot(trg, _) =>
+        exprHelper(trg, upperBndName)
+      case EOObj(_, _, bnds) => bnds.foldMapK(bndHelper(upperBndName))
+      case EOSimpleAppWithLocator("@", _) =>
+        upperBndName
+      case _ =>
+        None
+    }
+
+    def bndHelper(
+      upperBndName: Option[String]
+    )(bnd: EOBnd[Fix[EOExpr]]): Option[String] =
+      bnd match {
+        case EOAnonExpr(expr) => exprHelper(expr, upperBndName)
+        case EOBndExpr(_, expr) => exprHelper(expr, upperBndName)
+      }
+
+    binds.flatMap {
+      case EOAnonExpr(_) => None
+      case EOBndExpr(bndName, expr) =>
+        exprHelper(expr, Some(bndName.name.name))
+    }.isEmpty
+  }
+
+  def hasPhiAttribute(bnds: Vector[EOBnd[EOExprOnly]]): Boolean =
+    bnds.exists {
+      case EOBndExpr(EODecoration, _) => true
+      case _ => false
+    }
+
+  def hasSelfAsFirstParam(params: Vector[LazyName]): Boolean =
+    params.headOption.exists(_.name == "self")
 
   def createMethod(bnd: EOBndExpr[EOExprOnly]): Option[MethodInfo] = {
     def findCalls(body: EOObj[EOExprOnly]): Vector[Call] = {
@@ -116,11 +163,9 @@ object LocateCalls {
 
     Fix.un(bnd.expr) match {
       case obj @ EOObj(params, _, bndAttrs)
-           if params.headOption.exists(_.name == "self") &&
-             bndAttrs.exists {
-               case EOBndExpr(EODecoration, _) => true
-               case _ => false
-             } =>
+           if hasSelfAsFirstParam(params) &&
+             hasPhiAttribute(bndAttrs) &&
+             hasNoReferencesToPhi(bndAttrs) =>
         Some(MethodInfo(findCalls(obj), obj))
       case _ => None
     }
