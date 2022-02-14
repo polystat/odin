@@ -7,10 +7,22 @@ import cats.syntax.parallel._
 import cats.data.EitherNel
 import cats.syntax.either._
 import cats.data.{NonEmptyList => Nel}
-
 import scala.annotation.tailrec
 
 object Inliner {
+
+  def inlineAllCalls(
+    prog: EOProg[EOExprOnly]
+  ): EitherNel[String, EOProg[EOExprOnly]] =
+    prog
+      .bnds
+      .parTraverse(bnd =>
+        LocateMethods.parseObject(bnd) match {
+          case Some(objInfo) => rebuildObject(objInfo)
+          case None => Right(bnd)
+        }
+      )
+      .map(bnds => prog.copy(bnds = bnds))
 
   def generateLocalAttrsObj(
     newNameWithoutCollisions: String,
@@ -53,7 +65,8 @@ object Inliner {
               )
             )
 
-          // Checking that the call has the same amount of args as the method needs
+          // Checking that the call has the same amount of args as the method
+          // needs
           _ <-
             if (methodToInlineInfo.body.freeAttrs.length == call.args.length)
               Right(())
