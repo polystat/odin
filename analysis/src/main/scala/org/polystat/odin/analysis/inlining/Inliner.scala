@@ -35,8 +35,9 @@ object Inliner {
     prog
       .bnds
       .parTraverse(bnd =>
-        LocateMethods.parseIfObject(bnd, 0) match {
-          case Some(objInfo) => rebuildObject(objInfo)
+        LocateMethods.parseObject(bnd, 0) match {
+          case Some(objInfo) =>
+            rebuildObject(objInfo)
           case None => Right(bnd)
         }
       )
@@ -246,8 +247,19 @@ object Inliner {
     val newBinds: EitherNel[String, Vector[EOBndExpr[EOExprOnly]]] = obj
       .bnds
       .parTraverse {
-        case Left(methodName) => inlineCalls(obj.methods, methodName)
-        case Right(value) => Right(value)
+        case MethodPlaceholder(methodName) =>
+          inlineCalls(obj.methods, methodName)
+        case ObjectPlaceholder(objName) => Either
+            .fromOption(
+              obj.nestedObjects.get(objName),
+              Nel.one(s"""
+                         |Object with name ${objName.name.name} 
+                         |can not be found directly in ${obj.name.name}. 
+                         |This is most probably a programming error, report to developers.
+                         | """.stripMargin)
+            )
+            .flatMap(rebuildObject)
+        case BndItself(value) => Right(value)
       }
 
     newBinds.map { bnds =>
@@ -264,24 +276,19 @@ object Inliner {
   def main(args: Array[String]): Unit = {
 
     val code: String =
-      """
-        |[] > a
-        |  [self y] > x
-        |    y > @
-        |
-        |  [self x y] > f
-        |    self.g self x > h
-        |    [] > @
-        |      self.g self y > z
-        |
-        |  [self z] > g
-        |    x > k
-        |    z > l
-        |    [] > @
-        |      l > a
-        |      k > b
-        |      z > c
-        |      self > d
+      """[] > outer
+        |  256 > magic
+        |  [] > dummy
+        |    [self] > bMethod
+        |      22 > @
+        |    [self outer] > innerMethod
+        |      [self] > innerInnerMethod
+        |        ^.self.bMethod ^.self > @
+        |      self.bMethod self > @
+        |    $.innerMethod 1 1 > b
+        |  self "yahoo" > @
+        |  [self] > method
+        |    self.magic > @
         |""".stripMargin
 
     Parser

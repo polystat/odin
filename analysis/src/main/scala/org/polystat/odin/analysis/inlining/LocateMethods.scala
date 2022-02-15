@@ -3,38 +3,57 @@ package org.polystat.odin.analysis.inlining
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
-import org.polystat.odin.analysis.inlining.types._
 
 object LocateMethods {
 
-  def parseIfObject(
+  def parseObject(
     obj: EOBnd[EOExprOnly],
     objDepth: BigInt
   ): Option[Object] = {
     type BndInfo = (
+      Map[EONamedBnd, Object],
       Map[EONamedBnd, MethodInfo],
-      Vector[Either[MethodPlaceholder, EOBndExpr[EOExprOnly]]]
+      Vector[BndPlaceholder],
     )
     obj match {
       case EOBndExpr(bndName, Fix(EOObj(Vector(), None, bnds))) =>
-        val (methods, otherBnds) = bnds.foldLeft[BndInfo]((Map(), Vector())) {
-          case ((methods, otherBnds), next) =>
-            LocateCalls.createMethod(next, objDepth) match {
-              case Some(value) => (
-                  methods.updated(next.bndName, value),
-                  otherBnds.appended(
-                    Left(next.bndName)
+        val (objects, methods, otherBnds) =
+          bnds.foldLeft[BndInfo]((Map(), Map(), Vector())) {
+            case ((objects, methods, otherBnds), next) =>
+              LocateCalls.parseMethod(next, objDepth + 1) match {
+                case Some(method) => (
+                    objects,
+                    methods.updated(next.bndName, method),
+                    otherBnds.appended(
+                      MethodPlaceholder(next.bndName)
+                    )
                   )
-                )
-              case None => (methods, Vector(Right(next)))
-            }
-        }
+                case None => parseObject(next, objDepth + 1) match {
+                    case Some(obj) => (
+                        objects.updated(next.bndName, obj),
+                        methods,
+                        otherBnds.appended(
+                          ObjectPlaceholder(next.bndName)
+                        )
+                      )
+                    case None => (
+                        objects,
+                        methods,
+                        otherBnds.appended(
+                          BndItself(next)
+                        )
+                      )
+                  }
+              }
+          }
 
         Some(
           Object(
             name = bndName,
             methods = methods,
-            bnds = otherBnds
+            bnds = otherBnds,
+            nestedObjects = objects,
+            depth = objDepth
           )
         )
 
