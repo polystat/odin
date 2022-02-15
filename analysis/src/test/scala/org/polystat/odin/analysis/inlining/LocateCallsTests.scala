@@ -1,7 +1,7 @@
 package org.polystat.odin.analysis.inlining
 
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.inlining.LocateCalls.createMethod
+import org.polystat.odin.analysis.inlining.LocateCalls.parseMethod
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Parser
@@ -71,7 +71,7 @@ object LocateCallsTests {
             case _ => Left("No obj")
           }
         )
-        .map(_.bndAttrs.flatMap(bnd => createMethod(bnd, 0)))
+        .map(_.bndAttrs.flatMap(bnd => parseMethod(bnd, 0)))
 
     println("Before replacement:")
     println(code)

@@ -56,7 +56,7 @@ object LocateCalls {
   def hasSelfAsFirstParam(params: Vector[LazyName]): Boolean =
     params.headOption.exists(_.name == "self")
 
-  def createMethod(
+  def parseMethod(
     bnd: EOBndExpr[EOExprOnly],
     bndDepth: BigInt
   ): Option[MethodInfo] = {
@@ -159,7 +159,7 @@ object LocateCalls {
           subExpr = bnd.expr,
           pathToCallSite = Iso.id[EOObj[EOExprOnly]],
           pathToCall = focusBndAttrAtIndex(i),
-          depth = bndDepth
+          depth = 0
         )
       }
     }
