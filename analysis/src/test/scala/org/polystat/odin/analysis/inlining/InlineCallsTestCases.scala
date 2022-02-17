@@ -32,21 +32,21 @@ object InlineCallsTestCases {
         |  [self y] > x
         |    $.y > @
         |  [self x y] > f
-        |    [] > local_g_0
+        |    [] > local_g
         |      ^.^.x > k
         |      ^.x > l
         |    [] > h
-        |      ^.local_g_0.l > a
-        |      ^.local_g_0.k > b
+        |      ^.local_g.l > a
+        |      ^.local_g.k > b
         |      ^.x > c
         |      ^.self > d
         |    [] > @
-        |      [] > local_g_0
+        |      [] > local_g
         |        ^.^.^.x > k
         |        ^.^.y > l
         |      [] > z
-        |        ^.local_g_0.l > a
-        |        ^.local_g_0.k > b
+        |        ^.local_g.l > a
+        |        ^.local_g.k > b
         |        ^.^.y > c
         |        ^.^.self > d
         |  [self z] > g
