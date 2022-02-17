@@ -158,9 +158,7 @@ object Inliner {
                   .callSite
                   .modifyOption(callsite => {
                     callsite.copy(
-                      // Todo possibly make it possible to prepend instead of
-                      // appending
-                      bndAttrs = callsite.bndAttrs.appended(localAttrsObj)
+                      bndAttrs = callsite.bndAttrs.prepended(localAttrsObj)
                     )
                   })(callSite),
                 Nel
