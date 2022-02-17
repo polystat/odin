@@ -5,7 +5,6 @@ import cats.data.NonEmptyList
 import cats.effect.{IO, Sync}
 import cats.parse.{Parser => P, Parser0 => P0}
 import cats.implicits._
-import fs2.io.file.Files
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
@@ -58,11 +57,11 @@ class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
     }
   }
 
-  def runTestsFrom[F[_]: Sync: Files](path: String)(
+  def runTestsFrom[F[_]: Sync](path: String)(
     check: (String, String) => F[Unit]
   ): F[Unit] =
     files
-      .readEoCodeFromResources[F](path)
+      .readEoCodeFromDirectory[F](path)
       .map(files =>
         files.foreach { case (name, code) =>
           test(name)(check(name, code))
