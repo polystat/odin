@@ -12,6 +12,14 @@ object Optics {
 
   object prisms {
 
+    val fixToEOSimpleAppWithLocator: Prism[EOExprOnly, EOSimpleAppWithLocator[EOExprOnly]] =
+      Prism[EOExprOnly, EOSimpleAppWithLocator[EOExprOnly]](fix =>
+        Fix.un(fix) match {
+          case app: EOSimpleAppWithLocator[EOExprOnly] => Some(app)
+          case _ => None
+        }
+      )(Fix(_))
+
     val fixToEOObj: Prism[EOExprOnly, EOObj[EOExprOnly]] =
       Prism[EOExprOnly, EOObj[EOExprOnly]](fix =>
         Fix.un(fix) match {
@@ -56,6 +64,9 @@ object Optics {
 
     val focusFromBndExprToExpr: Lens[EOBndExpr[EOExprOnly], EOExprOnly] =
       GenLens[EOBndExpr[EOExprOnly]](_.expr)
+
+    val focusFromEOSimpleAppWithLocatorToLocator: Lens[EOSimpleAppWithLocator[EOExprOnly], BigInt] =
+      GenLens[EOSimpleAppWithLocator[EOExprOnly]](_.locator)
 
     val focusFromEOObjToBndAttrs: Lens[EOObj[EOExprOnly], Vector[EOBndExpr[EOExprOnly]]] =
       GenLens[EOObj[EOExprOnly]](_.bndAttrs)
