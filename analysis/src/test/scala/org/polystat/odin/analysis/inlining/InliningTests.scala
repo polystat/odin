@@ -3,49 +3,45 @@ package org.polystat.odin.analysis.inlining
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.parser.eo.Parser
-import org.scalatest.wordspec.AnyWordSpec
 import SetLocatorsTestCases._
 import InlineCallsTestCases._
 
-class InliningTests extends AnyWordSpec {
+class InliningTests extends munit.FunSuite {
 
-  "setLocators" should {
-    val locatorTests: List[LocatorTestCase] = List(
-      vitaliyTestLocators,
-      nikolayTestLocators,
-    )
-    locatorTests.foreach { case LocatorTestCase(label, before, after) =>
-      registerTest(label) {
-        val expected: Either[String, String] = Right(after)
-        val obtained: Either[String, String] = Parser
-          .parse(before)
-          .map(Context.setLocators _ andThen (_.toEOPretty))
-        assert(expected == obtained)
-      }
+  val locatorTests: List[LocatorTestCase] = List(
+    vitaliyTestLocators,
+    nikolayTestLocators,
+  )
+
+  locatorTests.foreach { case LocatorTestCase(label, before, after) =>
+    test("setLocators - " + label) {
+      val expected: Either[String, String] = Right(after)
+      val obtained: Either[String, String] = Parser
+        .parse(before)
+        .map(Context.setLocators _ andThen (_.toEOPretty))
+      assertEquals(expected, obtained)
     }
   }
 
-  "inlineCalls" should {
-    val inliningTests: List[InliningTestCase] = List(
-      nikolayTestInlining,
-      vitaliyTestInlining,
-      fakeCallTest,
-      looksFakeButRealTest,
-      factorialTest,
-      evenOddTest,
-    )
+  val inliningTests: List[InliningTestCase] = List(
+    nikolayTestInlining,
+    vitaliyTestInlining,
+    fakeCallTest,
+    looksFakeButRealTest,
+    factorialTest,
+    evenOddTest,
+  )
 
-    inliningTests.foreach { case InliningTestCase(label, before, after) =>
-      registerTest(label) {
-        val expected: Either[String, String] = Right(after)
-        val actual: Either[String, String] = Parser
-          .parse(before)
-          .flatMap(Inliner_old.inlineCalls)
-          .map(_.toEOPretty)
-        assert(actual == expected)
-      }
-
+  inliningTests.foreach { case InliningTestCase(label, before, after) =>
+    test("inlineAllCalls - " + label) {
+      val expected: Either[String, String] = Right(after)
+      val obtained: Either[String, String] = Parser
+        .parse(before)
+        .flatMap(Inliner_old.inlineCalls)
+        .map(_.toEOPretty)
+      assertEquals(obtained, expected)
     }
+
   }
 
 }
