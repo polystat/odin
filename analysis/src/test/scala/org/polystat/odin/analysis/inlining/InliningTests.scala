@@ -6,6 +6,8 @@ import org.polystat.odin.parser.eo.Parser
 import org.scalatest.wordspec.AnyWordSpec
 import SetLocatorsTestCases._
 import InlineCallsTestCases._
+import cats.syntax.either._
+import cats.data.{NonEmptyList => Nel}
 
 class InliningTests extends AnyWordSpec {
 
@@ -37,13 +39,12 @@ class InliningTests extends AnyWordSpec {
 
     inliningTests.foreach { case InliningTestCase(label, before, after) =>
       registerTest(label) {
-        val expected: Either[String, String] = Right(after)
-        val actual: Either[String, String] = Parser
+        val expected = Right(after)
+        val actual = Parser
           .parse(before)
-          .flatMap(Inliner.inlineAllCalls) match {
-          case Left(value) => Left(value.toString)
-          case Right(value) => Right(value.toEOPretty)
-        }
+          .leftMap(Nel.one)
+          .flatMap(Inliner.inlineAllCalls)
+          .map(_.toEOPretty)
 
         assert(actual == expected)
       }
