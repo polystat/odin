@@ -10,9 +10,7 @@ import org.polystat.odin.analysis.inlining.types._
 
 object LocateCalls {
 
-  def hasNoReferencesToPhi(
-    binds: Vector[EOBnd[Fix[EOExpr]]]
-  ): Boolean = {
+  def hasNoReferencesToPhi(binds: Vector[EOBnd[Fix[EOExpr]]]): Boolean = {
 
     def exprHelper(
       expr: Fix[EOExpr],
@@ -57,7 +55,7 @@ object LocateCalls {
     params.headOption.exists(_.name == "self")
 
   def parseMethod(
-    bnd: EOBndExpr[EOExprOnly],
+    methodBnd: EOBndExpr[EOExprOnly],
     bndDepth: BigInt
   ): Option[MethodInfo] = {
     def findCalls(body: EOObj[EOExprOnly]): Vector[Call] = {
@@ -98,12 +96,12 @@ object LocateCalls {
           // pathToCall is reset relative to this new callsite
           // depth is incremented
           case EOObj(_, _, bndAttrs) =>
-            bndAttrs.zipWithIndex.flatMap { case (bnd, i) =>
+            bndAttrs.flatMap { bnd =>
               findCallsRec(
                 subExpr = bnd.expr,
                 pathToCallSite =
                   pathToCallSite.andThen(pathToCall).andThen(prisms.fixToEOObj),
-                pathToCall = focusBndAttrAtIndex(i),
+                pathToCall = focusBndAttrWithName(bnd.bndName),
                 depth = depth + 1
               )
             }
@@ -154,17 +152,17 @@ object LocateCalls {
         }
       }
 
-      body.bndAttrs.zipWithIndex.flatMap { case (bnd, i) =>
+      body.bndAttrs.flatMap { bnd =>
         findCallsRec(
           subExpr = bnd.expr,
           pathToCallSite = Iso.id[EOObj[EOExprOnly]],
-          pathToCall = focusBndAttrAtIndex(i),
+          pathToCall = focusBndAttrWithName(bnd.bndName),
           depth = 0
         )
       }
     }
 
-    Fix.un(bnd.expr) match {
+    Fix.un(methodBnd.expr) match {
       case obj @ EOObj(params, _, bndAttrs)
            if hasSelfAsFirstParam(params) &&
              hasPhiAttribute(bndAttrs) &&

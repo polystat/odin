@@ -79,6 +79,16 @@ object Optics {
       seq => if (seq.isDefinedAt(i)) seq.updated(i, item) else seq
     )
 
+  def vectorFindOptional[A](pred: A => Boolean): Optional[Vector[A], A] =
+    Optional[Vector[A], A](_.find(pred))(item =>
+      seq => {
+        val index = seq.indexWhere(pred)
+        if (index == -1)
+          seq
+        else seq.updated(index, item)
+      }
+    )
+
   def nonEmptyVectorIndexOptional[A](
     i: Int
   ): Optional[NonEmpty[A, Vector[A]], A] =
@@ -86,16 +96,16 @@ object Optics {
       seq => if (seq.isDefinedAt(i)) seq.updated(i, item) else seq
     )
 
-  def focusBndAttrAtIndex(
-    i: Int
+  def focusBndAttrWithName(
+    name: EONamedBnd
   ): Optional[EOObj[EOExprOnly], EOExprOnly] =
     Optional[EOObj[EOExprOnly], EOExprOnly](obj =>
-      obj.bndAttrs.lift(i).map(_.expr)
+      obj.bndAttrs.find(_.bndName == name).map(_.expr)
     )(expr =>
       obj =>
         lenses
           .focusFromEOObjToBndAttrs
-          .andThen(vectorIndexOptional[EOBndExpr[EOExprOnly]](i))
+          .andThen(vectorFindOptional[EOBndExpr[EOExprOnly]](_.bndName == name))
           .andThen(lenses.focusFromBndExprToExpr)
           .replaceOption(expr)(obj)
           .getOrElse(obj)
