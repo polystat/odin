@@ -193,6 +193,7 @@ object InlineCallsTestCases {
         |""".stripMargin,
     codeAfter =
       """
+        |
         |[] > numeric_ops
         |  [self n] > is_even
         |    ($.n.eq 0).if > @
