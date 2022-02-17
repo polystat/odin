@@ -21,6 +21,7 @@ object InlineCallsTestCases {
         |  [self z] > g
         |    ^.x > k
         |    $.z > l
+        |    $.l > dummy
         |    [] > @
         |      ^.l > a
         |      ^.k > b
@@ -35,6 +36,7 @@ object InlineCallsTestCases {
         |    [] > local_g
         |      ^.^.x > k
         |      ^.x > l
+        |      $.l > dummy
         |    [] > h
         |      ^.local_g.l > a
         |      ^.local_g.k > b
@@ -44,6 +46,7 @@ object InlineCallsTestCases {
         |      [] > local_g
         |        ^.^.^.x > k
         |        ^.^.y > l
+        |        $.l > dummy
         |      [] > z
         |        ^.local_g.l > a
         |        ^.local_g.k > b
@@ -52,6 +55,7 @@ object InlineCallsTestCases {
         |  [self z] > g
         |    ^.x > k
         |    $.z > l
+        |    $.l > dummy
         |    [] > @
         |      ^.l > a
         |      ^.k > b
