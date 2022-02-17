@@ -8,11 +8,12 @@ import cats.data.EitherNel
 import cats.syntax.either._
 import cats.data.{NonEmptyList => Nel}
 import org.polystat.odin.analysis.inlining.Context.setLocators
+import org.polystat.odin.analysis.inlining.Optics.lenses._
 import org.polystat.odin.parser.eo.Parser
 import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
 import org.polystat.odin.backend.eolang.ToEO.instances._
 
-import scala.annotation.tailrec
+import scala.annotation.{tailrec, unused}
 
 object Inliner {
 
@@ -29,6 +30,7 @@ object Inliner {
    * 2.6 *inlineCalls* replaces the call with the corresponding phi-expression
    * 3. Successfully processed 'Object's are converted back into AST-objects
    * 4. Either the errors or the rebuilt AST are returned */
+
   def inlineAllCalls(
     prog: EOProg[EOExprOnly]
   ): EitherNel[String, EOProg[EOExprOnly]] =
@@ -43,37 +45,183 @@ object Inliner {
       )
       .map(bnds => prog.copy(bnds = bnds))
 
-  // TODO: properly implement the locator processing
+  def traverseExprWith(
+    f: BigInt => EOExprOnly => Option[EOExprOnly]
+  )(initialExpr: EOExprOnly): EOExprOnly = {
+
+    def recurse(depth: BigInt)(
+      subExpr: EOExprOnly
+    ): EOExprOnly = {
+      def processExpr(
+        fixedExpr: EOExprOnly
+      ): EOExprOnly =
+        f(depth)(fixedExpr) match {
+          case Some(value) => value
+          case None => fixedExpr
+        }
+
+      def processBnd(bnd: EOBnd[EOExprOnly]): EOBnd[EOExprOnly] = {
+        focusFromBndToExpr.modify(processExpr)(bnd)
+      }
+
+      Fix(
+        Fix.un(subExpr) match {
+          case copy: EOCopy[EOExprOnly] =>
+            focusCopyArgs
+              .modify(
+                _.map(
+                  processBnd
+                ).map(focusFromBndToExpr.modify(recurse(depth)))
+              )
+              .andThen(focusCopyTrg.modify(processExpr))
+              .andThen(focusCopyTrg.modify(recurse(depth)))(
+                copy
+              )
+
+          case obj: EOObj[EOExprOnly] =>
+            focusFromEOObjToBndAttrs
+              .modify(
+                _.map(
+                  focusFromBndExprToExpr
+                    .modify(
+                      processExpr
+                    )
+                    .andThen(focusFromBndExprToExpr.modify(recurse(depth + 1)))
+                )
+              )(obj)
+
+          case dot: EODot[EOExprOnly] =>
+            focusDotSrc
+              .modify(processExpr)
+              .andThen(focusDotSrc.modify(recurse(depth)))(dot)
+
+          case array: EOArray[EOExprOnly] =>
+            focusArrayElems
+              .modify(elems =>
+                elems
+                  .map(processBnd)
+                  .map(focusFromBndToExpr.modify(recurse(depth)))
+              )(array)
+
+          case other => Fix.un(processExpr(Fix(other)))
+        }
+      )
+    }
+
+    recurse(0)(initialExpr)
+  }
+
   def generateLocalAttrsObj(
     objName: String,
     nonPhiBnds: Vector[EOBndExpr[EOExprOnly]]
   ): EOBndExpr[EOExprOnly] = {
-    val name = EOAnyNameBnd(LazyName(objName))
-    // process the bnds here...
-    val obj = EOObj(Vector.empty, None, nonPhiBnds)
+    def isNotALocalAttr(
+      depth: BigInt,
+      app: EOSimpleAppWithLocator[EOExprOnly]
+    ): Boolean = {
+      val availableNames = nonPhiBnds.map(_.bndName.name.name)
+      !(availableNames.contains(app.name) && app.locator == depth)
+    }
 
-    EOBndExpr(name, Fix(obj))
+    def incLocators(@unused depth: BigInt)(
+      app: EOExprOnly
+    ): Option[EOExprOnly] = app match {
+      case Fix(app @ EOSimpleAppWithLocator(name, locator))
+           if isNotALocalAttr(depth, app) =>
+        Some(
+          Fix(EOSimpleAppWithLocator[EOExprOnly](name, locator + 1))
+        )
+      case other => Some(other)
+    }
+
+    val bndName = EOAnyNameBnd(LazyName(objName))
+    val processedBnds = nonPhiBnds.map(
+      focusFromBndExprToExpr.modify(traverseExprWith(incLocators))
+    )
+    val obj = EOObj(Vector.empty, None, processedBnds)
+
+    EOBndExpr(bndName, Fix(obj))
   }
 
-  // TODO: actually propagate arguments
   def propagateArguments(
     methodInfo: MethodInfo,
     call: Call
-  ): EitherNel[String, EOObj[EOExprOnly]] = {
-    println(call)
+  ): EOObj[EOExprOnly] = {
+    val argMap =
+      methodInfo.body.freeAttrs.map(_.name).zip(call.args).toMap
+    val depthOffset = call.depth
+    //    val focusFromSimpleAppToLocator =
+    //      fixToEOSimpleAppWithLocator
+    //        .andThen(focusFromEOSimpleAppWithLocatorToLocator)
 
-    Right(methodInfo.body)
+    def incLocators(@unused depth: BigInt)(
+      app: EOExprOnly
+    ): Option[EOExprOnly] = app match {
+      case Fix(EOSimpleAppWithLocator(name, locator)) =>
+        Some(
+          Fix(EOSimpleAppWithLocator[EOExprOnly](name, locator + depthOffset))
+        )
+      case other => Some(other)
+    }
+
+    def propagateArguments(depth: BigInt)(app: EOExprOnly): Option[EOExprOnly] =
+      app match {
+        case EOSimpleAppWithLocator(name, locator)
+             if locator - depthOffset == depth =>
+          for {
+            newExpr <- argMap.get(name).map(_.expr)
+          } yield traverseExprWith(incLocators)(newExpr)
+
+        case other => Some(other)
+      }
+
+    focusFromEOObjToBndAttrs.modify(bnds =>
+      bnds.map(
+        focusFromBndExprToExpr.modify(traverseExprWith(propagateArguments))
+      )
+    )(methodInfo.body)
+
   }
 
-  // TODO: actually rewire references to attrsObj
-  def processphi(
+  def processPhi(
     phiExpr: EOExpr[EOExprOnly],
     attrsObj: Option[EOBndExpr[EOExprOnly]]
   ): EOExpr[EOExprOnly] = {
-    val attrsObjName = attrsObj.map(_.bndName.name)
-    println(s"Adapting call for $attrsObjName")
 
-    phiExpr
+    val attrsObjName = attrsObj.map(_.bndName.name.name)
+    val availableBndNames =
+      attrsObj.collect { case EOBndExpr(_, Fix(EOObj(_, _, bndAttrs))) =>
+        bndAttrs.map(_.bndName.name.name)
+      }
+
+    def makeAppPointToAttrsObjIfNecessary(depth: BigInt)(
+      app: EOExprOnly
+    ): Option[EOExprOnly] = {
+      val attrMap = attrsObjName.flatMap { objName =>
+        {
+          availableBndNames.map { names =>
+            // Applications that are expected to refer to the attrsObj
+            val apps =
+              names.map(name => EOSimpleAppWithLocator(name, depth))
+            // Application properly referring to the attrsObj
+            val appsToAttrsObj = apps.map(app =>
+              EODot(
+                Fix[EOExpr](EOSimpleAppWithLocator(objName, depth)),
+                app.name
+              )
+            )
+            // Making application correspond to the proper reference to attrsObj
+            apps
+              .zip(appsToAttrsObj)
+              .toMap[EOExpr[EOExprOnly], EODot[EOExprOnly]]
+          }
+        }
+      }
+
+      attrMap.flatMap(_.get(Fix.un(app))).map(a => Fix(a))
+    }
+
+    Fix.un(traverseExprWith(makeAppPointToAttrsObjIfNecessary)(Fix(phiExpr)))
   }
 
   def resolveNameCollisionsForLocalAttrObj(callsite: EOObj[EOExprOnly])(
@@ -181,7 +329,7 @@ object Inliner {
           // Inject localAttrs object if necessary
           // Substitute the call expression with phi-expression
 
-          methodBodyWithArgsInlined <-
+          methodBodyWithArgsInlined =
             propagateArguments(methodToInlineInfo, call)
 
           phiExpr <- attemptToExtractPhiExpr(methodBodyWithArgsInlined)
@@ -220,7 +368,7 @@ object Inliner {
               oldMethodBody
             )
 
-          inliningResult = processphi(phiExpr, attrsObj)
+          inliningResult = processPhi(phiExpr, attrsObj)
 
           callPosition = call.callSite.andThen(call.callLocation)
           result <-
@@ -274,19 +422,15 @@ object Inliner {
   def main(args: Array[String]): Unit = {
 
     val code: String =
-      """[] > outer
-        |  256 > magic
-        |  [] > dummy
-        |    [self] > bMethod
-        |      22 > @
-        |    [self outer] > innerMethod
-        |      [self] > innerInnerMethod
-        |        ^.self.bMethod ^.self > @
-        |      self.bMethod self > @
-        |    $.innerMethod 1 1 > b
-        |  self "yahoo" > @
-        |  [self] > method
-        |    self.magic > @
+      """[] > factorial
+        |  [self i] > calculate
+        |    ($.i.less 2).if > @
+        |      1
+        |      $.i.mul
+        |        $.self.calculate
+        |          $.self
+        |          $.i.sub
+        |            1
         |""".stripMargin
 
     Parser
