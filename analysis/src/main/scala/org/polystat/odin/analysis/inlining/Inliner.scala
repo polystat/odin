@@ -46,7 +46,8 @@ object Inliner {
       .map(bnds => prog.copy(bnds = bnds))
 
   def traverseExprWith(
-    f: BigInt => EOExprOnly => Option[EOExprOnly]
+    f: BigInt => EOExprOnly => Option[EOExprOnly],
+    initialDepth: BigInt = 0
   )(initialExpr: EOExprOnly): EOExprOnly = {
 
     def recurse(depth: BigInt)(
@@ -100,75 +101,120 @@ object Inliner {
       Fix(res)
     }
 
-    recurse(0)(initialExpr)
-  }
-
-  def generateLocalAttrsObj(
-    objName: String,
-    nonPhiBnds: Vector[EOBndExpr[EOExprOnly]]
-  ): EOBndExpr[EOExprOnly] = {
-    def isNotALocalAttr(
-      depth: BigInt,
-      app: EOSimpleAppWithLocator[EOExprOnly]
-    ): Boolean = {
-      val availableNames = nonPhiBnds.map(_.bndName.name.name)
-      !(availableNames.contains(app.name) && app.locator == depth)
-    }
-
-    def incLocators(@unused depth: BigInt)(
-      app: EOExprOnly
-    ): Option[EOExprOnly] = app match {
-      case Fix(app @ EOSimpleAppWithLocator(name, locator))
-           if isNotALocalAttr(depth, app) =>
-        Some(
-          Fix(EOSimpleAppWithLocator[EOExprOnly](name, locator + 1))
-        )
-      case other => Some(other)
-    }
-
-    val bndName = EOAnyNameBnd(LazyName(objName))
-    val processedBnds = nonPhiBnds.map(
-      focusFromBndExprToExpr.modify(traverseExprWith(incLocators))
-    )
-    val obj = EOObj(Vector.empty, None, processedBnds)
-
-    EOBndExpr(bndName, Fix(obj))
+    recurse(initialDepth)(initialExpr)
   }
 
   def propagateArguments(
     methodInfo: MethodInfo,
-    call: Call
+    call: Call,
   ): EOObj[EOExprOnly] = {
     val argMap =
       methodInfo.body.freeAttrs.map(_.name).zip(call.args).toMap
-    val depthOffset = call.depth
 
-    def incLocators(@unused depth: BigInt)(
+    val localNames = methodInfo
+      .body
+      .bndAttrs
+      .filter {
+        case EOBndExpr(EODecoration, _) => false
+        case _ => true
+      }
+      .map(_.bndName.name.name)
+
+    def incLocatorsBy1(
+      app: EOExprOnly
+    ): EOExprOnly = app match {
+      case Fix(EOSimpleAppWithLocator(name, locator)) =>
+        Fix(
+          EOSimpleAppWithLocator[EOExprOnly](name, locator + 1)
+        )
+      case other => other
+    }
+
+    def incLocators(depth: BigInt)(
       app: EOExprOnly
     ): Option[EOExprOnly] = app match {
       case Fix(EOSimpleAppWithLocator(name, locator)) =>
         Some(
-          Fix(EOSimpleAppWithLocator[EOExprOnly](name, locator + depthOffset))
+          Fix(
+            EOSimpleAppWithLocator[EOExprOnly](
+              name,
+              locator + depth // + call.depth
+            )
+          )
         )
       case other => Some(other)
     }
 
-    def propagateArguments(depth: BigInt)(app: EOExprOnly): Option[EOExprOnly] =
-      app match {
-        case EOSimpleAppWithLocator(name, locator)
-             if locator - depthOffset == depth =>
+    def isNotALocalAttr(
+      depth: BigInt,
+      app: EOSimpleAppWithLocator[EOExprOnly]
+    ): Boolean = {
+      !(localNames.contains(app.name) && app.locator == depth)
+    }
+
+    def incLocatorsIfNonPhi(@unused depth: BigInt)(
+      app: EOExprOnly
+    ): EOExprOnly = app match {
+      case Fix(app @ EOSimpleAppWithLocator(name, locator))
+           if isNotALocalAttr(depth, app) =>
+        Fix(
+          EOSimpleAppWithLocator[EOExprOnly](name, locator + 1 + call.depth)
+        )
+      case other => other
+    }
+
+    def propagateArguments(is_phi: Boolean)(
+      currentDepth: BigInt
+    )(app: EOExprOnly): Option[EOExprOnly] = {
+      val appWithArgsPropagated = app match {
+        case EOSimpleAppWithLocator(name, locator) if locator == currentDepth =>
           for {
             newExpr <- argMap.get(name).map(_.expr)
-          } yield traverseExprWith(incLocators)(newExpr)
+          } yield traverseExprWith(incLocators, currentDepth)(newExpr)
 
         case _ => None
       }
 
-    focusFromEOObjToBndAttrs.modify(bnds =>
-      bnds.map(
-        focusFromBndExprToExpr.modify(traverseExprWith(propagateArguments))
+      // Adjusting locators for localAttrsObj
+      if (is_phi)
+        appWithArgsPropagated
+      else
+        appWithArgsPropagated
+          // Increasing by one allows to account for the attrsObj
+          .map(incLocatorsBy1)
+          // Increasing by call.depth and 1 allows to account for non-args
+          .orElse(app match {
+            case aboba @ Fix(EOSimpleAppWithLocator(_, _)) =>
+              Some(incLocatorsIfNonPhi(currentDepth)(aboba))
+            case _ => None
+          })
+
+    }
+
+    val newBnds = methodInfo
+      .body
+      .bndAttrs
+      .map(bnd => {
+        val is_phi = bnd match {
+          case EOBndExpr(EODecoration, _) => true
+          case EOBndExpr(_, _) => false
+        }
+
+        bnd.copy(
+          expr = traverseExprWith(propagateArguments(is_phi))(bnd.expr)
+        )
+      })
+
+    methodInfo
+      .body
+      .copy(
+        bndAttrs = newBnds
       )
-    )(methodInfo.body)
+    //    focusFromEOObjToBndAttrs.modify(bnds =>
+    //      bnds.map(
+    // focusFromBndExprToExpr.modify(traverseExprWith(propagateArguments))
+    //      )
+    //    )(methodInfo.body)
 
   }
 
@@ -338,12 +384,12 @@ object Inliner {
               )
 
               attrsObjName
-                .map(name =>
-                  generateLocalAttrsObj(
-                    name,
-                    nonPhiBnds
-                  )
-                )
+                .map(name => {
+                  val bndName = EOAnyNameBnd(LazyName(name))
+                  val obj = EOObj(Vector.empty, None, nonPhiBnds)
+
+                  EOBndExpr(bndName, Fix(obj))
+                })
                 .map(Some.apply)
             } else {
               Right(None)
@@ -411,15 +457,23 @@ object Inliner {
   def main(args: Array[String]): Unit = {
 
     val code: String =
-      """[] > factorial
-        |  [self i] > calculate
-        |    ($.i.less 2).if > @
-        |      1
-        |      $.i.mul
-        |        $.self.calculate
-        |          $.self
-        |          $.i.sub
-        |            1
+      """[] > a
+        |  [self y] > x
+        |    y > @
+        |
+        |  [self x y] > f
+        |    self.g self x > h
+        |    [] > @
+        |      self.g self y > z
+        |
+        |  [self z] > g
+        |    x > k
+        |    z > l
+        |    [] > @
+        |      l > a
+        |      k > b
+        |      z > c
+        |      self > d
         |""".stripMargin
 
     Parser
