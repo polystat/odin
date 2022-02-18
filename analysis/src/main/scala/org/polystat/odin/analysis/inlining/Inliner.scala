@@ -52,6 +52,7 @@ object Inliner {
     def recurse(depth: BigInt)(
       subExpr: EOExprOnly
     ): EOExprOnly = {
+
       def processExpr(
         fixedExpr: EOExprOnly
       ): EOExprOnly =
@@ -60,52 +61,43 @@ object Inliner {
           case None => fixedExpr
         }
 
-      def processBnd(bnd: EOBnd[EOExprOnly]): EOBnd[EOExprOnly] = {
-        focusFromBndToExpr.modify(processExpr)(bnd)
+      val res = Fix.un(subExpr) match {
+        case copy: EOCopy[EOExprOnly] =>
+          focusCopyTrg
+            .modify(recurse(depth))
+            .andThen(
+              focusCopyArgs
+                .modify(
+                  _.map(
+                    focusFromBndToExpr
+                      .modify(recurse(depth))
+                  )
+                )
+            )(copy)
+
+        case obj: EOObj[EOExprOnly] =>
+          focusFromEOObjToBndAttrs
+            .modify(
+              _.map(
+                focusFromBndExprToExpr
+                  .modify(
+                    processExpr
+                  )
+                  .andThen(focusFromBndExprToExpr.modify(recurse(depth + 1)))
+              )
+            )(obj)
+
+        case dot: EODot[EOExprOnly] =>
+          focusDotSrc.modify(recurse(depth))(dot)
+
+        case array: EOArray[EOExprOnly] =>
+          focusArrayElems
+            .modify(_.map(focusFromBndToExpr.modify(recurse(depth))))(array)
+
+        case other => Fix.un(processExpr(Fix(other)))
       }
 
-      Fix(
-        Fix.un(subExpr) match {
-          case copy: EOCopy[EOExprOnly] =>
-            focusCopyArgs
-              .modify(
-                _.map(
-                  processBnd
-                ).map(focusFromBndToExpr.modify(recurse(depth)))
-              )
-              .andThen(focusCopyTrg.modify(processExpr))
-              .andThen(focusCopyTrg.modify(recurse(depth)))(
-                copy
-              )
-
-          case obj: EOObj[EOExprOnly] =>
-            focusFromEOObjToBndAttrs
-              .modify(
-                _.map(
-                  focusFromBndExprToExpr
-                    .modify(
-                      processExpr
-                    )
-                    .andThen(focusFromBndExprToExpr.modify(recurse(depth + 1)))
-                )
-              )(obj)
-
-          case dot: EODot[EOExprOnly] =>
-            focusDotSrc
-              .modify(processExpr)
-              .andThen(focusDotSrc.modify(recurse(depth)))(dot)
-
-          case array: EOArray[EOExprOnly] =>
-            focusArrayElems
-              .modify(elems =>
-                elems
-                  .map(processBnd)
-                  .map(focusFromBndToExpr.modify(recurse(depth)))
-              )(array)
-
-          case other => Fix.un(processExpr(Fix(other)))
-        }
-      )
+      Fix(res)
     }
 
     recurse(0)(initialExpr)
@@ -150,9 +142,6 @@ object Inliner {
     val argMap =
       methodInfo.body.freeAttrs.map(_.name).zip(call.args).toMap
     val depthOffset = call.depth
-    //    val focusFromSimpleAppToLocator =
-    //      fixToEOSimpleAppWithLocator
-    //        .andThen(focusFromEOSimpleAppWithLocatorToLocator)
 
     def incLocators(@unused depth: BigInt)(
       app: EOExprOnly
@@ -172,7 +161,7 @@ object Inliner {
             newExpr <- argMap.get(name).map(_.expr)
           } yield traverseExprWith(incLocators)(newExpr)
 
-        case other => Some(other)
+        case _ => None
       }
 
     focusFromEOObjToBndAttrs.modify(bnds =>
