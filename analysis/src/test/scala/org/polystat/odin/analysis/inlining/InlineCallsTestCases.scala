@@ -169,7 +169,8 @@ object InlineCallsTestCases {
         |          ($.i.sub 1).mul
         |            $.self.calculate
         |              $.self
-        |              ($.i.sub 1).sub 1
+        |              ($.i.sub 1).sub
+        |                1
         |""".stripMargin
   )
 
@@ -196,9 +197,7 @@ object InlineCallsTestCases {
         |        ($.n.sub 1)
         |""".stripMargin,
     codeAfter =
-      """
-        |
-        |[] > numeric_ops
+      """[] > numeric_ops
         |  [self n] > is_even
         |    ($.n.eq 0).if > @
         |      1
