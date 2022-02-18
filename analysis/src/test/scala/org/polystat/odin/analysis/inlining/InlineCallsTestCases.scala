@@ -164,7 +164,7 @@ object InlineCallsTestCases {
         |    ($.i.less 2).if > @
         |      1
         |      $.i.mul
-        |        (($.i.sub 1).less 2).if > @
+        |        (($.i.sub 1).less 2).if
         |          1
         |          ($.i.sub 1).mul
         |            $.self.calculate
