@@ -13,7 +13,7 @@ import org.polystat.odin.parser.eo.Parser
 import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
 import org.polystat.odin.backend.eolang.ToEO.instances._
 
-import scala.annotation.{tailrec, unused}
+import scala.annotation.tailrec
 
 object Inliner {
 
@@ -24,10 +24,9 @@ object Inliner {
    * 2.1 All calls in the object are processed by *inlineCalls*, while non-call
    * binds are returned as is
    * 2.2 *propagateArguments* propagates arguments into the method body
-   * 2.3 *generateLocalAttrsObj* creates the attrsObj of the method if necessary
-   * 2.4 *inlineCalls* processes the phi-expression of the method
-   * 2.5 *inlineCalls* injects the attrsObj in the callsite if necessary
-   * 2.6 *inlineCalls* replaces the call with the corresponding phi-expression
+   * 2.3 *inlineCalls* processes the phi-expression of the method
+   * 2.4 *inlineCalls* injects the attrsObj in the callsite if necessary
+   * 2.5 *inlineCalls* replaces the call with the corresponding phi-expression
    * 3. Successfully processed 'Object's are converted back into AST-objects
    * 4. Either the errors or the rebuilt AST are returned */
 
@@ -46,22 +45,12 @@ object Inliner {
       .map(bnds => prog.copy(bnds = bnds))
 
   def traverseExprWith(
-    f: BigInt => EOExprOnly => Option[EOExprOnly],
+    f: BigInt => EOExprOnly => EOExprOnly,
     initialDepth: BigInt = 0
   )(initialExpr: EOExprOnly): EOExprOnly = {
-
     def recurse(depth: BigInt)(
       subExpr: EOExprOnly
     ): EOExprOnly = {
-
-      def processExpr(
-        fixedExpr: EOExprOnly
-      ): EOExprOnly =
-        f(depth)(fixedExpr) match {
-          case Some(value) => value
-          case None => fixedExpr
-        }
-
       val res = Fix.un(subExpr) match {
         case copy: EOCopy[EOExprOnly] =>
           traversals.eoCopy.modify(recurse(depth))(copy)
@@ -75,7 +64,7 @@ object Inliner {
         case array: EOArray[EOExprOnly] =>
           traversals.eoArrayElems.modify(recurse(depth))(array)
 
-        case other => Fix.un(processExpr(Fix(other)))
+        case other => Fix.un(f(depth)(Fix(other)))
       }
 
       Fix(res)
@@ -84,13 +73,21 @@ object Inliner {
     recurse(initialDepth)(initialExpr)
   }
 
+  def incLocatorBy(n: BigInt)(
+    app: EOExprOnly
+  ): EOExprOnly = app match {
+    case Fix(EOSimpleAppWithLocator(name, locator)) =>
+      Fix(
+        EOSimpleAppWithLocator[EOExprOnly](name, locator + n)
+      )
+    case other => other
+  }
+
   def propagateArguments(
     methodInfo: MethodInfo,
     call: Call,
   ): EOObj[EOExprOnly] = {
-    val argMap =
-      methodInfo.body.freeAttrs.map(_.name).zip(call.args).toMap
-
+    val argMap = methodInfo.body.freeAttrs.map(_.name).zip(call.args).toMap
     val localNames = methodInfo
       .body
       .bndAttrs
@@ -100,88 +97,67 @@ object Inliner {
       }
       .map(_.bndName.name.name)
 
-    def incLocatorsBy1(
-      app: EOExprOnly
-    ): EOExprOnly = app match {
-      case Fix(EOSimpleAppWithLocator(name, locator)) =>
-        Fix(
-          EOSimpleAppWithLocator[EOExprOnly](name, locator + 1)
-        )
-      case other => other
-    }
-
-    def incLocators(depth: BigInt)(
-      app: EOExprOnly
-    ): Option[EOExprOnly] = app match {
-      case Fix(EOSimpleAppWithLocator(name, locator)) =>
-        Some(
-          Fix(
-            EOSimpleAppWithLocator[EOExprOnly](
-              name,
-              locator + depth // + call.depth
-            )
-          )
-        )
-      case other => Some(other)
-    }
-
-    def isNotALocalAttr(
-      depth: BigInt,
-      app: EOSimpleAppWithLocator[EOExprOnly]
-    ): Boolean = {
-      !(localNames.contains(app.name) && app.locator == depth)
-    }
-
-    def incLocatorsIfNonPhi(@unused depth: BigInt)(
-      app: EOExprOnly
-    ): EOExprOnly = app match {
-      case Fix(app @ EOSimpleAppWithLocator(name, locator))
-           if isNotALocalAttr(depth, app) =>
-        Fix(
-          EOSimpleAppWithLocator[EOExprOnly](name, locator + 1 + call.depth)
-        )
-      case other => other
-    }
-
-    def propagateArguments(is_phi: Boolean)(
+    def getAppReplacementFromArgMap(
       currentDepth: BigInt
-    )(app: EOExprOnly): Option[EOExprOnly] = {
-      val appWithArgsPropagated = app match {
-        case EOSimpleAppWithLocator(name, locator) if locator == currentDepth =>
-          for {
-            newExpr <- argMap.get(name).map(_.expr)
-          } yield traverseExprWith(incLocators, currentDepth)(newExpr)
+    ): EOExprOnly => Option[EOExprOnly] = {
+      case EOSimpleAppWithLocator(name, locator) if locator == currentDepth =>
+        argMap
+          .get(name)
+          .map(_.expr)
+      case _ => None
+    }
 
-        case _ => None
-      }
+    def propagateArguments(
+      currentDepth: BigInt
+    ): EOExprOnly => EOExprOnly = {
+      // It is an argument
+      case app @ Fix(EOSimpleAppWithLocator(name, locator))
+           if locator == currentDepth =>
+        argMap
+          .get(name)
+          // Increase all locators in the expression by their depth
+          // Add +1 to account for the additional nestedness of attrsObj
+          .map(replacement =>
+            traverseExprWith(incLocatorBy, currentDepth + 1)(replacement.expr)
+          )
+          .getOrElse(app)
 
-      // Adjusting locators for localAttrsObj
-      if (is_phi)
-        appWithArgsPropagated
-      else
-        appWithArgsPropagated
-          // Increasing by one allows to account for the attrsObj
-          .map(incLocatorsBy1)
-          // Increasing by call.depth and 1 allows to account for non-args
-          .orElse(app match {
-            case aboba @ Fix(EOSimpleAppWithLocator(_, _)) =>
-              Some(incLocatorsIfNonPhi(currentDepth)(aboba))
-            case _ => None
-          })
+      // It is some other application
+      case app @ Fix(EOSimpleAppWithLocator(name, locator))
+           // Checking that it is not a local attribute
+           if !(localNames.contains(name) && locator == currentDepth) =>
+        prisms
+          .fixToEOSimpleAppWithLocator
+          .andThen(
+            lenses.focusFromEOSimpleAppWithLocatorToLocator
+          )
+          .modify(_ + 1 + call.depth)(app)
 
+      // Non-application
+      case other => other
+    }
+
+    def processPhi(currentDepth: BigInt)(app: EOExprOnly): EOExprOnly = {
+      getAppReplacementFromArgMap(currentDepth)(app)
+        .map(replacement =>
+          traverseExprWith(incLocatorBy, currentDepth)(replacement)
+        )
+        .getOrElse(app)
     }
 
     val newBnds = methodInfo
       .body
       .bndAttrs
       .map(bnd => {
-        val is_phi = bnd match {
-          case EOBndExpr(EODecoration, _) => true
-          case EOBndExpr(_, _) => false
+        val newExpr = bnd match {
+          case EOBndExpr(EODecoration, expr) =>
+            traverseExprWith(processPhi)(expr)
+          case EOBndExpr(_, expr) =>
+            traverseExprWith(propagateArguments)(expr)
         }
 
         bnd.copy(
-          expr = traverseExprWith(propagateArguments(is_phi))(bnd.expr)
+          expr = newExpr
         )
       })
 
@@ -190,12 +166,6 @@ object Inliner {
       .copy(
         bndAttrs = newBnds
       )
-    //    focusFromEOObjToBndAttrs.modify(bnds =>
-    //      bnds.map(
-    // focusFromBndExprToExpr.modify(traverseExprWith(propagateArguments))
-    //      )
-    //    )(methodInfo.body)
-
   }
 
   def processPhi(
@@ -211,7 +181,7 @@ object Inliner {
 
     def makeAppPointToAttrsObjIfNecessary(depth: BigInt)(
       app: EOExprOnly
-    ): Option[EOExprOnly] = {
+    ): EOExprOnly = {
       val attrMap = attrsObjName.flatMap { objName =>
         {
           availableBndNames.map { names =>
@@ -233,7 +203,7 @@ object Inliner {
         }
       }
 
-      attrMap.flatMap(_.get(Fix.un(app))).map(a => Fix(a))
+      attrMap.flatMap(_.get(Fix.un(app))).map(a => Fix(a)).getOrElse(app)
     }
 
     Fix.un(traverseExprWith(makeAppPointToAttrsObjIfNecessary)(Fix(phiExpr)))
@@ -332,49 +302,40 @@ object Inliner {
             .getOrElse(Right(callSite))
         }
 
+        def extractLocalAttrsObj(nonPhiBnds: Vector[EOBndExpr[EOExprOnly]]) = {
+          if (nonPhiBnds.nonEmpty) {
+
+            val attrsObjName = getCallsite.map(callsite =>
+              resolveNameCollisionsForLocalAttrObj(callsite)(
+                call.methodName
+              )
+            )
+
+            attrsObjName
+              .map(name => {
+                val bndName = EOAnyNameBnd(LazyName(name))
+                val obj = EOObj(Vector.empty, None, nonPhiBnds)
+
+                EOBndExpr(bndName, Fix(obj))
+              })
+              .map(Some.apply)
+          } else {
+            Right(None)
+          }
+        }
+
         for {
           methodToInlineInfo <- checkThatCalledMethodExists
           _ <- checkThatTheAmountOfArgsIsCorrect(methodToInlineInfo)
 
-          // Propagate call arguments into method body
-          // Generate a name for the localAttrs object
-          // Extract local attributes into the localAttrs object
-          // Extract the phi-Attribute
-          // Rewire references to localAttributes to the localAttrs object
-          // Inject localAttrs object if necessary
-          // Substitute the call expression with phi-expression
-
           methodBodyWithArgsInlined =
             propagateArguments(methodToInlineInfo, call)
-
           phiExpr <- attemptToExtractPhiExpr(methodBodyWithArgsInlined)
           nonPhiBnds = methodBodyWithArgsInlined.bndAttrs.filter {
             case EOBndExpr(EODecoration, _) => false
             case _ => true
           }
-
-          // If no localAttrsObj is needed => None
-          attrsObj <-
-            if (nonPhiBnds.nonEmpty) {
-
-              val attrsObjName = getCallsite.map(callsite =>
-                resolveNameCollisionsForLocalAttrObj(callsite)(
-                  call.methodName
-                )
-              )
-
-              attrsObjName
-                .map(name => {
-                  val bndName = EOAnyNameBnd(LazyName(name))
-                  val obj = EOObj(Vector.empty, None, nonPhiBnds)
-
-                  EOBndExpr(bndName, Fix(obj))
-                })
-                .map(Some.apply)
-            } else {
-              Right(None)
-            }
-
+          attrsObj <- extractLocalAttrsObj(nonPhiBnds)
           oldMethodBody <- currentMethodBodyWhereInliningHappens
 
           newMethodBodyPossiblyWithAttrsObj <-
@@ -382,10 +343,9 @@ object Inliner {
               attrsObj,
               oldMethodBody
             )
-
           inliningResult = processPhi(phiExpr, attrsObj)
-
           callPosition = call.callSite.andThen(call.callLocation)
+
           result <-
             Either.fromOption(
               callPosition
