@@ -8,7 +8,7 @@ import cats.data.EitherNel
 import cats.syntax.either._
 import cats.data.{NonEmptyList => Nel}
 import org.polystat.odin.analysis.inlining.Context.setLocators
-import org.polystat.odin.analysis.inlining.Optics.lenses._
+import Optics._
 import org.polystat.odin.parser.eo.Parser
 import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
 import org.polystat.odin.backend.eolang.ToEO.instances._
@@ -64,36 +64,16 @@ object Inliner {
 
       val res = Fix.un(subExpr) match {
         case copy: EOCopy[EOExprOnly] =>
-          focusCopyTrg
-            .modify(recurse(depth))
-            .andThen(
-              focusCopyArgs
-                .modify(
-                  _.map(
-                    focusFromBndToExpr
-                      .modify(recurse(depth))
-                  )
-                )
-            )(copy)
+          traversals.eoCopy.modify(recurse(depth))(copy)
 
         case obj: EOObj[EOExprOnly] =>
-          focusFromEOObjToBndAttrs
-            .modify(
-              _.map(
-                focusFromBndExprToExpr
-                  .modify(
-                    processExpr
-                  )
-                  .andThen(focusFromBndExprToExpr.modify(recurse(depth + 1)))
-              )
-            )(obj)
+          traversals.eoObjBndAttrs.modify(recurse(depth + 1))(obj)
 
         case dot: EODot[EOExprOnly] =>
-          focusDotSrc.modify(recurse(depth))(dot)
+          lenses.focusDotSrc.modify(recurse(depth))(dot)
 
         case array: EOArray[EOExprOnly] =>
-          focusArrayElems
-            .modify(_.map(focusFromBndToExpr.modify(recurse(depth))))(array)
+          traversals.eoArrayElems.modify(recurse(depth))(array)
 
         case other => Fix.un(processExpr(Fix(other)))
       }
