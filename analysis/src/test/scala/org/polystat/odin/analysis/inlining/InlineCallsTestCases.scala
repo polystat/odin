@@ -81,7 +81,6 @@ object InlineCallsTestCases {
         |        ^.self.bMethod ^.self > @
         |      $.self.bMethod $.self > @
         |    $.innerMethod 1 1 > b
-        |  self "yahoo" > @
         |  [self] > method
         |    self.magic > @
         |""".stripMargin,
@@ -98,8 +97,6 @@ object InlineCallsTestCases {
         |    $.innerMethod > b
         |      1
         |      1
-        |  ^.self > @
-        |    "yahoo"
         |  [self] > method
         |    $.self.magic > @
         |""".stripMargin.asRight
@@ -264,9 +261,9 @@ object InlineCallsTestCases {
         |    3 > count
         |    sum.div count > average
         |    [] > @
-        |      sum > sum
-        |      count > count
-        |      average > average
+        |      ^.sum > sum
+        |      ^.count > count
+        |      ^.average > average
         |  [self] > call-site
         |    self.average3 self 1 2 3 > @
         |""".stripMargin,
@@ -330,7 +327,8 @@ object InlineCallsTestCases {
         |  [self] > call-site
         |    self.method self 1 2 > @
         |""".stripMargin,
-    codeAfter = Nel.one("Wrong number of arguments given for method method.").asLeft
+    codeAfter =
+      Nel.one("Wrong number of arguments given for method method.").asLeft
   )
 
   val tooManyArgs: InliningTestCase = InliningTestCase(
@@ -343,7 +341,8 @@ object InlineCallsTestCases {
         |  [self] > call-site
         |    self.method self 1 2 3 4 5 > @
         |""".stripMargin,
-    codeAfter = Nel.one("Wrong number of arguments given for method method.").asLeft
+    codeAfter =
+      Nel.one("Wrong number of arguments given for method method.").asLeft
   )
 
 }
