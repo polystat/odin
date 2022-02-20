@@ -35,11 +35,15 @@ class InliningTests extends AnyWordSpec {
       looksFakeButRealTest,
       factorialTest,
       evenOddTest,
-    )
+      average3Test,
+      notEnoughArgs,
+      tooManyArgs,
+    ) ++
+      simpleTests
 
     inliningTests.foreach { case InliningTestCase(label, before, after) =>
       registerTest(label) {
-        val expected = Right(after)
+        val expected = after
         val actual = Parser
           .parse(before)
           .leftMap(Nel.one)
