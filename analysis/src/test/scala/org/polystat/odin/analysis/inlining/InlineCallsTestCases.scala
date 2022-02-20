@@ -255,14 +255,14 @@ object InlineCallsTestCases {
         |""".stripMargin.asRight
   )
 
-  val average3WithComponents: InliningTestCase = InliningTestCase(
+  val average3WithComponentsTest: InliningTestCase = InliningTestCase(
     label = "average3 that also returns the sum and count",
     codeBefore =
       """[] > obj
         |  [self arg1 arg2 arg3] > average3
         |    arg1.add (arg2.add arg3) > sum
         |    3 > count
-        |    average > sum.div count
+        |    sum.div count > average
         |    [] > @
         |      sum > sum
         |      count > count
@@ -277,7 +277,8 @@ object InlineCallsTestCases {
         |      $.arg2.add
         |        $.arg3
         |    3 > count
-        |    $.sum.div $.count > average
+        |    $.sum.div > average
+        |      $.count
         |    [] > @
         |      ^.sum > sum
         |      ^.count > count
@@ -288,11 +289,12 @@ object InlineCallsTestCases {
         |        2.add
         |          3
         |      3 > count
+        |      $.sum.div > average
+        |        $.count
         |    [] > @
-        |      $.local_average3.sum > sum
-        |      $.local_average3.count > count
-        |      $.local_average3.sum.div > average3
-        |        $.local_average3.count
+        |      ^.local_average3.sum > sum
+        |      ^.local_average3.count > count
+        |      ^.local_average3.average > average
         |""".stripMargin.asRight
   )
 

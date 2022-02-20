@@ -36,6 +36,7 @@ class InliningTests extends AnyWordSpec {
       factorialTest,
       evenOddTest,
       average3Test,
+      average3WithComponentsTest,
       notEnoughArgs,
       tooManyArgs,
     ) ++
