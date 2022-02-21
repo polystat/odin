@@ -8,22 +8,8 @@ import SetLocatorsTestCases._
 import InlineCallsTestCases._
 import cats.syntax.either._
 import cats.data.{EitherNel, NonEmptyList => Nel}
-import higherkindness.droste.data.Fix
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast._
-import org.polystat.odin.parser.gens.ast.eoProg
-import org.scalacheck.{Prop, Test}
-import org.scalatestplus.scalacheck.Checkers
 
-class InliningTests extends AnyWordSpec with Checkers {
-
-  val scalacheckParams: Test.Parameters =
-    Test
-      .Parameters
-      .default
-      .withMaxSize(10000)
-      .withMinSuccessfulTests(10000)
-      .withWorkers(4)
+class InliningTests extends AnyWordSpec {
 
   "setLocators" should {
     val locatorTests: List[LocatorTestCase] = List(
@@ -41,35 +27,6 @@ class InliningTests extends AnyWordSpec with Checkers {
           .map(_.toEOPretty)
         assert(expected == obtained)
       }
-    }
-
-    "transform ast so that no EOSimpleApps remain" in {
-      def findAllEOSimpleApp(
-        bnd: EOBnd[EOExprOnly]
-      ): Vector[EOSimpleApp[EOExprOnly]] = {
-        Fix.un(bnd.expr) match {
-          case app: EOSimpleApp[EOExprOnly] => Vector(app)
-          case EOCopy(trg, args) =>
-            findAllEOSimpleApp(EOAnonExpr(trg)) ++
-              args.flatMap(findAllEOSimpleApp)
-          case EODot(trg, _) => findAllEOSimpleApp(EOAnonExpr(trg))
-          case EOObj(_, _, bndAttrs) => bndAttrs.flatMap(findAllEOSimpleApp)
-          case EOArray(elems) => elems.flatMap(findAllEOSimpleApp)
-          case _ => Vector()
-        }
-      }
-
-      def containsNoEOSimpleApp(prog: EOProg[EOExprOnly]): Boolean =
-        prog.bnds.flatMap(findAllEOSimpleApp).isEmpty
-
-      val prop = Prop.forAll(eoProg(4)) { prog =>
-        Context.setLocators(prog).map(containsNoEOSimpleApp)
-          // setLocators may fail for arbitrary ASTs
-          // this property is only concerned with successful
-          // terminations of setLocators
-          .getOrElse(true)
-      }
-      check(prop, scalacheckParams)
     }
   }
 
