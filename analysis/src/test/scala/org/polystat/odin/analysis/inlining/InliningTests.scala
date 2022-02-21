@@ -7,7 +7,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import SetLocatorsTestCases._
 import InlineCallsTestCases._
 import cats.syntax.either._
-import cats.data.{NonEmptyList => Nel}
+import cats.data.{EitherNel, NonEmptyList => Nel}
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
@@ -29,13 +29,16 @@ class InliningTests extends AnyWordSpec with Checkers {
     val locatorTests: List[LocatorTestCase] = List(
       vitaliyTestLocators,
       nikolayTestLocators,
+      nonExistentNameTestLocators,
     )
     locatorTests.foreach { case LocatorTestCase(label, before, after) =>
       registerTest(label) {
-        val expected: Either[String, String] = Right(after)
-        val obtained: Either[String, String] = Parser
+        val expected: EitherNel[String, String] = after
+        val obtained: EitherNel[String, String] = Parser
           .parse(before)
-          .map(Context.setLocators _ andThen (_.toEOPretty))
+          .leftMap(Nel.one)
+          .flatMap(Context.setLocators)
+          .map(_.toEOPretty)
         assert(expected == obtained)
       }
     }
@@ -60,7 +63,11 @@ class InliningTests extends AnyWordSpec with Checkers {
         prog.bnds.flatMap(findAllEOSimpleApp).isEmpty
 
       val prop = Prop.forAll(eoProg(4)) { prog =>
-        containsNoEOSimpleApp(Context.setLocators(prog))
+        Context.setLocators(prog).map(containsNoEOSimpleApp)
+          // setLocators may fail for arbitrary ASTs
+          // this property is only concerned with successful
+          // terminations of setLocators
+          .getOrElse(true)
       }
       check(prop, scalacheckParams)
     }

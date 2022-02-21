@@ -1,17 +1,13 @@
 package org.polystat.odin.analysis.inlining
 
+import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.syntax.either._
+import cats.syntax.parallel._
 import higherkindness.droste.data.Fix
+import org.polystat.odin.analysis.inlining.Context.setLocators
+import org.polystat.odin.analysis.inlining.Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import cats.syntax.parallel._
-import cats.data.EitherNel
-import cats.syntax.either._
-import cats.data.{NonEmptyList => Nel}
-import org.polystat.odin.analysis.inlining.Context.setLocators
-import Optics._
-import org.polystat.odin.parser.eo.Parser
-import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
-import org.polystat.odin.backend.eolang.ToEO.instances._
 
 import scala.annotation.tailrec
 
@@ -32,17 +28,22 @@ object Inliner {
 
   def inlineAllCalls(
     prog: EOProg[EOExprOnly]
-  ): EitherNel[String, EOProg[EOExprOnly]] =
-    prog
-      .bnds
-      .parTraverse(bnd =>
-        LocateMethods.parseObject(bnd, 0) match {
-          case Some(objInfo) =>
-            rebuildObject(objInfo)
-          case None => Right(bnd)
-        }
-      )
-      .map(bnds => prog.copy(bnds = bnds))
+  ): EitherNel[String, EOProg[EOExprOnly]] = {
+    for {
+      progWithLocators <- setLocators(prog)
+      newProg <- progWithLocators
+        .bnds
+        .parTraverse(bnd =>
+          LocateMethods.parseObject(bnd, 0) match {
+            case Some(objInfo) =>
+              rebuildObject(objInfo)
+            case None => Right(bnd)
+          }
+        )
+        .map(bnds => prog.copy(bnds = bnds))
+    } yield newProg
+
+  }
 
   def traverseExprWith(
     f: BigInt => EOExprOnly => EOExprOnly,
@@ -120,11 +121,13 @@ object Inliner {
           .map(replacement =>
             traverseExprWith(incLocatorBy, currentDepth + 1)(replacement.expr)
           )
+          // If it points to the method body, but is not an argument => ignore
+          // it
           .getOrElse(app)
 
       // It is some other application
       case app @ Fix(EOSimpleAppWithLocator(name, locator))
-           // Checking that it is not a local attribute
+           // Checking that it does not point to a local attribute
            if !(localNames.contains(name) && locator == currentDepth) =>
         prisms
           .fixToEOSimpleAppWithLocator
@@ -256,7 +259,7 @@ object Inliner {
             )
           )
 
-        def attemptToExtractPhiExpr(
+        def extractPhiExpr(
           methodBody: EOObj[EOExprOnly]
         ): Either[Nel[String], EOExpr[EOExprOnly]] = Either.fromOption(
           methodBody.bndAttrs.collectFirst {
@@ -330,7 +333,7 @@ object Inliner {
 
           methodBodyWithArgsInlined =
             propagateArguments(methodToInlineInfo, call)
-          phiExpr <- attemptToExtractPhiExpr(methodBodyWithArgsInlined)
+          phiExpr <- extractPhiExpr(methodBodyWithArgsInlined)
           nonPhiBnds = methodBodyWithArgsInlined.bndAttrs.filter {
             case EOBndExpr(EODecoration, _) => false
             case _ => true
@@ -353,7 +356,10 @@ object Inliner {
                   newMethodBodyPossiblyWithAttrsObj
                 ),
               Nel.one(
-                s"Could not inline method ${call.methodName}. Possibly due to error with optics."
+                s"""
+                   |Could not inline method ${call.methodName}.
+                   |This is most probably a programming error, report to developers.
+                   |""".stripMargin
               )
             )
 
@@ -374,10 +380,10 @@ object Inliner {
             .fromOption(
               obj.nestedObjects.get(objName),
               Nel.one(s"""
-                         |Object with name ${objName.name.name} 
+                         |Object with name ${objName.name.name}
                          |can not be found directly in ${obj.name.name}. 
                          |This is most probably a programming error, report to developers.
-                         | """.stripMargin)
+                         |""".stripMargin)
             )
             .flatMap(rebuildObject)
         case BndItself(value) => Right(value)
@@ -392,40 +398,6 @@ object Inliner {
 
       EOBndExpr(obj.name, Fix(objExpr))
     }
-  }
-
-  def main(args: Array[String]): Unit = {
-
-    val code: String =
-      """[] > a
-        |  [self y] > x
-        |    y > @
-        |
-        |  [self x y] > f
-        |    self.g self x > h
-        |    [] > @
-        |      self.g self y > z
-        |
-        |  [self z] > g
-        |    x > k
-        |    z > l
-        |    [] > @
-        |      l > a
-        |      k > b
-        |      z > c
-        |      self > d
-        |""".stripMargin
-
-    Parser
-      .parse(code)
-      .map(setLocators) match {
-      case Left(value) => println(value)
-      case Right(value) => inlineAllCalls(value) match {
-          case Left(value) => println(value)
-          case Right(value) => println(value.toEOPretty)
-        }
-    }
-
   }
 
 }
