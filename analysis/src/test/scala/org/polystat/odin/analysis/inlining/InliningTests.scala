@@ -6,6 +6,8 @@ import org.polystat.odin.parser.eo.Parser
 import org.scalatest.wordspec.AnyWordSpec
 import SetLocatorsTestCases._
 import InlineCallsTestCases._
+import cats.syntax.either._
+import cats.data.{EitherNel, NonEmptyList => Nel}
 
 class InliningTests extends AnyWordSpec {
 
@@ -13,13 +15,16 @@ class InliningTests extends AnyWordSpec {
     val locatorTests: List[LocatorTestCase] = List(
       vitaliyTestLocators,
       nikolayTestLocators,
+      nonExistentNameTestLocators,
     )
     locatorTests.foreach { case LocatorTestCase(label, before, after) =>
       registerTest(label) {
-        val expected: Either[String, String] = Right(after)
-        val obtained: Either[String, String] = Parser
+        val expected: EitherNel[String, String] = after
+        val obtained: EitherNel[String, String] = Parser
           .parse(before)
-          .map(Context.setLocators _ andThen (_.toEOPretty))
+          .leftMap(Nel.one)
+          .flatMap(Context.setLocators)
+          .map(_.toEOPretty)
         assert(expected == obtained)
       }
     }
@@ -33,15 +38,22 @@ class InliningTests extends AnyWordSpec {
       looksFakeButRealTest,
       factorialTest,
       evenOddTest,
-    )
+      average3Test,
+      average3WithComponentsTest,
+      notEnoughArgs,
+      tooManyArgs,
+    ) ++
+      simpleTests
 
     inliningTests.foreach { case InliningTestCase(label, before, after) =>
       registerTest(label) {
-        val expected: Either[String, String] = Right(after)
-        val actual: Either[String, String] = Parser
+        val expected = after
+        val actual = Parser
           .parse(before)
-          .flatMap(Inliner_old.inlineCalls)
+          .leftMap(Nel.one)
+          .flatMap(Inliner.inlineAllCalls)
           .map(_.toEOPretty)
+
         assert(actual == expected)
       }
 

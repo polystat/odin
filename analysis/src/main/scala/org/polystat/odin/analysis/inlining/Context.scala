@@ -1,17 +1,20 @@
 package org.polystat.odin.analysis.inlining
 
+import cats.data.EitherNel
+import cats.syntax.either._
+import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
-import org.polystat.odin.parser.eo.Parser
-import org.polystat.odin.backend.eolang.ToEO.instances.progToEO
-import org.polystat.odin.backend.eolang.ToEO.ops.ToEOOps
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import cats.data.{NonEmptyList => Nel}
 
-// 0. Resolve explicit BigInt chains (^.^.aboba) during parsing
+// 0. Resolve explicit locator chains (^.^.aboba) during parsing
 // 1. Create the first context that includes names of all top-lvl EOObjs
 // 1.1. Replace All top-level applications (a > b) with application of
 // 0-locators ($.a > b)
-//       [pending approval]
 // 2. Recursively explore the AST
+// 2.0 Upon meeting a non-existent identifier -> return Left with the
+// corresponding error message
 // 2.1 Upon meeting an EOSimpleAPP() -> resolve it using the current context
 // into EOSimpleAppWithLocator()
 // 2.2 Upon meeting a EOObj() -> use its contents to update the context and pass
@@ -23,19 +26,27 @@ object Context {
 
   def resolveLocator(
     ctx: Context,
-    app: EOSimpleApp[Fix[EOExpr]],
+    name: String,
     currentDepth: BigInt
-  ): EOSimpleAppWithLocator[Fix[EOExpr]] = {
-    val name: String = app.name
-    val depth: BigInt = ctx.getOrElse(name, 0)
+  ): EitherNel[String, EOExprOnly] = {
+    val result = ctx
+      .get(name)
+      .map(depth => {
+        val tmp: EOSimpleAppWithLocator[EOExprOnly] =
+          EOSimpleAppWithLocator(name, currentDepth - depth)
+        Fix(tmp)
+      })
 
-    EOSimpleAppWithLocator(app.name, currentDepth - depth)
+    Either.fromOption(
+      result,
+      Nel.one(s"Could not set locator for non-existent object with name $name")
+    )
   }
 
   def rebuildContext(
     ctx: Context,
     currentDepth: BigInt,
-    objs: Vector[EOBnd[Fix[EOExpr]]],
+    objs: Vector[EOBnd[EOExprOnly]],
     freeAttrs: Option[Vector[LazyName]]
   ): Context = {
     val objCtx = objs
@@ -50,74 +61,53 @@ object Context {
     ctx ++ objCtx ++ argCtx
   }
 
-  def setLocators(code: EOProg[Fix[EOExpr]]): EOProg[Fix[EOExpr]] = {
-    def exprHelper(ctx: Context, depth: BigInt)(
-      expr: EOExpr[Fix[EOExpr]]
-    ): EOExpr[Fix[EOExpr]] =
-      expr match {
+  def setLocators(
+    code: EOProg[EOExprOnly]
+  ): EitherNel[String, EOProg[EOExprOnly]] = {
+    def recurse(ctx: Context, depth: BigInt)(
+      expr: EOExprOnly
+    ): EitherNel[String, EOExprOnly] =
+      Fix.un(expr) match {
         case obj @ EOObj(freeAttrs, _, bndAttrs) =>
           val newDepth = depth + 1
           val newCtx = rebuildContext(ctx, newDepth, bndAttrs, Some(freeAttrs))
 
-          obj.copy(bndAttrs = bndAttrs.map(bndExprHelper(newCtx, newDepth)))
+          Optics
+            .traversals
+            .eoObjBndAttrs
+            .modifyA(recurse(newCtx, newDepth))(obj)
+            .map(Fix(_))
 
-        case app: EOSimpleApp[Fix[EOExpr]] => resolveLocator(ctx, app, depth)
-        case EOCopy(Fix(trg), args) =>
-          EOCopy(
-            trg = Fix(exprHelper(ctx, depth)(trg)),
-            args = args.map(bndHelper(ctx, depth))
-          )
-        case dot @ EODot(Fix(src), _) =>
-          dot.copy(src = Fix(exprHelper(ctx, depth)(src)))
-        case other => other
-      }
+        case app: EOSimpleApp[Fix[EOExpr]] =>
+          resolveLocator(ctx, app.name, depth)
 
-    def bndExprHelper(ctx: Context, depth: BigInt)(
-      bnd: EOBndExpr[Fix[EOExpr]]
-    ): EOBndExpr[Fix[EOExpr]] =
-      bnd match {
-        case bnd @ EOBndExpr(_, Fix(expr)) =>
-          bnd.copy(expr = Fix(exprHelper(ctx, depth)(expr)))
-      }
+        case copy: EOCopy[EOExprOnly] =>
+          Optics
+            .traversals
+            .eoCopy
+            .modifyA(recurse(ctx, depth))(copy)
+            .map(Fix(_))
 
-    def bndHelper(ctx: Context, depth: BigInt)(
-      bnd: EOBnd[Fix[EOExpr]]
-    ): EOBnd[Fix[EOExpr]] =
-      bnd match {
-        case EOAnonExpr(Fix(expr)) =>
-          EOAnonExpr(Fix(exprHelper(ctx, depth)(expr)))
-        case bnd @ EOBndExpr(_, Fix(expr)) =>
-          bnd.copy(expr = Fix(exprHelper(ctx, depth)(expr)))
+        case dot: EODot[EOExprOnly] =>
+          Optics
+            .lenses
+            .focusDotSrc
+            .modifyA(recurse(ctx, depth))(dot)
+            .map(Fix(_))
+        case other => Right(Fix(other))
       }
 
     val initialCtx =
       rebuildContext(Map(), 0, code.bnds, None)
-    code.copy(bnds = code.bnds.map(bndHelper(initialCtx, 0)))
-  }
+    val newBnds = code
+      .bnds
+      .traverse(bnd =>
+        for {
+          newExpr <- recurse(initialCtx, 0)(bnd.expr)
+        } yield Optics.lenses.focusFromBndToExpr.replace(newExpr)(bnd)
+      )
 
-  def main(args: Array[String]): Unit = {
-    val code: String =
-      """
-        |
-        |[] > outer
-        |  [] > self
-        |    256 > magic
-        |    [] > dummy
-        |      [outer] > cock
-        |        outer > @
-        |      outer.self  > @
-        |    self "yahoo" > @
-        |  [self] > method
-        |    self.magic > @
-        |     
-        |""".stripMargin
-
-    Parser
-      .parse(code)
-      .map(setLocators) match {
-      case Left(value) => println(value)
-      case Right(value) => println(value.toEOPretty)
-    }
+    newBnds.map(bnds => code.copy(bnds = bnds))
 
   }
 

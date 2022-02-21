@@ -1,11 +1,15 @@
 package org.polystat.odin.analysis.inlining
 
+import cats.data.EitherNel
+import cats.syntax.either._
+import cats.data.{NonEmptyList => Nel}
+
 object InlineCallsTestCases {
 
   case class InliningTestCase(
     label: String,
     codeBefore: String,
-    codeAfter: String
+    codeAfter: EitherNel[String, String]
   )
 
   val nikolayTestInlining: InliningTestCase = InliningTestCase(
@@ -21,6 +25,7 @@ object InlineCallsTestCases {
         |  [self z] > g
         |    ^.x > k
         |    $.z > l
+        |    $.l > dummy
         |    [] > @
         |      ^.l > a
         |      ^.k > b
@@ -32,32 +37,35 @@ object InlineCallsTestCases {
         |  [self y] > x
         |    $.y > @
         |  [self x y] > f
-        |    [] > local_g_0
+        |    [] > local_g
         |      ^.^.x > k
         |      ^.x > l
+        |      $.l > dummy
         |    [] > h
-        |      ^.local_g_0.l > a
-        |      ^.local_g_0.k > b
+        |      ^.local_g.l > a
+        |      ^.local_g.k > b
         |      ^.x > c
         |      ^.self > d
         |    [] > @
-        |      [] > local_g_0
+        |      [] > local_g
         |        ^.^.^.x > k
         |        ^.^.y > l
+        |        $.l > dummy
         |      [] > z
-        |        ^.local_g_0.l > a
-        |        ^.local_g_0.k > b
+        |        ^.local_g.l > a
+        |        ^.local_g.k > b
         |        ^.^.y > c
         |        ^.^.self > d
         |  [self z] > g
         |    ^.x > k
         |    $.z > l
+        |    $.l > dummy
         |    [] > @
         |      ^.l > a
         |      ^.k > b
         |      ^.z > c
         |      ^.self > d
-        |""".stripMargin
+        |""".stripMargin.asRight
   )
 
   val vitaliyTestInlining: InliningTestCase = InliningTestCase(
@@ -73,7 +81,6 @@ object InlineCallsTestCases {
         |        ^.self.bMethod ^.self > @
         |      $.self.bMethod $.self > @
         |    $.innerMethod 1 1 > b
-        |  self "yahoo" > @
         |  [self] > method
         |    self.magic > @
         |""".stripMargin,
@@ -90,11 +97,9 @@ object InlineCallsTestCases {
         |    $.innerMethod > b
         |      1
         |      1
-        |  self > @
-        |    "yahoo"
         |  [self] > method
-        |    self.magic > @
-        |""".stripMargin
+        |    $.self.magic > @
+        |""".stripMargin.asRight
   )
 
   val fakeCallTest: InliningTestCase = InliningTestCase(
@@ -117,7 +122,7 @@ object InlineCallsTestCases {
         |      ^.self
         |  [self] > add
         |    $.self > @
-        |""".stripMargin
+        |""".stripMargin.asRight
   )
 
   val looksFakeButRealTest: InliningTestCase = InliningTestCase(
@@ -138,7 +143,7 @@ object InlineCallsTestCases {
         |    $.self > @
         |  [self] > add
         |    $.self > @
-        |""".stripMargin
+        |""".stripMargin.asRight
   )
 
   val factorialTest: InliningTestCase = InliningTestCase(
@@ -160,13 +165,14 @@ object InlineCallsTestCases {
         |    ($.i.less 2).if > @
         |      1
         |      $.i.mul
-        |        (($.i.sub 1).less 2).if > @
+        |        (($.i.sub 1).less 2).if
         |          1
         |          ($.i.sub 1).mul
         |            $.self.calculate
         |              $.self
-        |              ($.i.sub 1).sub 1
-        |""".stripMargin
+        |              ($.i.sub 1).sub
+        |                1
+        |""".stripMargin.asRight
   )
 
   val evenOddTest: InliningTestCase = InliningTestCase(
@@ -192,8 +198,7 @@ object InlineCallsTestCases {
         |        ($.n.sub 1)
         |""".stripMargin,
     codeAfter =
-      """
-        |[] > numeric_ops
+      """[] > numeric_ops
         |  [self n] > is_even
         |    ($.n.eq 0).if > @
         |      1
@@ -212,7 +217,132 @@ object InlineCallsTestCases {
         |          $.self
         |          ($.n.sub 1).sub
         |            1
-        |""".stripMargin
+        |""".stripMargin.asRight
+  )
+
+  val average3Test: InliningTestCase = InliningTestCase(
+    label = "average of 3 numbers",
+    codeBefore =
+      """
+        |[] > obj
+        |  [self arg1 arg2 arg3] > average3
+        |    arg1.add (arg2.add arg3) > sum
+        |    3 > count
+        |    sum.div count > @
+        |  [self] > call-site
+        |    self.average3 self 1 2 3 > @
+        |""".stripMargin,
+    codeAfter =
+      """[] > obj
+        |  [self arg1 arg2 arg3] > average3
+        |    $.arg1.add > sum
+        |      $.arg2.add
+        |        $.arg3
+        |    3 > count
+        |    $.sum.div > @
+        |      $.count
+        |  [self] > call-site
+        |    [] > local_average3
+        |      1.add > sum
+        |        2.add
+        |          3
+        |      3 > count
+        |    $.local_average3.sum.div > @
+        |      $.local_average3.count
+        |""".stripMargin.asRight
+  )
+
+  val average3WithComponentsTest: InliningTestCase = InliningTestCase(
+    label = "average3 that also returns the sum and count",
+    codeBefore =
+      """[] > obj
+        |  [self arg1 arg2 arg3] > average3
+        |    arg1.add (arg2.add arg3) > sum
+        |    3 > count
+        |    sum.div count > average
+        |    [] > @
+        |      ^.sum > sum
+        |      ^.count > count
+        |      ^.average > average
+        |  [self] > call-site
+        |    self.average3 self 1 2 3 > @
+        |""".stripMargin,
+    codeAfter =
+      """[] > obj
+        |  [self arg1 arg2 arg3] > average3
+        |    $.arg1.add > sum
+        |      $.arg2.add
+        |        $.arg3
+        |    3 > count
+        |    $.sum.div > average
+        |      $.count
+        |    [] > @
+        |      ^.sum > sum
+        |      ^.count > count
+        |      ^.average > average
+        |  [self] > call-site
+        |    [] > local_average3
+        |      1.add > sum
+        |        2.add
+        |          3
+        |      3 > count
+        |      $.sum.div > average
+        |        $.count
+        |    [] > @
+        |      ^.local_average3.sum > sum
+        |      ^.local_average3.count > count
+        |      ^.local_average3.average > average
+        |""".stripMargin.asRight
+  )
+
+  val simpleTests: List[InliningTestCase] = List(
+    InliningTestCase(
+      label = "simple test 1",
+      codeBefore =
+        """
+          |[] > obj
+          |  [self arg1 arg2 arg3] > method
+          |    arg1.add arg2 > @
+          |  [self] > call-site
+          |    self.method self 1 2 3 > @
+          |""".stripMargin,
+      codeAfter =
+        """[] > obj
+          |  [self arg1 arg2 arg3] > method
+          |    $.arg1.add > @
+          |      $.arg2
+          |  [self] > call-site
+          |    1.add > @
+          |      2
+          |""".stripMargin.asRight
+    ),
+  )
+
+  val notEnoughArgs: InliningTestCase = InliningTestCase(
+    label = "not enough arguments passed to a method call",
+    codeBefore =
+      """[] > obj
+        |  [self arg1 arg2 arg3] > method
+        |    arg1.add arg2 > @
+        |  [self] > call-site
+        |    self.method self 1 2 > @
+        |""".stripMargin,
+    codeAfter =
+      Nel.one("Wrong number of arguments given for method method.").asLeft
+  )
+
+  val tooManyArgs: InliningTestCase = InliningTestCase(
+    label = "too many argument passed to a method call",
+    codeBefore =
+      """
+        |[] > obj
+        |  [self arg1 arg2 arg3] > method
+        |    arg1.add arg2 > @
+        |  [self] > call-site
+        |    self.method self 1 2 3 4 5 > @
+        |""".stripMargin,
+    codeAfter =
+      Nel.one("Wrong number of arguments given for method method.").asLeft
   )
 
 }
