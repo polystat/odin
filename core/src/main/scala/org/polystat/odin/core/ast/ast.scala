@@ -1,8 +1,6 @@
 package org.polystat.odin.core.ast
 
 import com.github.tarao.nonempty.collection.NonEmpty
-// import eu.timepit.refined.numeric._
-// import eu.timepit.refined.api.Refined
 
 import scala.util.matching.Regex
 
