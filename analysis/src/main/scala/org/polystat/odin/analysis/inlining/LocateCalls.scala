@@ -101,7 +101,7 @@ object LocateCalls {
                 subExpr = bnd.expr,
                 pathToCallSite =
                   pathToCallSite.andThen(pathToCall).andThen(prisms.fixToEOObj),
-                pathToCall = focusBndAttrWithName(bnd.bndName),
+                pathToCall = optionals.focusBndAttrWithName(bnd.bndName),
                 depth = depth + 1
               )
             }
@@ -120,7 +120,7 @@ object LocateCalls {
                 pathToCallSite = pathToCallSite,
                 pathToCall = pathToCall
                   .andThen(prisms.fixToEOCopy)
-                  .andThen(focusCopyArgAtIndex(i)),
+                  .andThen(optionals.focusCopyArgAtIndex(i)),
                 depth = depth
               )
             }
@@ -142,7 +142,7 @@ object LocateCalls {
                 pathToCallSite = pathToCallSite,
                 pathToCall = pathToCall
                   .andThen(prisms.fixToEOArray)
-                  .andThen(focusArrayElemAtIndex(i)),
+                  .andThen(optionals.focusArrayElemAtIndex(i)),
                 depth = depth
               )
             }
@@ -156,7 +156,7 @@ object LocateCalls {
         findCallsRec(
           subExpr = bnd.expr,
           pathToCallSite = Iso.id[EOObj[EOExprOnly]],
-          pathToCall = focusBndAttrWithName(bnd.bndName),
+          pathToCall = optionals.focusBndAttrWithName(bnd.bndName),
           depth = 0
         )
       }

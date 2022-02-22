@@ -1,11 +1,14 @@
 package org.polystat.odin.analysis.inlining
 
+import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.syntax.either._
+
 object SetLocatorsTestCases {
 
   case class LocatorTestCase(
     label: String,
     codeBefore: String,
-    codeAfter: String,
+    codeAfter: EitherNel[String, String],
   )
 
   val vitaliyTestLocators: LocatorTestCase = LocatorTestCase(
@@ -51,7 +54,7 @@ object SetLocatorsTestCases {
         |      ^.k > b
         |      ^.z > c
         |      ^.self > d
-        |""".stripMargin
+        |""".stripMargin.asRight
   )
 
   val nikolayTestLocators: LocatorTestCase = LocatorTestCase(
@@ -91,7 +94,21 @@ object SetLocatorsTestCases {
         |      "yahoo"
         |  [self] > method
         |    $.self.magic > @
-        |""".stripMargin
+        |""".stripMargin.asRight
+  )
+
+  val nonExistentNameTestLocators: LocatorTestCase = LocatorTestCase(
+    label = "self is not defined anywhere; should fail",
+    codeBefore =
+      """[] > outer
+        |  256 > magic
+        |  self "yahoo" > @
+        |  [self] > method
+        |    self.magic > @
+        |""".stripMargin,
+    codeAfter = Nel
+      .one("Could not set locator for non-existent object with name self")
+      .asLeft
   )
 
 }
