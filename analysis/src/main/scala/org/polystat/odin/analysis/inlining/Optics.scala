@@ -1,15 +1,16 @@
 package org.polystat.odin.analysis.inlining
 
-import cats.{Applicative, Traverse}
+import cats.Applicative
 import cats.syntax.functor._
 import cats.syntax.apply._
+import cats.syntax.traverse._
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import monocle.{Lens, Optional, Prism, Traversal}
 import monocle.macros.GenLens
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.inlining.types._
+import org.polystat.odin.analysis.inlining.types.CopyArgs
 
 object Optics {
 
@@ -170,10 +171,10 @@ object Optics {
         override def modifyA[F[_]: Applicative](f: A => F[A])(
           s: NonEmpty[A, Vector[A]]
         ): F[NonEmpty[A, Vector[A]]] = {
-          Applicative[F].map2(
+          (
             f(s.head),
-            Traverse[Vector].traverse(s.tail)(f)
-          )((head, tail) => NonEmpty[Vector[A]](head, tail: _*))
+            s.tail.traverse(f)
+          ).mapN((head, tail) => NonEmpty[Vector[A]](head, tail: _*))
         }
 
       }

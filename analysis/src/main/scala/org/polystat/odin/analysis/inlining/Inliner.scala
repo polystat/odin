@@ -1,7 +1,6 @@
 package org.polystat.odin.analysis.inlining
 
 import cats.data.{EitherNel, NonEmptyList => Nel}
-import cats.syntax.either._
 import cats.syntax.parallel._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.inlining.Context.setLocators
@@ -78,8 +77,8 @@ object Inliner {
     app: EOExprOnly
   ): EOExprOnly = app match {
     case Fix(EOSimpleAppWithLocator(name, locator)) =>
-      Fix(
-        EOSimpleAppWithLocator[EOExprOnly](name, locator + n)
+      Fix[EOExpr](
+        EOSimpleAppWithLocator(name, locator + n)
       )
     case other => other
   }
@@ -206,7 +205,10 @@ object Inliner {
         }
       }
 
-      attrMap.flatMap(_.get(Fix.un(app))).map(a => Fix(a)).getOrElse(app)
+      attrMap
+        .flatMap(_.get(Fix.un(app)))
+        .map(Fix(_))
+        .getOrElse(app)
     }
 
     Fix.un(traverseExprWith(makeAppPointToAttrsObjIfNecessary)(Fix(phiExpr)))
@@ -216,8 +218,7 @@ object Inliner {
     methodName: String
   ): String = {
     val usedNames = callsite.bndAttrs.collect {
-      case EOBndExpr(EOAnyNameBnd(bnd: BndName), _) =>
-        bnd.name
+      case EOBndExpr(EOAnyNameBnd(bnd: BndName), _) => bnd.name
     }
 
     @tailrec
@@ -240,17 +241,19 @@ object Inliner {
         // Starting point is the initial body of the method
         Right(methodWhereInliningHappens.body)
       ) { case (currentMethodBodyWhereInliningHappens, call) =>
-        def checkThatCalledMethodExists: Either[Nel[String], MethodInfo] =
-          Either.fromOption(
-            availableMethods.get(EOAnyNameBnd(LazyName(call.methodName))),
-            Nel.one(
-              s"Attempt to call non-existent method ${call.methodName}"
+        def checkThatCalledMethodExists: EitherNel[String, MethodInfo] =
+          availableMethods
+            .get(EOAnyNameBnd(LazyName(call.methodName)))
+            .toRight(
+              Nel.one(
+                s"Attempt to call non-existent method ${call.methodName}"
+              )
             )
-          )
 
         def checkThatTheAmountOfArgsIsCorrect(
           methodToInlineInfo: MethodInfo
-        ): Either[Nel[String], Unit] =
+        ): EitherNel[String, Unit] = {
+
           if (methodToInlineInfo.body.freeAttrs.length == call.args.length)
             Right(())
           else Left(
@@ -258,54 +261,67 @@ object Inliner {
               s"Wrong number of arguments given for method ${call.methodName}."
             )
           )
+        }
 
         def extractPhiExpr(
           methodBody: EOObj[EOExprOnly]
-        ): Either[Nel[String], EOExpr[EOExprOnly]] = Either.fromOption(
-          methodBody.bndAttrs.collectFirst {
-            case EOBndExpr(EODecoration, Fix(phiExpr)) => phiExpr
-          },
-          Nel.one(
-            s"Method ${call.methodName} has no phi attribute"
-          )
-        )
+        ): EitherNel[String, EOExpr[EOExprOnly]] =
+          methodBody
+            .bndAttrs
+            .collectFirst { case EOBndExpr(EODecoration, Fix(phiExpr)) =>
+              phiExpr
+            }
+            .toRight(
+              Nel.one(
+                s"Method ${call.methodName} has no phi attribute"
+              )
+            )
 
-        def getCallsite: Either[Nel[String], EOObj[EOExprOnly]] =
+        def getCallsite: EitherNel[String, EOObj[EOExprOnly]] =
           currentMethodBodyWhereInliningHappens match {
             case err @ Left(_) => err
-            case Right(body) => Either.fromOption(
-                call
-                  .callSite
-                  .getOption(body),
-                Nel.one(
-                  s"Could not locate callsite for ${call.methodName}. Possibly due to a problem with optics."
+            case Right(body) =>
+              call
+                .callSite
+                .getOption(body)
+                .toRight(
+                  Nel.one(
+                    s"""Could not locate call-site for ${call.methodName}.
+                       ||This is most probably a programming error, report to developers.
+                       |""".stripMargin
+                  )
                 )
-              )
           }
 
         def addAttrsObjToCallSiteIfNecessary(
           attrsObj: Option[EOBndExpr[EOExprOnly]],
           callSite: EOObj[EOExprOnly]
-        ): Either[Nel[String], EOObj[EOExprOnly]] = {
+        ): EitherNel[String, EOObj[EOExprOnly]] = {
           attrsObj
             .map(localAttrsObj =>
-              Either.fromOption(
-                call
-                  .callSite
-                  .modifyOption(callsite => {
-                    callsite.copy(
-                      bndAttrs = callsite.bndAttrs.prepended(localAttrsObj)
+              call
+                .callSite
+                .modifyOption(callsite => {
+                  callsite.copy(
+                    bndAttrs = callsite.bndAttrs.prepended(localAttrsObj)
+                  )
+                })(callSite)
+                .toRight(
+                  Nel
+                    .one(
+                      s"""
+                        |Could not modify call-site for ${call.methodName}.
+                        |This is most probably a programming error, report to developers."""
                     )
-                  })(callSite),
-                Nel
-                  .one(s"Could not modify callsite for ${call.methodName}.")
-              )
+                )
             )
             // No localAttrsObj needed => leave the body as is
             .getOrElse(Right(callSite))
         }
 
-        def extractLocalAttrsObj(nonPhiBnds: Vector[EOBndExpr[EOExprOnly]]) = {
+        def extractLocalAttrsObj(
+          nonPhiBnds: Vector[EOBndExpr[EOExprOnly]]
+        ): EitherNel[String, Option[EOBndExpr[Fix[EOExpr]]]] = {
           if (nonPhiBnds.nonEmpty) {
 
             val attrsObjName = getCallsite.map(callsite =>
@@ -350,18 +366,18 @@ object Inliner {
           callPosition = call.callSite.andThen(call.callLocation)
 
           result <-
-            Either.fromOption(
-              callPosition
-                .replaceOption(Fix[EOExpr](inliningResult))(
-                  newMethodBodyPossiblyWithAttrsObj
-                ),
-              Nel.one(
-                s"""
-                   |Could not inline method ${call.methodName}.
-                   |This is most probably a programming error, report to developers.
-                   |""".stripMargin
+            callPosition
+              .replaceOption(Fix[EOExpr](inliningResult))(
+                newMethodBodyPossiblyWithAttrsObj
               )
-            )
+              .toRight(
+                Nel.one(
+                  s"""
+                     |Could not inline method ${call.methodName}.
+                     |This is most probably a programming error, report to developers.
+                     |""".stripMargin
+                )
+              )
 
         } yield result
       }
@@ -376,9 +392,11 @@ object Inliner {
       .parTraverse {
         case MethodPlaceholder(methodName) =>
           inlineCalls(obj.methods, methodName)
-        case ObjectPlaceholder(objName) => Either
-            .fromOption(
-              obj.nestedObjects.get(objName),
+        case ObjectPlaceholder(objName) =>
+          obj
+            .nestedObjects
+            .get(objName)
+            .toRight(
               Nel.one(s"""
                          |Object with name ${objName.name.name}
                          |can not be found directly in ${obj.name.name}. 

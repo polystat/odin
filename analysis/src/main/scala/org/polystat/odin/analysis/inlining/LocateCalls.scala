@@ -1,6 +1,5 @@
 package org.polystat.odin.analysis.inlining
 
-import cats.syntax.foldable._
 import higherkindness.droste.data.Fix
 import monocle.Iso
 import Optics._
@@ -11,38 +10,18 @@ import org.polystat.odin.analysis.inlining.types._
 object LocateCalls {
 
   def hasNoReferencesToPhi(binds: Vector[EOBnd[Fix[EOExpr]]]): Boolean = {
-
-    def exprHelper(
-      expr: Fix[EOExpr],
-      upperBndName: Option[String]
-    ): Option[String] = Fix.un(expr) match {
-      case EOCopy(trg, args) =>
-        exprHelper(trg, upperBndName)
-          .orElse(
-            args.value.foldMapK(bndHelper(upperBndName))
-          )
-      case EODot(trg, _) =>
-        exprHelper(trg, upperBndName)
-      case EOObj(_, _, bnds) => bnds.foldMapK(bndHelper(upperBndName))
-      case EOSimpleAppWithLocator("@", _) =>
-        upperBndName
-      case _ =>
-        None
-    }
-
-    def bndHelper(
-      upperBndName: Option[String]
-    )(bnd: EOBnd[Fix[EOExpr]]): Option[String] =
-      bnd match {
-        case EOAnonExpr(expr) => exprHelper(expr, upperBndName)
-        case EOBndExpr(_, expr) => exprHelper(expr, upperBndName)
+    def recurse(bnd: EOBnd[EOExprOnly]): Boolean = {
+      Fix.un(bnd.expr) match {
+        case EOSimpleAppWithLocator("@", _) => false
+        case EOObj(_, _, bndAttrs) => bndAttrs.map(recurse).forall(identity)
+        case EOCopy(trg, args) =>
+          recurse(EOAnonExpr(trg)) && args.map(recurse).forall(identity)
+        case EODot(trg, _) => recurse(EOAnonExpr(trg))
+        case EOArray(elems) => elems.map(recurse).forall(identity)
+        case _ => true
       }
-
-    binds.flatMap {
-      case EOAnonExpr(_) => None
-      case EOBndExpr(bndName, expr) =>
-        exprHelper(expr, Some(bndName.name.name))
-    }.isEmpty
+    }
+    binds.map(recurse).forall(identity)
   }
 
   def hasPhiAttribute(bnds: Vector[EOBnd[EOExprOnly]]): Boolean =

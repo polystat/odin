@@ -1,12 +1,10 @@
 package org.polystat.odin.analysis.inlining
 
-import cats.data.EitherNel
-import cats.syntax.either._
+import cats.data.{EitherNel, NonEmptyList => Nel}
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import cats.data.{NonEmptyList => Nel}
 
 // 0. Resolve explicit locator chains (^.^.aboba) during parsing
 // 1. Create the first context that includes names of all top-lvl EOObjs
@@ -31,15 +29,14 @@ object Context {
   ): EitherNel[String, EOExprOnly] = {
     val result = ctx
       .get(name)
-      .map(depth => {
-        val tmp: EOSimpleAppWithLocator[EOExprOnly] =
-          EOSimpleAppWithLocator(name, currentDepth - depth)
-        Fix(tmp)
-      })
+      .map(depth =>
+        Fix[EOExpr](EOSimpleAppWithLocator(name, currentDepth - depth))
+      )
 
-    Either.fromOption(
-      result,
-      Nel.one(s"Could not set locator for non-existent object with name $name")
+    result.toRight(
+      Nel.one(
+        s"Could not set locator for non-existent object with name \"$name\""
+      )
     )
   }
 
@@ -47,17 +44,13 @@ object Context {
     ctx: Context,
     currentDepth: BigInt,
     objs: Vector[EOBnd[EOExprOnly]],
-    freeAttrs: Option[Vector[LazyName]]
+    freeAttrs: Vector[LazyName]
   ): Context = {
     val objCtx = objs
       .collect { case bndExpr: EOBndExpr[Fix[EOExpr]] => bndExpr }
-      .map(bnd => bnd.bndName.name.name -> currentDepth)
+      .map(bnd => (bnd.bndName.name.name, currentDepth))
       .toMap
-    val argCtx = freeAttrs match {
-      case Some(value) => value.map(lName => lName.name -> currentDepth).toMap
-      case None => Map.empty
-    }
-
+    val argCtx = freeAttrs.map(lName => (lName.name, currentDepth)).toMap
     ctx ++ objCtx ++ argCtx
   }
 
@@ -70,7 +63,7 @@ object Context {
       Fix.un(expr) match {
         case obj @ EOObj(freeAttrs, _, bndAttrs) =>
           val newDepth = depth + 1
-          val newCtx = rebuildContext(ctx, newDepth, bndAttrs, Some(freeAttrs))
+          val newCtx = rebuildContext(ctx, newDepth, bndAttrs, freeAttrs)
 
           Optics
             .traversals
@@ -98,7 +91,7 @@ object Context {
       }
 
     val initialCtx =
-      rebuildContext(Map(), 0, code.bnds, None)
+      rebuildContext(Map(), 0, code.bnds, Vector())
     val newBnds = code
       .bnds
       .traverse(bnd =>
