@@ -6,7 +6,8 @@ import org.polystat.odin.parser.eo.Parser
 import SetLocatorsTestCases._
 import InlineCallsTestCases._
 import cats.syntax.either._
-import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.syntax.foldable._
+import cats.data.{NonEmptyList => Nel}
 
 class InliningTests extends munit.FunSuite {
 
@@ -18,14 +19,18 @@ class InliningTests extends munit.FunSuite {
 
   locatorTests.foreach { case LocatorTestCase(label, before, after) =>
     test("setLocators - " + label) {
-      val expected: EitherNel[String, String] = after
-      val obtained: EitherNel[String, String] = Parser
+      val expected = after
+        .leftMap(_.mkString_(util.Properties.lineSeparator))
+        .merge
+      val obtained = Parser
         .parse(before)
         .leftMap(Nel.one)
         .flatMap(Context.setLocators)
         .map(_.toEOPretty)
+        .leftMap(_.mkString_(util.Properties.lineSeparator))
+        .merge
 
-      assertEquals(obtained, expected)
+      assertNoDiff(obtained, expected)
     }
   }
 
@@ -46,13 +51,17 @@ class InliningTests extends munit.FunSuite {
   inliningTests.foreach { case InliningTestCase(label, before, after) =>
     test("inlineAllCalls - " + label) {
       val expected = after
+        .leftMap(_.mkString_(util.Properties.lineSeparator))
+        .merge
       val obtained = Parser
         .parse(before)
         .leftMap(Nel.one)
         .flatMap(Inliner.inlineAllCalls)
         .map(_.toEOPretty)
+        .leftMap(_.mkString_(util.Properties.lineSeparator))
+        .merge
 
-      assertEquals(obtained, expected)
+      assertNoDiff(obtained, expected)
 
     }
   }
