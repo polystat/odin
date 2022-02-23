@@ -1,16 +1,16 @@
 package org.polystat.odin.analysis.inlining
 
 import cats.Applicative
-import cats.syntax.functor._
 import cats.syntax.apply._
+import cats.syntax.functor._
 import cats.syntax.traverse._
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
-import monocle.{Lens, Optional, Prism, Traversal}
 import monocle.macros.GenLens
+import monocle.{Lens, Optional, Prism, Traversal}
+import org.polystat.odin.analysis.inlining.types.CopyArgs
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.inlining.types.CopyArgs
 
 object Optics {
 
@@ -60,7 +60,10 @@ object Optics {
 
   object lenses {
 
-    val focusFromBndToExpr: Optional[EOBnd[EOExprOnly], EOExprOnly] =
+    val focusFromProgToBnds: Lens[EOProg[EOExprOnly], Vector[EOBnd[EOExprOnly]]] =
+      GenLens[EOProg[EOExprOnly]](_.bnds)
+
+    val focusFromBndToExpr: Lens[EOBnd[EOExprOnly], EOExprOnly] =
       Lens[EOBnd[EOExprOnly], EOExprOnly](bnd => bnd.expr)(expr => {
         case bnd: EOBndExpr[EOExprOnly] => bnd.copy(expr = expr)
         case bnd: EOAnonExpr[EOExprOnly] => bnd.copy(expr = expr)
@@ -175,6 +178,21 @@ object Optics {
             f(s.head),
             s.tail.traverse(f)
           ).mapN((head, tail) => NonEmpty[Vector[A]](head, tail: _*))
+        }
+
+      }
+
+    val eoProg: Traversal[EOProg[EOExprOnly], EOExprOnly] =
+      new Traversal[EOProg[EOExprOnly], EOExprOnly] {
+
+        override def modifyA[F[_]: Applicative](
+          f: EOExprOnly => F[EOExprOnly]
+        )(s: EOProg[EOExprOnly]): F[EOProg[EOExprOnly]] = {
+          lenses
+            .focusFromProgToBnds
+            .andThen(Traversal.fromTraverse[Vector, EOBnd[EOExprOnly]])
+            .andThen(lenses.focusFromBndToExpr)
+            .modifyA(f)(s)
         }
 
       }

@@ -1,8 +1,9 @@
 package org.polystat.odin.analysis.inlining
 
 import cats.data.{EitherNel, NonEmptyList => Nel}
-import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
+import org.polystat.odin.analysis.inlining.Optics._
+import Abstract.modifyExprWithState
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
@@ -26,19 +27,17 @@ object Context {
     ctx: Context,
     name: String,
     currentDepth: BigInt
-  ): EitherNel[String, EOExprOnly] = {
-    val result = ctx
+  ): EitherNel[String, EOExprOnly] =
+    ctx
       .get(name)
       .map(depth =>
         Fix[EOExpr](EOSimpleAppWithLocator(name, currentDepth - depth))
       )
-
-    result.toRight(
-      Nel.one(
-        s"Could not set locator for non-existent object with name \"$name\""
+      .toRight(
+        Nel.one(
+          s"Could not set locator for non-existent object with name \"$name\""
+        )
       )
-    )
-  }
 
   def rebuildContext(
     ctx: Context,
@@ -57,50 +56,28 @@ object Context {
   def setLocators(
     code: EOProg[EOExprOnly]
   ): EitherNel[String, EOProg[EOExprOnly]] = {
-    def recurse(ctx: Context, depth: BigInt)(
-      expr: EOExprOnly
-    ): EitherNel[String, EOExprOnly] =
-      Fix.un(expr) match {
-        case obj @ EOObj(freeAttrs, _, bndAttrs) =>
-          val newDepth = depth + 1
-          val newCtx = rebuildContext(ctx, newDepth, bndAttrs, freeAttrs)
-
-          Optics
-            .traversals
-            .eoObjBndAttrs
-            .modifyA(recurse(newCtx, newDepth))(obj)
-            .map(Fix(_))
-
-        case app: EOSimpleApp[Fix[EOExpr]] =>
-          resolveLocator(ctx, app.name, depth)
-
-        case copy: EOCopy[EOExprOnly] =>
-          Optics
-            .traversals
-            .eoCopy
-            .modifyA(recurse(ctx, depth))(copy)
-            .map(Fix(_))
-
-        case dot: EODot[EOExprOnly] =>
-          Optics
-            .lenses
-            .focusDotSrc
-            .modifyA(recurse(ctx, depth))(dot)
-            .map(Fix(_))
-        case other => Right(Fix(other))
-      }
-
     val initialCtx =
       rebuildContext(Map(), 0, code.bnds, Vector())
-    val newBnds = code
-      .bnds
-      .traverse(bnd =>
-        for {
-          newExpr <- recurse(initialCtx, 0)(bnd.expr)
-        } yield Optics.lenses.focusFromBndToExpr.replace(newExpr)(bnd)
-      )
-
-    newBnds.map(bnds => code.copy(bnds = bnds))
+    val modify = modifyExprWithState(initialCtx)(modifyExpr =
+      ctx =>
+        depth =>
+          expr =>
+            Fix.un(expr) match {
+              case app: EOSimpleApp[EOExprOnly] =>
+                resolveLocator(ctx, app.name, depth)
+              case other => Right(Fix(other))
+            }
+    )(modifyState =
+      expr =>
+        depth =>
+          prev =>
+            expr match {
+              case EOObj(freeAttrs, _, bndAttrs) =>
+                rebuildContext(prev, depth, bndAttrs, freeAttrs)
+              case _ => prev
+            }
+    )(_)
+    traversals.eoProg.modifyA(modify)(code)
 
   }
 

@@ -1,8 +1,8 @@
 package org.polystat.odin.analysis.inlining
 
-import cats.syntax.applicative._
 import cats.syntax.foldable._
 import cats.syntax.functor._
+import cats.syntax.semigroup._
 import cats.{Applicative, Eval, Foldable, Id, Monoid}
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
@@ -30,33 +30,34 @@ object Abstract {
     }
 
   def modifyExprWithState[F[_]: Applicative, S](
-    expr: EOExprOnly,
     initialState: S,
     initialDepth: BigInt = 0
   )(modifyExpr: S => BigInt => EOExprOnly => F[EOExprOnly])(
-    modifyState: EOExpr[EOExprOnly] => S => S
-  ): F[EOExprOnly] = {
+    modifyState: EOExpr[EOExprOnly] => BigInt => S => S
+  )(expr: EOExprOnly): F[EOExprOnly] = {
     def recurse(depth: BigInt)(state: S)(subExpr: EOExprOnly): F[EOExprOnly] = {
       Fix.un(subExpr) match {
         case obj: EOObj[EOExprOnly] =>
           traversals
             .eoObjBndAttrs
-            .modifyA(recurse(depth + 1)(modifyState(obj)(state)))(obj)
+            .modifyA(recurse(depth + 1)(modifyState(obj)(depth + 1)(state)))(
+              obj
+            )
             .map(Fix(_))
         case copy: EOCopy[EOExprOnly] =>
           traversals
             .eoCopy
-            .modifyA(recurse(depth)(modifyState(copy)(state)))(copy)
+            .modifyA(recurse(depth)(modifyState(copy)(depth)(state)))(copy)
             .map(Fix(_))
         case dot: EODot[EOExprOnly] =>
           lenses
             .focusDotSrc
-            .modifyA(recurse(depth)(modifyState(dot)(state)))(dot)
+            .modifyA(recurse(depth)(modifyState(dot)(depth)(state)))(dot)
             .map(Fix(_))
         case array: EOArray[EOExprOnly] =>
           traversals
             .eoArrayElems
-            .modifyA(recurse(depth)(modifyState(array)(state)))(array)
+            .modifyA(recurse(depth)(modifyState(array)(depth)(state)))(array)
             .map(Fix(_))
         case other => modifyExpr(state)(depth)(Fix(other))
       }
@@ -68,9 +69,9 @@ object Abstract {
     modify: BigInt => EOExprOnly => EOExprOnly,
     initialDepth: BigInt = 0
   )(expr: EOExprOnly): EOExprOnly = {
-    modifyExprWithState[Id, Unit](expr, (), initialDepth)(_ =>
-      depth => expr => modify(depth)(expr).pure[Id]
-    )(_ => identity)
+    modifyExprWithState[Id, Unit]((), initialDepth)(_ =>
+      depth => expr => modify(depth)(expr)
+    )(_ => _ => identity)(expr)
   }
 
   def foldAst[A: Monoid](
@@ -82,8 +83,7 @@ object Abstract {
         case None => Fix.un(bnd.expr) match {
             case EOObj(_, _, bndAttrs) => bndAttrs.foldMap(recurse)
             case EOCopy(trg, args) =>
-              Monoid[A].combine(
-                recurse(EOAnonExpr(trg)),
+              recurse(EOAnonExpr(trg)).combine(
                 Foldable[NonEmptyVector].foldMap(args)(recurse)
               )
             case EODot(trg, _) => recurse(EOAnonExpr(trg))
