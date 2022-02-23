@@ -107,7 +107,7 @@ object SetLocatorsTestCases {
         |    self.magic > @
         |""".stripMargin,
     codeAfter = Nel
-      .one("Could not set locator for non-existent object with name self")
+      .one("Could not set locator for non-existent object with name \"self\"")
       .asLeft
   )
 
