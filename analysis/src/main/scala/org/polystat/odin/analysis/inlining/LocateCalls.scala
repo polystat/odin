@@ -1,27 +1,23 @@
 package org.polystat.odin.analysis.inlining
 
+import cats.Monoid
 import higherkindness.droste.data.Fix
 import monocle.Iso
-import Optics._
+import org.polystat.odin.analysis.inlining.Abstract.foldAst
+import org.polystat.odin.analysis.inlining.Optics._
+import org.polystat.odin.analysis.inlining.types._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.inlining.types._
 
 object LocateCalls {
 
   def hasNoReferencesToPhi(binds: Vector[EOBnd[Fix[EOExpr]]]): Boolean = {
-    def recurse(bnd: EOBnd[EOExprOnly]): Boolean = {
-      Fix.un(bnd.expr) match {
-        case EOSimpleAppWithLocator("@", _) => false
-        case EOObj(_, _, bndAttrs) => bndAttrs.map(recurse).forall(identity)
-        case EOCopy(trg, args) =>
-          recurse(EOAnonExpr(trg)) && args.map(recurse).forall(identity)
-        case EODot(trg, _) => recurse(EOAnonExpr(trg))
-        case EOArray(elems) => elems.map(recurse).forall(identity)
-        case _ => true
-      }
+    implicit val andMonoid: Monoid[Boolean] = new Monoid[Boolean] {
+      override def empty: Boolean = true
+      override def combine(x: Boolean, y: Boolean): Boolean = x && y
     }
-    binds.map(recurse).forall(identity)
+
+    foldAst[Boolean](binds) { case EOSimpleAppWithLocator("@", _) => false }
   }
 
   def hasPhiAttribute(bnds: Vector[EOBnd[EOExprOnly]]): Boolean =

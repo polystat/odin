@@ -7,6 +7,7 @@ import org.polystat.odin.analysis.inlining.Context.setLocators
 import org.polystat.odin.analysis.inlining.Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.analysis.inlining.Abstract.modifyExpr
 
 import scala.annotation.tailrec
 
@@ -42,35 +43,6 @@ object Inliner {
         .map(bnds => prog.copy(bnds = bnds))
     } yield newProg
 
-  }
-
-  def traverseExprWith(
-    f: BigInt => EOExprOnly => EOExprOnly,
-    initialDepth: BigInt = 0
-  )(initialExpr: EOExprOnly): EOExprOnly = {
-    def recurse(depth: BigInt)(
-      subExpr: EOExprOnly
-    ): EOExprOnly = {
-      val res = Fix.un(subExpr) match {
-        case copy: EOCopy[EOExprOnly] =>
-          traversals.eoCopy.modify(recurse(depth))(copy)
-
-        case obj: EOObj[EOExprOnly] =>
-          traversals.eoObjBndAttrs.modify(recurse(depth + 1))(obj)
-
-        case dot: EODot[EOExprOnly] =>
-          lenses.focusDotSrc.modify(recurse(depth))(dot)
-
-        case array: EOArray[EOExprOnly] =>
-          traversals.eoArrayElems.modify(recurse(depth))(array)
-
-        case other => Fix.un(f(depth)(Fix(other)))
-      }
-
-      Fix(res)
-    }
-
-    recurse(initialDepth)(initialExpr)
   }
 
   def incLocatorBy(n: BigInt)(
@@ -118,7 +90,7 @@ object Inliner {
           // Increase all locators in the expression by their depth
           // Add +1 to account for the additional nestedness of attrsObj
           .map(replacement =>
-            traverseExprWith(incLocatorBy, currentDepth + 1)(replacement.expr)
+            modifyExpr(incLocatorBy, currentDepth + 1)(replacement.expr)
           )
           // If it points to the method body, but is not an argument => ignore
           // it
@@ -141,9 +113,7 @@ object Inliner {
 
     def processPhi(currentDepth: BigInt)(app: EOExprOnly): EOExprOnly = {
       getAppReplacementFromArgMap(currentDepth)(app)
-        .map(replacement =>
-          traverseExprWith(incLocatorBy, currentDepth)(replacement)
-        )
+        .map(replacement => modifyExpr(incLocatorBy, currentDepth)(replacement))
         .getOrElse(app)
     }
 
@@ -153,9 +123,9 @@ object Inliner {
       .map(bnd => {
         val newExpr = bnd match {
           case EOBndExpr(EODecoration, expr) =>
-            traverseExprWith(processPhi)(expr)
+            modifyExpr(processPhi)(expr)
           case EOBndExpr(_, expr) =>
-            traverseExprWith(propagateArguments)(expr)
+            modifyExpr(propagateArguments)(expr)
         }
 
         bnd.copy(
@@ -211,7 +181,7 @@ object Inliner {
         .getOrElse(app)
     }
 
-    Fix.un(traverseExprWith(makeAppPointToAttrsObjIfNecessary)(Fix(phiExpr)))
+    Fix.un(modifyExpr(makeAppPointToAttrsObjIfNecessary)(Fix(phiExpr)))
   }
 
   def resolveNameCollisionsForLocalAttrObj(callsite: EOObj[EOExprOnly])(
