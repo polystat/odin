@@ -42,7 +42,27 @@ object Inliner {
         )
         .map(bnds => prog.copy(bnds = bnds))
     } yield newProg
+  }
 
+  def createObjectTree(
+    prog: EOProg[EOExprOnly]
+  ): EitherNel[String, Vector[Object[MethodInfo]]] = {
+    setLocators(prog).map(
+      _.bnds.flatMap(bnd => LocateMethods.parseObject(bnd, 0))
+    )
+  }
+
+  def zipWithInlinedMethod(
+    obj: Object[MethodInfo]
+  ): EitherNel[String, Object[MethodInfoAfterInlining]] = {
+    obj.traverse((name, curMethod, curObj) =>
+      inlineCalls(curObj.methods, name).map(bodyAfter =>
+        MethodInfoAfterInlining(
+          body = curMethod.body,
+          bodyAfterInlining = bodyAfter
+        )
+      )
+    )
   }
 
   def incLocatorBy(n: BigInt)(
@@ -355,7 +375,9 @@ object Inliner {
     methodBody.map(body => EOBndExpr(methodNameWhereToInline, Fix(body)))
   }
 
-  def rebuildObject(obj: Object): EitherNel[String, EOBndExpr[EOExprOnly]] = {
+  def rebuildObject(
+    obj: Object[MethodInfo]
+  ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
 
     val newBinds: EitherNel[String, Vector[EOBndExpr[EOExprOnly]]] = obj
       .bnds

@@ -7,6 +7,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import SetLocatorsTestCases._
 import InlineCallsTestCases._
 import cats.syntax.either._
+import cats.syntax.traverse._
 import cats.data.{EitherNel, NonEmptyList => Nel}
 
 class InliningTests extends AnyWordSpec {
@@ -42,19 +43,27 @@ class InliningTests extends AnyWordSpec {
       average3WithComponentsTest,
       notEnoughArgs,
       tooManyArgs,
-    ) ++
-      simpleTests
+    )
+      .concat(simpleTests)
 
     inliningTests.foreach { case InliningTestCase(label, before, after) =>
       registerTest(label) {
         val expected = after
-        val actual = Parser
+        val obtained = Parser
           .parse(before)
           .leftMap(Nel.one)
           .flatMap(Inliner.inlineAllCalls)
           .map(_.toEOPretty)
 
-        assert(actual == expected)
+        println(
+          Parser
+            .parse(before)
+            .leftMap(Nel.one)
+            .flatMap(Inliner.createObjectTree)
+            .flatMap(_.traverse(Inliner.zipWithInlinedMethod))
+        )
+
+        assert(obtained == expected)
       }
 
     }

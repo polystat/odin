@@ -9,9 +9,9 @@ object LocateMethods {
   def parseObject(
     obj: EOBnd[EOExprOnly],
     objDepth: BigInt
-  ): Option[Object] = {
+  ): Option[Object[MethodInfo]] = {
     type BndInfo = (
-      Map[EONamedBnd, Object],
+      Map[EONamedBnd, Object[MethodInfo]],
       Map[EONamedBnd, MethodInfo],
       Vector[BndPlaceholder],
     )
