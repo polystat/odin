@@ -30,7 +30,7 @@ package inlining {
   ] {
 
     val parentInfo: Option[P]
-    val methodInfo: Map[EONamedBnd, M]
+    val methods: Map[EONamedBnd, M]
 
     def mapParent[
       PP <: GenericParentInfo,
@@ -60,7 +60,7 @@ package inlining {
       _ <: GenericMethodInfo
     ] <: GenericObjectInfo[_, _, O],
   ](
-    node: O[P, M],
+    info: O[P, M],
     children: Map[EONamedBnd, ObjectTree[P, M, O]]
   ) {
 
@@ -73,7 +73,7 @@ package inlining {
       ev: O[P, M] <:< GenericObjectInfo[P, M, O]
     ): F[ObjectTree[PP, M, O]] = {
       (
-        f(node),
+        f(info),
         children
           .toList
           .traverse { case (k, v) =>
@@ -82,7 +82,7 @@ package inlining {
           .map(_.toMap)
       )
         .mapN((p, nestedPs) =>
-          ObjectTree[PP, M, O](ev(node).replaceParent(p), nestedPs)
+          ObjectTree[PP, M, O](ev(info).replaceParent(p), nestedPs)
         )
     }
 
@@ -95,7 +95,7 @@ package inlining {
       ev: O[P, M] <:< GenericObjectInfo[P, M, O]
     ): F[ObjectTree[P, MM, O]] =
       (
-        ev(node).traverseMethodInfo(f),
+        ev(info).traverseMethodInfo(f),
         children
           .toList
           .traverse { case (k, o) =>
@@ -114,7 +114,7 @@ package inlining {
     bnds: Vector[BndPlaceholder],
     depth: BigInt,
     override val parentInfo: Option[P],
-    override val methodInfo: Map[EONamedBnd, M],
+    override val methods: Map[EONamedBnd, M],
   ) extends GenericObjectInfo[P, M, ObjectInfo] {
 
     override def mapParent[PP <: GenericParentInfo](
@@ -124,12 +124,12 @@ package inlining {
     override def traverseMethodInfo[F[_]: Applicative, MM <: GenericMethodInfo](
       f: (EONamedBnd, M, ObjectInfo[P, M]) => F[MM]
     ): F[ObjectInfo[P, MM]] =
-      methodInfo
+      methods
         .toList
         .traverse { case (name, m) =>
           f(name, m, this).map(newM => (name, newM))
         }
-        .map(m => copy(methodInfo = m.toMap))
+        .map(m => copy(methods = m.toMap))
 
   }
 

@@ -46,15 +46,15 @@ object Inliner {
 
   def createObjectTree(
     prog: EOProg[EOExprOnly]
-  ): EitherNel[String, Vector[Object[MethodInfo, ParentName]]] = {
+  ): EitherNel[String, Vector[ObjectTree[ParentName, MethodInfo, ObjectInfo]]] = {
     setLocators(prog).map(
       _.bnds.flatMap(bnd => LocateMethods.parseObject(bnd, 0))
     )
   }
 
   def zipWithInlinedMethod[P <: GenericParentInfo](
-    obj: Object[MethodInfo, P]
-  ): EitherNel[String, Object[MethodInfoAfterInlining, P]] = {
+    obj: ObjectTree[P, MethodInfo, ObjectInfo]
+  ): EitherNel[String, ObjectTree[P, MethodInfoAfterInlining, ObjectInfo]] = {
     obj.traverseMethods((name, curMethod, curObj) =>
       inlineCalls(curObj.methods, name).map(bodyAfter =>
         MethodInfoAfterInlining(
@@ -376,22 +376,23 @@ object Inliner {
   }
 
   def rebuildObject[P <: GenericParentInfo](
-    obj: Object[MethodInfo, P]
+    obj: ObjectTree[P, MethodInfo, ObjectInfo]
   ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
 
     val newBinds: EitherNel[String, Vector[EOBndExpr[EOExprOnly]]] = obj
+      .info
       .bnds
       .parTraverse {
         case MethodPlaceholder(methodName) =>
-          inlineCalls(obj.methods, methodName)
+          inlineCalls(obj.info.methods, methodName)
         case ObjectPlaceholder(objName) =>
           obj
-            .nestedObjects
+            .children
             .get(objName)
             .toRight(
               Nel.one(s"""
                          |Object with name ${objName.name.name}
-                         |can not be found directly in ${obj.name.name}. 
+                         |can not be found directly in ${obj.info.name.name}. 
                          |This is most probably a programming error, report to developers.
                          |""".stripMargin)
             )
@@ -406,7 +407,7 @@ object Inliner {
         bndAttrs = bnds
       )
 
-      EOBndExpr(obj.name, Fix(objExpr))
+      EOBndExpr(obj.info.name, Fix(objExpr))
     }
   }
 
