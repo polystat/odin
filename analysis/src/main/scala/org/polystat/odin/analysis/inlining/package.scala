@@ -1,16 +1,14 @@
 package org.polystat.odin.analysis
 
-import org.polystat.odin.core.ast.{EOBndExpr, EONamedBnd, EOObj}
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import inlining.types._
-
 import cats.Applicative
-import cats.syntax.traverse._
-import cats.syntax.functor._
 import cats.syntax.apply._
-
-import org.polystat.odin.backend.eolang.ToEO.ops._
+import cats.syntax.functor._
+import cats.syntax.traverse._
+import org.polystat.odin.analysis.inlining.types._
 import org.polystat.odin.backend.eolang.ToEO.instances._
+import org.polystat.odin.backend.eolang.ToEO.ops._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.core.ast.{EOBndExpr, EONamedBnd, EOObj}
 
 package inlining {
 
@@ -22,56 +20,113 @@ package inlining {
   final case class ObjectName(parent: Option[ObjectName], name: String)
   final case class ObjectNameWithLocator(locator: BigInt, name: ObjectName)
 
-  final case class Object[
-    M <: GenericMethodInfo,
+  sealed trait GenericObjectInfo[
     P <: GenericParentInfo,
-  ](
-    name: EONamedBnd,
-    parentInfo: Option[P],
-    methods: Map[EONamedBnd, M],
-    nestedObjects: Map[EONamedBnd, Object[M, P]],
-    bnds: Vector[BndPlaceholder],
-    depth: BigInt,
-  ) {
+    M <: GenericMethodInfo,
+    O[_ <: GenericParentInfo, _ <: GenericMethodInfo]
+  ] {
+// type O[A <: GenericParentInfo, B <: GenericMethodInfo] =
+    // GenericObjectInfo[A, B]
+    val parentInfo: Option[P]
+    val methodInfo: Map[EONamedBnd, M]
 
-    def traverseParents[F[_]: Applicative, PP <: GenericParentInfo](
-      f: Object[M, P] => F[PP]
-    ): F[Object[M, PP]] = {
+    def mapParent[
+      PP <: GenericParentInfo,
+    ](
+      f: P => PP
+    )(implicit ev: O[PP, M] <:< GenericObjectInfo[PP, M, O]): O[PP, M]
+
+    def replaceParent[
+      PP <: GenericParentInfo,
+    ](
+      other: PP
+    )(implicit ev: O[PP, M] <:< GenericObjectInfo[PP, M, O]): O[PP, M] =
+      mapParent(_ => other)(ev)
+
+    def traverseMethodInfo[
+      F[_]: Applicative,
+      MM <: GenericMethodInfo,
+    ](f: (EONamedBnd, M, O[P, M]) => F[MM])(implicit
+      ev: O[P, M] <:< GenericObjectInfo[P, M, O]
+    ): F[O[P, MM]]
+
+  }
+
+  final case class ObjectTree[
+    P <: GenericParentInfo,
+    M <: GenericMethodInfo,
+    O[_ <: GenericParentInfo, _ <: GenericMethodInfo],
+  ](
+    node: O[P, M],
+    children: Map[EONamedBnd, ObjectTree[P, M, O]]
+  )(implicit ev: O[P, M] <:< GenericObjectInfo[P, M, O]) {
+
+    def traverseParents[
+      F[_]: Applicative,
+      PP <: GenericParentInfo,
+    ](
+      f: O[P, M] => F[PP]
+    )(implicit
+      ev1: O[PP, M] <:< GenericObjectInfo[PP, M, O]
+    ): F[ObjectTree[PP, M, O]] = {
       (
-        f(this),
-        nestedObjects
+        f(node),
+        children
           .toList
           .traverse { case (k, v) =>
             v.traverseParents(f).map(newP => (k, newP))
           }
           .map(_.toMap)
       )
-        .mapN((p, nestedPs) =>
-          copy(
-            parentInfo = this.parentInfo.map(_ => p),
-            nestedObjects = nestedPs
-          )
-        )
+        .mapN((p, nestedPs) => ObjectTree(node.replaceParent(p)(ev1), nestedPs))
     }
 
-    def traverseMethods[F[_]: Applicative, MM <: GenericMethodInfo](
-      f: (EONamedBnd, M, Object[M, P]) => F[MM]
-    ): F[Object[MM, P]] =
+    def traverseMethods[
+      F[_]: Applicative,
+      MM <: GenericMethodInfo
+    ](
+      f: (EONamedBnd, M, O[P, M]) => F[MM]
+    )(implicit
+      ev1: O[P, MM] <:< GenericObjectInfo[P, MM, O]
+    ): F[ObjectTree[P, MM, O]] =
       (
-        methods
+        node.traverseMethodInfo(f),
+        children
           .toList
-          .traverse { case (k, v) => f(k, v, this).map((k, _)) }
-          .map(_.toMap),
-        nestedObjects
-          .toList
-          .traverse { case (k, o) => o.traverseMethods(f).map((k, _)) }
+          .traverse { case (k, o) =>
+            o.traverseMethods[F, MM](f).map((k, _))
+          }
           .map(_.toMap)
-      ).mapN((methods, nestedObjects) =>
-        copy(
-          methods = methods,
-          nestedObjects = nestedObjects
-        )
-      )
+      ).mapN((node, nestedObjects) => ObjectTree(node, nestedObjects))
+
+  }
+
+  final case class ObjectInfo[
+    P <: GenericParentInfo,
+    M <: GenericMethodInfo,
+  ](
+    name: EONamedBnd,
+    bnds: Vector[BndPlaceholder],
+    depth: BigInt,
+    override val parentInfo: Option[P],
+    override val methodInfo: Map[EONamedBnd, M],
+  ) extends GenericObjectInfo[P, M, ObjectInfo] {
+
+    override def mapParent[PP <: GenericParentInfo](f: P => PP)(implicit
+      ev: ObjectInfo[PP, M] <:< GenericObjectInfo[PP, M, ObjectInfo]
+    ): ObjectInfo[PP, M] = copy(parentInfo = parentInfo.map(f))
+
+    override def traverseMethodInfo[F[_]: Applicative, MM <: GenericMethodInfo](
+      f: (EONamedBnd, M, ObjectInfo[P, M]) => F[MM]
+    )(implicit
+      ev: ObjectInfo[P, M] <:< GenericObjectInfo[P, M, ObjectInfo]
+    ): F[ObjectInfo[P, MM]] =
+      methodInfo
+        .toList
+        .traverse { case (name, m) =>
+          f(name, m, this).map(newM => (name, newM))
+        }
+        .map(_.toMap)
 
   }
 
@@ -84,7 +139,7 @@ package inlining {
     name: ObjectNameWithLocator,
     parentInfo: Option[ParentInfo[M]],
     methods: Map[EONamedBnd, M]
-  )
+  ) extends GenericParentInfo
 
   sealed trait GenericMethodInfo
 
