@@ -22,18 +22,41 @@ package inlining {
   final case class ObjectName(parent: Option[ObjectName], name: String)
   final case class ObjectNameWithLocator(locator: BigInt, name: ObjectName)
 
-  final case class Object[M <: GenericMethodInfo](
+  final case class Object[
+    M <: GenericMethodInfo,
+    P <: GenericParentInfo,
+  ](
     name: EONamedBnd,
-    parentName: Option[ObjectNameWithLocator],
+    parentInfo: Option[P],
     methods: Map[EONamedBnd, M],
-    nestedObjects: Map[EONamedBnd, Object[M]],
+    nestedObjects: Map[EONamedBnd, Object[M, P]],
     bnds: Vector[BndPlaceholder],
     depth: BigInt,
   ) {
 
-    def traverse[F[_]: Applicative, B <: GenericMethodInfo](
-      f: (EONamedBnd, M, Object[M]) => F[B]
-    ): F[Object[B]] =
+    def traverseParents[F[_]: Applicative, PP <: GenericParentInfo](
+      f: Object[M, P] => F[PP]
+    ): F[Object[M, PP]] = {
+      (
+        f(this),
+        nestedObjects
+          .toList
+          .traverse { case (k, v) =>
+            v.traverseParents(f).map(newP => (k, newP))
+          }
+          .map(_.toMap)
+      )
+        .mapN((p, nestedPs) =>
+          copy(
+            parentInfo = this.parentInfo.map(_ => p),
+            nestedObjects = nestedPs
+          )
+        )
+    }
+
+    def traverseMethods[F[_]: Applicative, MM <: GenericMethodInfo](
+      f: (EONamedBnd, M, Object[M, P]) => F[MM]
+    ): F[Object[MM, P]] =
       (
         methods
           .toList
@@ -41,7 +64,7 @@ package inlining {
           .map(_.toMap),
         nestedObjects
           .toList
-          .traverse { case (k, o) => o.traverse(f).map((k, _)) }
+          .traverse { case (k, o) => o.traverseMethods(f).map((k, _)) }
           .map(_.toMap)
       ).mapN((methods, nestedObjects) =>
         copy(
@@ -51,6 +74,17 @@ package inlining {
       )
 
   }
+
+  sealed trait GenericParentInfo
+
+  final case class ParentName(name: ObjectNameWithLocator)
+    extends GenericParentInfo
+
+  final case class ParentInfo[M <: GenericMethodInfo](
+    name: ObjectNameWithLocator,
+    parentInfo: Option[ParentInfo[M]],
+    methods: Map[EONamedBnd, M]
+  )
 
   sealed trait GenericMethodInfo
 

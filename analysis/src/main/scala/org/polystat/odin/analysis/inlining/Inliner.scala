@@ -46,16 +46,16 @@ object Inliner {
 
   def createObjectTree(
     prog: EOProg[EOExprOnly]
-  ): EitherNel[String, Vector[Object[MethodInfo]]] = {
+  ): EitherNel[String, Vector[Object[MethodInfo, ParentName]]] = {
     setLocators(prog).map(
       _.bnds.flatMap(bnd => LocateMethods.parseObject(bnd, 0))
     )
   }
 
-  def zipWithInlinedMethod(
-    obj: Object[MethodInfo]
-  ): EitherNel[String, Object[MethodInfoAfterInlining]] = {
-    obj.traverse((name, curMethod, curObj) =>
+  def zipWithInlinedMethod[P <: GenericParentInfo](
+    obj: Object[MethodInfo, P]
+  ): EitherNel[String, Object[MethodInfoAfterInlining, P]] = {
+    obj.traverseMethods((name, curMethod, curObj) =>
       inlineCalls(curObj.methods, name).map(bodyAfter =>
         MethodInfoAfterInlining(
           body = curMethod.body,
@@ -375,8 +375,8 @@ object Inliner {
     methodBody.map(body => EOBndExpr(methodNameWhereToInline, Fix(body)))
   }
 
-  def rebuildObject(
-    obj: Object[MethodInfo]
+  def rebuildObject[P <: GenericParentInfo](
+    obj: Object[MethodInfo, P]
   ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
 
     val newBinds: EitherNel[String, Vector[EOBndExpr[EOExprOnly]]] = obj
@@ -395,7 +395,7 @@ object Inliner {
                          |This is most probably a programming error, report to developers.
                          |""".stripMargin)
             )
-            .flatMap(rebuildObject)
+            .flatMap(rebuildObject[P])
         case BndItself(value) => Right(value)
       }
 
