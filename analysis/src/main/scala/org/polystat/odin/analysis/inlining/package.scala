@@ -19,8 +19,12 @@ package inlining {
   final case class ObjectPlaceholder(name: EONamedBnd) extends BndPlaceholder
   final case class BndItself(bnd: EOBndExpr[EOExprOnly]) extends BndPlaceholder
 
+  final case class ObjectName(parent: Option[ObjectName], name: String)
+  final case class ObjectNameWithLocator(locator: BigInt, name: ObjectName)
+
   final case class Object[M <: GenericMethodInfo](
     name: EONamedBnd,
+    parentName: Option[ObjectNameWithLocator],
     methods: Map[EONamedBnd, M],
     nestedObjects: Map[EONamedBnd, Object[M]],
     bnds: Vector[BndPlaceholder],
@@ -48,39 +52,18 @@ package inlining {
 
   }
 
-//  case class Assert()
-
   sealed trait GenericMethodInfo
 
-  sealed trait Calls extends GenericMethodInfo {
-    val calls: Vector[Call]
-  }
-
-  sealed trait Body extends GenericMethodInfo {
-    val body: EOObj[EOExprOnly]
-  }
-
-  sealed trait Depth extends GenericMethodInfo {
-    val depth: BigInt
-  }
-
-  sealed trait BodyAfterInlining extends GenericMethodInfo {
-    val bodyAfterInlining: EOBndExpr[EOExprOnly]
-  }
-
   final case class MethodInfo(
-    override val calls: Vector[Call],
-    override val body: EOObj[EOExprOnly],
-    override val depth: BigInt,
-  ) extends Body
-       with Calls
-       with Depth
+    calls: Vector[Call],
+    body: EOObj[EOExprOnly],
+    depth: BigInt,
+  ) extends GenericMethodInfo
 
   final case class MethodInfoAfterInlining(
-    override val body: EOObj[EOExprOnly],
-    override val bodyAfterInlining: EOBndExpr[EOExprOnly],
-  ) extends Body
-       with BodyAfterInlining {
+    body: EOObj[EOExprOnly],
+    bodyAfterInlining: EOBndExpr[EOExprOnly],
+  ) extends GenericMethodInfo {
 
     override def toString: String =
       s"""MethodInfoAfterInlining(

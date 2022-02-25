@@ -187,13 +187,12 @@ object Optics {
 
         override def modifyA[F[_]: Applicative](
           f: EOExprOnly => F[EOExprOnly]
-        )(s: EOProg[EOExprOnly]): F[EOProg[EOExprOnly]] = {
+        )(s: EOProg[EOExprOnly]): F[EOProg[EOExprOnly]] =
           lenses
             .focusFromProgToBnds
             .andThen(Traversal.fromTraverse[Vector, EOBnd[EOExprOnly]])
             .andThen(lenses.focusFromBndToExpr)
             .modifyA(f)(s)
-        }
 
       }
 
