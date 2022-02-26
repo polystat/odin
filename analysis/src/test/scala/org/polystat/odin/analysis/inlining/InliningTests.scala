@@ -9,6 +9,7 @@ import InlineCallsTestCases._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.data.{EitherNel, NonEmptyList => Nel}
+import org.polystat.odin.core.ast._
 
 class InliningTests extends AnyWordSpec {
 
@@ -99,17 +100,42 @@ object InliningTests {
                  |  [self y] > g
                  |    3.div (y.add 1) > @  
                  |  [] > kukozh
-                 |    # ^.^.obj.bebra > @
+                 |    ^.^.obj.bebra > @
                  |    
                  |[] > am
                  |  derived > @
                  |""".stripMargin
 
-    Parser
+    val tree = Parser
       .parse(code)
       .leftMap(Nel.one)
       .flatMap(Inliner.createObjectTree)
+
+    val newTree = tree
       .flatMap(Inliner.resolveParents)
+
+    newTree
+      .map(m =>
+        m(EOAnyNameBnd(LazyName("derived")))
+          .children(EOAnyNameBnd(LazyName("kukozh")))
+          .info
+          .parentInfo
+          .get
+          .linkToParent
+          .getOption(m)
+          .get
+          .info
+          .parentInfo
+          .get
+          .linkToParent
+          .getOption(m)
+          .get
+          .info
+          .parentInfo
+          .get
+          .linkToParent
+          .getOption(m)
+      )
       .bimap(pprint.pprintln(_), pprint.pprintln(_))
       .merge
 

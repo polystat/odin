@@ -14,6 +14,8 @@ import cats.data.{NonEmptyList => Nel}
 
 package inlining {
 
+  import monocle.Optional
+
   sealed trait BndPlaceholder
   final case class MethodPlaceholder(name: EONamedBnd) extends BndPlaceholder
   final case class ObjectPlaceholder(name: EONamedBnd) extends BndPlaceholder
@@ -148,10 +150,17 @@ package inlining {
 
   }
 
-  final case class ParentInfo[M <: GenericMethodInfo](
-    name: ObjectNameWithLocator,
-    parentInfo: Option[ParentInfo[M]],
-    methods: Map[EONamedBnd, M]
+  final case class ParentInfo[
+    M <: GenericMethodInfo,
+    O[
+      _ <: GenericParentInfo,
+      _ <: GenericMethodInfo
+    ] <: GenericObjectInfo[_, _, O],
+  ](
+    linkToParent: Optional[
+      Map[EONamedBnd, ObjectTree[ParentInfo[M, O], M, O]],
+      ObjectTree[ParentInfo[M, O], M, O]
+    ]
   ) extends GenericParentInfo
 
   sealed trait GenericMethodInfo

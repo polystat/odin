@@ -30,7 +30,7 @@ object Inliner {
    * 3. Successfully processed 'Object's are converted back into AST-objects
    * 4. Either the errors or the rebuilt AST are returned */
   type PartialObjectTree = ObjectTree[ParentName, MethodInfo, ObjectInfo]
-  type CompleteObjectTree = ObjectTree[ParentInfo[MethodInfo], MethodInfo, ObjectInfo]
+  type CompleteObjectTree = ObjectTree[ParentInfo[MethodInfo, ObjectInfo], MethodInfo, ObjectInfo]
 
 
   def inlineAllCalls(
@@ -96,7 +96,11 @@ object Inliner {
       GenLens[ObjectTree[P, M, O]](_.children)
 
     def retrieveParentInfo(ctxs: Nel[PathToContext])
-                          (info: Option[ParentName]): EitherNel[String, Option[ParentInfo[MethodInfo]]] = {
+                          (info: Option[ParentName]):
+    EitherNel[
+      String,
+      Option[ParentInfo[MethodInfo, ObjectInfo]]
+    ] = {
       info match {
         case Some(info @ ParentName(ObjectNameWithLocator(locator, name))) =>
           val names = name.names
@@ -113,16 +117,15 @@ object Inliner {
 
           for {
             parentGetter <- pathToObject
-            parent <- parentGetter.getOption(objs).toRight(
+            _ <- parentGetter.getOption(objs).toRight(
               Nel.one(s"There is no such parent with name \"${info.toEOName}\".")
             )
-            parentName = info.name
-            methods = parent.info.methods
-            parentOfParent <- retrieveParentInfo(ctxs)(parent.info.parentInfo)
           } yield Some(ParentInfo(
-            name = parentName,
-            parentInfo = parentOfParent,
-            methods = methods
+            linkToParent = parentGetter.asInstanceOf[
+              Optional[
+                Map[EONamedBnd, CompleteObjectTree],
+                CompleteObjectTree]
+            ]
           ))
         case None => Right(None)
       }
