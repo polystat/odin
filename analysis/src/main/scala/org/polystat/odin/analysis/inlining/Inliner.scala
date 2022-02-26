@@ -2,12 +2,16 @@ package org.polystat.odin.analysis.inlining
 
 import cats.data.{EitherNel, NonEmptyList => Nel}
 import cats.syntax.parallel._
+import cats.syntax.apply._
 import higherkindness.droste.data.Fix
+import monocle.{Iso, Lens, Optional}
 import org.polystat.odin.analysis.inlining.Context.setLocators
 import org.polystat.odin.analysis.inlining.Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.analysis.inlining.Abstract.modifyExpr
+import LocateMethods._
+import monocle.macros.GenLens
 
 import scala.annotation.tailrec
 
@@ -25,6 +29,9 @@ object Inliner {
    * 2.5 *inlineCalls* replaces the call with the corresponding phi-expression
    * 3. Successfully processed 'Object's are converted back into AST-objects
    * 4. Either the errors or the rebuilt AST are returned */
+  type PartialObjectTree = ObjectTree[ParentName, MethodInfo, ObjectInfo]
+  type CompleteObjectTree = ObjectTree[ParentInfo[MethodInfo], MethodInfo, ObjectInfo]
+
 
   def inlineAllCalls(
     prog: EOProg[EOExprOnly]
@@ -46,9 +53,18 @@ object Inliner {
 
   def createObjectTree(
     prog: EOProg[EOExprOnly]
-  ): EitherNel[String, Vector[ObjectTree[ParentName, MethodInfo, ObjectInfo]]] = {
+  ): EitherNel[
+    String,
+    Map[EONamedBnd, PartialObjectTree]
+  ] = {
     setLocators(prog).map(
-      _.bnds.flatMap(bnd => LocateMethods.parseObject(bnd, 0))
+      _.bnds
+        .flatMap(bnd =>
+          parseObject(bnd, 0).map(obj =>
+            (obj.info.name, obj)
+          )
+        )
+        .toMap
     )
   }
 
@@ -63,6 +79,88 @@ object Inliner {
         )
       )
     )
+  }
+
+  def resolveParents(
+    objs: Map[EONamedBnd, PartialObjectTree]
+  ): EitherNel[String, Map[EONamedBnd, CompleteObjectTree]] = {
+
+    type Context = Map[EONamedBnd, PartialObjectTree]
+    type PathToContext = Optional[Context, Context]
+
+    def focusObjTreeChildren[
+      P <: GenericParentInfo,
+      M <: GenericMethodInfo,
+      O[_ <: GenericParentInfo, _ <: GenericMethodInfo] <: GenericObjectInfo[_, _, O]
+    ]: Lens[ObjectTree[P, M, O], Map[EONamedBnd, ObjectTree[P, M, O]]] =
+      GenLens[ObjectTree[P, M, O]](_.children)
+
+    def retrieveParentInfo(ctxs: Nel[PathToContext])
+                          (info: Option[ParentName]): EitherNel[String, Option[ParentInfo[MethodInfo]]] = {
+      info match {
+        case Some(info @ ParentName(ObjectNameWithLocator(locator, name))) =>
+          val names = name.names
+          val pathFromCtxToObj = names.tail.foldLeft(
+            optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](EOAnyNameBnd(LazyName(names.head))
+            )) {
+            case (acc, next) =>
+              acc.andThen(focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo])
+                .andThen(optionals.mapValueAtKey(EOAnyNameBnd(LazyName(next))))
+          }
+          val pathToObject = ctxs.toList.lift(locator.toInt).toRight(Nel.one(
+            s"Locator overshoot at ${info.toEOName}"
+          )).map(_.andThen(pathFromCtxToObj))
+
+          for {
+            parentGetter <- pathToObject
+            parent <- parentGetter.getOption(objs).toRight(
+              Nel.one(s"There is no such parent with name \"${info.toEOName}\".")
+            )
+            parentName = info.name
+            methods = parent.info.methods
+            parentOfParent <- retrieveParentInfo(ctxs)(parent.info.parentInfo)
+          } yield Some(ParentInfo(
+            name = parentName,
+            parentInfo = parentOfParent,
+            methods = methods
+          ))
+        case None => Right(None)
+      }
+
+    }
+
+    def recurse(cur: PartialObjectTree)(ctxs: Nel[PathToContext]): EitherNel[String, CompleteObjectTree] = {
+      val parentName = cur.info.parentInfo
+          (
+            retrieveParentInfo(ctxs)(parentName),
+            cur.children.toList.parTraverse {
+              case (name, subTree) =>
+                val ctx =
+                  ctxs
+                    .head
+                    .andThen(optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](name))
+                    .andThen(focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo])
+                recurse(subTree)(ctxs.prepend(ctx)).map((name, _))
+            }.map(_.toMap)
+
+            )
+            .mapN((info, children) =>
+              ObjectTree(
+                cur.info.copy(parentInfo = info),
+                children
+              )
+            )
+    }
+
+
+    objs.toList.parTraverse {
+      case (name, tree) => recurse(tree)(
+        Nel(
+          optionals.mapValueAtKey(name).andThen(focusObjTreeChildren),
+          List(Iso.id)
+        )
+      ).map((name, _))
+    }.map(_.toMap)
   }
 
   def incLocatorBy(n: BigInt)(
