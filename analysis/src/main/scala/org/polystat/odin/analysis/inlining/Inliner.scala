@@ -1,17 +1,17 @@
 package org.polystat.odin.analysis.inlining
 
 import cats.data.{EitherNel, NonEmptyList => Nel}
-import cats.syntax.parallel._
 import cats.syntax.apply._
+import cats.syntax.parallel._
 import higherkindness.droste.data.Fix
+import monocle.macros.GenLens
 import monocle.{Iso, Lens, Optional}
+import org.polystat.odin.analysis.inlining.Abstract.modifyExpr
 import org.polystat.odin.analysis.inlining.Context.setLocators
+import org.polystat.odin.analysis.inlining.LocateMethods._
 import org.polystat.odin.analysis.inlining.Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.inlining.Abstract.modifyExpr
-import LocateMethods._
-import monocle.macros.GenLens
 
 import scala.annotation.tailrec
 
@@ -104,13 +104,9 @@ object Inliner {
       info match {
         case Some(info @ ParentName(ObjectNameWithLocator(locator, name))) =>
           val names = name.names
-          val pathFromCtxToObj = names.tail.foldLeft(
-            optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](EOAnyNameBnd(LazyName(names.head))
-            )) {
-            case (acc, next) =>
-              acc.andThen(focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo])
-                .andThen(optionals.mapValueAtKey(EOAnyNameBnd(LazyName(next))))
-          }
+          val pathFromCtxToObj =
+          names.map(name => optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](EOAnyNameBnd(LazyName(name))))
+            .reduceLeft((acc, next) => acc.andThen(focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo]).andThen(next))
           val pathToObject = ctxs.toList.lift(locator.toInt).toRight(Nel.one(
             s"Locator overshoot at ${info.toEOName}"
           )).map(_.andThen(pathFromCtxToObj))
@@ -498,6 +494,7 @@ object Inliner {
                          |""".stripMargin)
             )
             .flatMap(rebuildObject[P])
+        case ParentPlaceholder(expr) => Right(EOBndExpr(EODecoration, expr))
         case BndItself(value) => Right(value)
       }
 
