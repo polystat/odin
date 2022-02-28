@@ -2,6 +2,7 @@ package org.polystat.odin.analysis
 
 import cats.Applicative
 import cats.syntax.apply._
+import cats.syntax.foldable._
 import cats.syntax.functor._
 import cats.syntax.traverse._
 import org.polystat.odin.analysis.inlining.types._
@@ -9,15 +10,18 @@ import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast.{EOBndExpr, EONamedBnd, EOObj}
+import cats.data.{NonEmptyList => Nel}
 
 package inlining {
+
+  import monocle.Optional
 
   sealed trait BndPlaceholder
   final case class MethodPlaceholder(name: EONamedBnd) extends BndPlaceholder
   final case class ObjectPlaceholder(name: EONamedBnd) extends BndPlaceholder
   final case class BndItself(bnd: EOBndExpr[EOExprOnly]) extends BndPlaceholder
 
-  final case class ObjectName(parent: Option[ObjectName], name: String)
+  final case class ObjectName(names: Nel[String])
   final case class ObjectNameWithLocator(locator: BigInt, name: ObjectName)
 
   sealed trait GenericObjectInfo[
@@ -32,18 +36,18 @@ package inlining {
     val parentInfo: Option[P]
     val methods: Map[EONamedBnd, M]
 
-    def mapParent[
+    def modifyParent[
       PP <: GenericParentInfo,
     ](
-      f: P => PP
+      f: P => Option[PP]
     ): O[PP, M]
 
     def replaceParent[
       PP <: GenericParentInfo,
     ](
-      other: PP
+      other: Option[PP]
     ): O[PP, M] =
-      mapParent(_ => other)
+      modifyParent(_ => other)
 
     def traverseMethodInfo[
       F[_]: Applicative,
@@ -68,7 +72,7 @@ package inlining {
       F[_]: Applicative,
       PP <: GenericParentInfo,
     ](
-      f: O[P, M] => F[PP]
+      f: O[P, M] => F[Option[PP]]
     )(implicit
       ev: O[P, M] <:< GenericObjectInfo[P, M, O]
     ): F[ObjectTree[PP, M, O]] = {
@@ -81,9 +85,7 @@ package inlining {
           }
           .map(_.toMap)
       )
-        .mapN((p, nestedPs) =>
-          ObjectTree[PP, M, O](ev(info).replaceParent(p), nestedPs)
-        )
+        .mapN((p, nestedPs) => ObjectTree(ev(info).replaceParent(p), nestedPs))
     }
 
     def traverseMethods[
@@ -117,9 +119,9 @@ package inlining {
     override val methods: Map[EONamedBnd, M],
   ) extends GenericObjectInfo[P, M, ObjectInfo] {
 
-    override def mapParent[PP <: GenericParentInfo](
-      f: P => PP
-    ): ObjectInfo[PP, M] = copy(parentInfo = parentInfo.map(f))
+    override def modifyParent[PP <: GenericParentInfo](
+      f: P => Option[PP]
+    ): ObjectInfo[PP, M] = copy(parentInfo = parentInfo.flatMap(f))
 
     override def traverseMethodInfo[F[_]: Applicative, MM <: GenericMethodInfo](
       f: (EONamedBnd, M, ObjectInfo[P, M]) => F[MM]
@@ -136,12 +138,29 @@ package inlining {
   sealed trait GenericParentInfo
 
   final case class ParentName(name: ObjectNameWithLocator)
-    extends GenericParentInfo
+    extends GenericParentInfo {
 
-  final case class ParentInfo[M <: GenericMethodInfo](
-    name: ObjectNameWithLocator,
-    parentInfo: Option[ParentInfo[M]],
-    methods: Map[EONamedBnd, M]
+    def toEOName: String = {
+      val locator =
+        if (name.locator == 0) "$"
+        else List.fill(name.locator.toInt)("^").mkString(".")
+      val names = name.name.names.mkString_(".")
+      s"$locator.$names"
+    }
+
+  }
+
+  final case class ParentInfo[
+    M <: GenericMethodInfo,
+    O[
+      _ <: GenericParentInfo,
+      _ <: GenericMethodInfo
+    ] <: GenericObjectInfo[_, _, O],
+  ](
+    linkToParent: Optional[
+      Map[EONamedBnd, ObjectTree[ParentInfo[M, O], M, O]],
+      ObjectTree[ParentInfo[M, O], M, O]
+    ]
   ) extends GenericParentInfo
 
   sealed trait GenericMethodInfo

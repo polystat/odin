@@ -94,6 +94,9 @@ object Optics {
 
   object optionals {
 
+    def mapValueAtKey[K, V](k: K): Optional[Map[K, V], V] =
+      Optional[Map[K, V], V](_.get(k))(v => map => map.updated(k, v))
+
     def vectorIndexOptional[A](i: Int): Optional[Vector[A], A] =
       Optional[Vector[A], A](_.lift(i))(item =>
         seq => if (seq.isDefinedAt(i)) seq.updated(i, item) else seq

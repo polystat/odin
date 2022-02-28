@@ -9,6 +9,7 @@ import InlineCallsTestCases._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.data.{EitherNel, NonEmptyList => Nel}
+import org.polystat.odin.core.ast._
 
 class InliningTests extends AnyWordSpec {
 
@@ -60,7 +61,9 @@ class InliningTests extends AnyWordSpec {
             .parse(before)
             .leftMap(Nel.one)
             .flatMap(Inliner.createObjectTree)
-            .flatMap(_.traverse(Inliner.zipWithInlinedMethod))
+            .flatMap(
+              _.toList.traverse(kv => Inliner.zipWithInlinedMethod(kv._2))
+            )
         )
 
         assert(obtained == expected)
@@ -74,29 +77,68 @@ class InliningTests extends AnyWordSpec {
 object InliningTests {
 
   def main(args: Array[String]): Unit = {
-    val code = """[] > a
-                 |  [self y] > x
-                 |    y > @
+    val code = """
+                 |[] > obj
+                 |  [self y] > g
+                 |    3.div y  > @
                  |
-                 |  [self x y] > f
-                 |    self.g self x > h
-                 |    [] > @
-                 |      self.g self y > z
+                 |  [self z] > method
+                 |    self.g self z > x
+                 |    x > @
+                 |    
+                 |  [] > opa 
+                 |    
+                 |  [] > zhepa
+                 |    opa > @
+                 |  [] > bebra
+                 |    ^.zhepa > @
+                 |    [self] > aboba
+                 |      12 > @
                  |
-                 |  [self z] > g
-                 |    x > k
-                 |    z > l
-                 |    [] > @
-                 |      l > a
-                 |      k > b
-                 |      z > c
-                 |      self > d
+                 |[] > derived
+                 |  obj > @
+                 |  [self y] > g
+                 |    3.div (y.add 1) > @  
+                 |  [] > kukozh
+                 |    ^.^.obj.bebra > @
+                 |    
+                 |[] > am
+                 |  derived > @
                  |""".stripMargin
 
-    Parser.parse(code) match {
-      case Left(value) => println(value)
-      case Right(value) => pprint.pprintln(value)
-    }
+    val tree = Parser
+      .parse(code)
+      .leftMap(Nel.one)
+      .flatMap(Inliner.createObjectTree)
+
+    val newTree = tree
+      .flatMap(Inliner.resolveParents)
+
+    newTree
+      .map(m =>
+        m(EOAnyNameBnd(LazyName("derived")))
+          .children(EOAnyNameBnd(LazyName("kukozh")))
+          .info
+          .parentInfo
+          .get
+          .linkToParent
+          .getOption(m)
+          .get
+          .info
+          .parentInfo
+          .get
+          .linkToParent
+          .getOption(m)
+          .get
+          .info
+          .parentInfo
+          .get
+          .linkToParent
+          .getOption(m)
+      )
+      .bimap(pprint.pprintln(_), pprint.pprintln(_))
+      .merge
+
   }
 
 }

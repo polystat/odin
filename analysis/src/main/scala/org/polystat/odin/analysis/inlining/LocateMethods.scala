@@ -5,6 +5,7 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 import LocateCalls._
 import cats.syntax.foldable._
+import cats.data.{NonEmptyList => Nel}
 
 object LocateMethods {
 
@@ -14,26 +15,25 @@ object LocateMethods {
 
     def parseObjectName(
       expr: EOExprOnly,
-      parent: Option[ObjectName]
     ): Option[ObjectNameWithLocator] = {
       Fix.un(expr) match {
-        case EODot(Fix(EOSimpleAppWithLocator(parentName, locator)), name) =>
+
+        case EOSimpleAppWithLocator(name, locator) =>
           Some(
-            ObjectNameWithLocator(
-              locator,
-              ObjectName(Some(ObjectName(None, parentName)), name)
-            )
+            ObjectNameWithLocator(locator, ObjectName(Nel.one(name)))
           )
         case EODot(trg, dotName) =>
-          parseObjectName(trg, Some(ObjectName(parent, dotName))).map(obj =>
-            obj.copy(name = ObjectName(Some(obj.name), dotName))
+          parseObjectName(trg).map(parent =>
+            parent.copy(name =
+              ObjectName(parent.name.names.concatNel(Nel.one(dotName)))
+            )
           )
         case _ => None
       }
     }
 
     bnd match {
-      case EOBndExpr(EODecoration, expr) => parseObjectName(expr, None)
+      case EOBndExpr(EODecoration, expr) => parseObjectName(expr)
       case _ => None
     }
   }
