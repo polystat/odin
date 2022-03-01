@@ -9,7 +9,7 @@ import InlineCallsTestCases._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.data.{EitherNel, NonEmptyList => Nel}
-import org.polystat.odin.core.ast._
+// import org.polystat.odin.core.ast._
 
 class InliningTests extends AnyWordSpec {
 
@@ -93,7 +93,13 @@ object InliningTests {
                  |      12 > @
                  |  [] > zhepa
                  |    opa > @
-                 |  [] > opa 
+                 |    [self] > aboba
+                 |      1 > @
+                 |    [self] > indirect
+                 |      2 > @
+                 |  [] > opa
+                 |    [self] > even-more-indirect
+                 |      3 > @
                  |    
                  |  
                  |
@@ -108,36 +114,17 @@ object InliningTests {
                  |  derived > @
                  |""".stripMargin
 
-    val tree = Parser
-      .parse(code)
-      .leftMap(Nel.one)
-      .flatMap(Inliner.createObjectTree)
+    val parsed = Parser.parse(code)
 
-    val newTree = tree
-      .flatMap(Inliner.resolveParents)
+//    val tree = parsed
+//      .leftMap(Nel.one)
+//      .flatMap(Inliner.createObjectTree)
 
-    newTree
-      .map(m =>
-        m(EOAnyNameBnd(LazyName("derived")))
-          .children(EOAnyNameBnd(LazyName("kukozh")))
-          .info
-          .parentInfo
-          .get
-          .linkToParent
-          .getOption(m)
-          .get
-          .info
-          .parentInfo
-          .get
-          .linkToParent
-          .getOption(m)
-          .get
-          .info
-          .parentInfo
-          .get
-          .linkToParent
-          .getOption(m)
-      )
+//    val newTree = tree
+//      .flatMap(Inliner.resolveParents)
+
+    parsed
+      .map(Inliner.zipMethodsWithTheirInlinedVersionsFromParent)
       .bimap(pprint.pprintln(_), pprint.pprintln(_))
       .merge
 

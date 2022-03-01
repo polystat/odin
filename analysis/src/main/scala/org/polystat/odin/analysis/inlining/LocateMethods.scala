@@ -40,7 +40,7 @@ object LocateMethods {
 
   private case class BndInfo(
     parentName: Option[ObjectNameWithLocator],
-    nestedObjs: Map[EONamedBnd, ObjectTree[ParentName, MethodInfo, ObjectInfo]],
+    nestedObjs: Map[EONamedBnd, ObjectTree[ObjectInfo[ParentName, MethodInfo]]],
     methods: Map[EONamedBnd, MethodInfo],
     otherBnds: Vector[BndPlaceholder],
   )
@@ -48,7 +48,7 @@ object LocateMethods {
   def parseObject(
     obj: EOBnd[EOExprOnly],
     objDepth: BigInt
-  ): Option[ObjectTree[ParentName, MethodInfo, ObjectInfo]] = {
+  ): Option[ObjectTree[ObjectInfo[ParentName, MethodInfo]]] = {
 
     obj match {
       case EOBndExpr(bndName, Fix(EOObj(Vector(), None, bnds))) =>

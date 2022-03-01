@@ -1,7 +1,10 @@
 package org.polystat.odin.analysis.inlining
 
+
 import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.syntax.align._
 import cats.syntax.apply._
+import cats.syntax.foldable._
 import cats.syntax.parallel._
 import higherkindness.droste.data.Fix
 import monocle.macros.GenLens
@@ -29,8 +32,22 @@ object Inliner {
    * 2.5 *inlineCalls* replaces the call with the corresponding phi-expression
    * 3. Successfully processed 'Object's are converted back into AST-objects
    * 4. Either the errors or the rebuilt AST are returned */
-  type PartialObjectTree = ObjectTree[ParentName, MethodInfo, ObjectInfo]
-  type CompleteObjectTree = ObjectTree[ParentInfo[MethodInfo, ObjectInfo], MethodInfo, ObjectInfo]
+  type PartialObjectTree = ObjectTree[ObjectInfo[ParentName, MethodInfo]]
+  type CompleteObjectTree = ObjectTree[ObjectInfo[ParentInfo[MethodInfo, ObjectInfo], MethodInfo]]
+  type ObjectTreeForAnalysis = ObjectTree[
+    ObjectInfoForAnalysis[
+      ParentInfo[MethodInfo, ObjectInfoForAnalysis],
+      MethodInfo
+    ]
+  ]
+
+  def focusObjTreeChildren[
+    P <: GenericParentInfo,
+    M <: GenericMethodInfo,
+    O[_ <: GenericParentInfo, _ <: GenericMethodInfo] <: GenericObjectInfo[_, _, O]
+  ]: Lens[ObjectTree[O[P, M]], Map[EONamedBnd, ObjectTree[O[P, M]]]] =
+    GenLens[ObjectTree[O[P, M]]](_.children)
+
 
 
   def inlineAllCalls(
@@ -53,10 +70,7 @@ object Inliner {
 
   def createObjectTree(
     prog: EOProg[EOExprOnly]
-  ): EitherNel[
-    String,
-    Map[EONamedBnd, PartialObjectTree]
-  ] = {
+  ): EitherNel[String, Map[EONamedBnd, PartialObjectTree]] = {
     setLocators(prog).map(
       _.bnds
         .flatMap(bnd =>
@@ -69,16 +83,17 @@ object Inliner {
   }
 
   def zipWithInlinedMethod[P <: GenericParentInfo](
-    obj: ObjectTree[P, MethodInfo, ObjectInfo]
-  ): EitherNel[String, ObjectTree[P, MethodInfoAfterInlining, ObjectInfo]] = {
-    obj.traverseMethods((name, curMethod, curObj) =>
-      inlineCalls(curObj.methods, name).map(bodyAfter =>
-        MethodInfoAfterInlining(
-          body = curMethod.body,
-          bodyAfterInlining = bodyAfter
+    obj: ObjectTree[ObjectInfo[P, MethodInfo]]
+  ): EitherNel[String, ObjectTree[ObjectInfo[P, MethodInfoAfterInlining]]] = {
+    obj.traverseMethods[P, MethodInfo, EitherNel[String, *], MethodInfoAfterInlining, ObjectInfo](
+      (name, curMethod, curObj) =>
+        inlineCalls(curObj.methods, name).map(bodyAfter =>
+          MethodInfoAfterInlining(
+            body = curMethod.body,
+            bodyAfterInlining = bodyAfter
+          )
         )
       )
-    )
   }
 
   def resolveParents(
@@ -87,13 +102,6 @@ object Inliner {
 
     type Context = Map[EONamedBnd, PartialObjectTree]
     type PathToContext = Optional[Context, Context]
-
-    def focusObjTreeChildren[
-      P <: GenericParentInfo,
-      M <: GenericMethodInfo,
-      O[_ <: GenericParentInfo, _ <: GenericMethodInfo] <: GenericObjectInfo[_, _, O]
-    ]: Lens[ObjectTree[P, M, O], Map[EONamedBnd, ObjectTree[P, M, O]]] =
-      GenLens[ObjectTree[P, M, O]](_.children)
 
     def retrieveParentInfo(ctxs: Nel[PathToContext])
                           (info: Option[ParentName]):
@@ -160,6 +168,112 @@ object Inliner {
         )
       ).map((name, _))
     }.map(_.toMap)
+  }
+
+  def resolveIndirectMethods(
+    objs: Map[EONamedBnd, CompleteObjectTree]
+  ): EitherNel[String, Map[EONamedBnd, ObjectTreeForAnalysis]] = {
+
+    def accumulateMethods(cur: CompleteObjectTree): Map[EONamedBnd, MethodInfo] = {
+      val parent = cur.info.parentInfo.flatMap(_.linkToParent.getOption(objs))
+      cur.info.methods.concat(parent match {
+        case Some(parent) => accumulateMethods(parent)
+        case None => Map()
+      })
+    }
+
+
+    def recurse(cur: CompleteObjectTree): EitherNel[String, ObjectTreeForAnalysis] = {
+       val allMethods = accumulateMethods(cur)
+        (
+          Right(allMethods.removedAll(cur.info.methods.keySet)),
+          cur.children.toList.parTraverse {
+            case (name, subTree) =>
+              recurse(subTree).map((name, _))
+          }.map(_.toMap)
+
+        )
+        .mapN((methods, children) =>
+          ObjectTree(
+            ObjectInfoForAnalysis(
+              methods = cur.info.methods,
+              parentInfo = cur.info.parentInfo.map(_.asInstanceOf[ParentInfo[MethodInfo, ObjectInfoForAnalysis]]),
+              indirectMethods = methods.map {
+                case (name, info) => (name, MethodInfoForAnalysis(body = info.body, depth = info.depth))
+              },
+              allMethods = allMethods.map {
+                case (name, info) => (name, MethodInfoForAnalysis(body = info.body, depth = info.depth))
+              }
+            ),
+            children
+          )
+        )
+    }
+
+
+    objs.toList.parTraverse {
+      case (name, tree) => recurse(tree).map((name, _))
+    }.map(_.toMap)
+
+
+  }
+
+  def collectIndirectMethods(objs: Map[EONamedBnd, ObjectTreeForAnalysis]
+  ): Vector[Map[EONamedBnd, MethodInfoForAnalysis]] = {
+
+    def collectIndirectMethodsFromSubTree(cur: ObjectTreeForAnalysis
+    ): Vector[Map[EONamedBnd, MethodInfoForAnalysis]] = {
+      cur.info.indirectMethods +: collectIndirectMethods(cur.children)
+    }
+
+    objs.toList.foldMapK {
+      case (_, node) => collectIndirectMethodsFromSubTree(node)
+    }
+  }
+
+
+  // TODO: this is bound to fail at some point
+//  def zipIndirectMethods(
+//    a: Vector[Map[EONamedBnd, EOObj[EOExprOnly]]],
+//    b: Vector[Map[EONamedBnd, EOObj[EOExprOnly]]]
+//  ): Vector[Map[EONamedBnd, (EOObj[EOExprOnly], EOObj[EOExprOnly])]] = {
+//    a.alignWith(b)(_.onlyBoth.get match {
+//      case (a, b) => a.alignWith(b)(_.onlyBoth.get)
+//    })
+//  }
+
+  def zipMethodsWithTheirInlinedVersionsFromParent(prog: EOProg[EOExprOnly]
+  ): EitherNel[
+    String,
+    Map[
+      EONamedBnd,
+      ObjectTree[
+        (
+          ObjectInfoForAnalysis[ParentInfo[MethodInfo, ObjectInfoForAnalysis], MethodInfo],
+          ObjectInfoForAnalysis[ParentInfo[MethodInfo, ObjectInfoForAnalysis], MethodInfo],
+        )
+      ]
+    ]
+  ] = {
+    val methods = for {
+      tree <- createObjectTree(prog)
+      treeWithParents <- resolveParents(tree)
+      treeWithIndirectMethods <- resolveIndirectMethods(treeWithParents)
+    } yield treeWithIndirectMethods
+
+    val methodsAfterInlining = for {
+      inlined <- inlineAllCalls(prog)
+      tree <- createObjectTree(inlined)
+      treeWithParents <- resolveParents(tree)
+      treeWithIndirectMethods <- resolveIndirectMethods(treeWithParents)
+    } yield treeWithIndirectMethods
+
+    for {
+      before <- methods
+      after <- methodsAfterInlining
+    } yield before.alignWith(after)(_.onlyBoth.get match {
+      case (before, after) => before.zip(after)
+    })
   }
 
   def incLocatorBy(n: BigInt)(
@@ -473,7 +587,7 @@ object Inliner {
   }
 
   def rebuildObject[P <: GenericParentInfo](
-    obj: ObjectTree[P, MethodInfo, ObjectInfo]
+    obj: ObjectTree[ObjectInfo[P, MethodInfo]]
   ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
 
     val newBinds: EitherNel[String, Vector[EOBndExpr[EOExprOnly]]] = obj
