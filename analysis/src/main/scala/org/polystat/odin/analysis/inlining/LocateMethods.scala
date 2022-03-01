@@ -78,7 +78,13 @@ object LocateMethods {
                     )
                   ),
                 parseParentName(next)
-                  .map(p => acc.copy(parentName = Some(p))),
+                  .map(p =>
+                    acc.copy(
+                      parentName = Some(p),
+                      otherBnds =
+                        otherBnds.appended(ParentPlaceholder(next.expr))
+                    )
+                  ),
               ).foldK
                 .getOrElse(
                   acc.copy(

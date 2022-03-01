@@ -20,6 +20,7 @@ package inlining {
   final case class MethodPlaceholder(name: EONamedBnd) extends BndPlaceholder
   final case class ObjectPlaceholder(name: EONamedBnd) extends BndPlaceholder
   final case class BndItself(bnd: EOBndExpr[EOExprOnly]) extends BndPlaceholder
+  final case class ParentPlaceholder(name: EOExprOnly) extends BndPlaceholder
 
   final case class ObjectName(names: Nel[String])
   final case class ObjectNameWithLocator(locator: BigInt, name: ObjectName)

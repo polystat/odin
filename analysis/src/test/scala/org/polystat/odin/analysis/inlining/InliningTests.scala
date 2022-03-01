@@ -86,14 +86,16 @@ object InliningTests {
                  |    self.g self z > x
                  |    x > @
                  |    
-                 |  [] > opa 
-                 |    
-                 |  [] > zhepa
-                 |    opa > @
+                 |  
                  |  [] > bebra
                  |    ^.zhepa > @
                  |    [self] > aboba
                  |      12 > @
+                 |  [] > zhepa
+                 |    opa > @
+                 |  [] > opa 
+                 |    
+                 |  
                  |
                  |[] > derived
                  |  obj > @
