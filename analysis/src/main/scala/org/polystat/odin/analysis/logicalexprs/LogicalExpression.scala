@@ -1,27 +1,23 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.logicalexprs
 
-import smtlib.trees.Terms._
-import smtlib.theories.Ints._
-import smtlib.trees.Commands._
-import smtlib.theories.Core._
-
-import java.io.StringReader
-
-// import java.io.StringReader
 import ap.SimpleAPI
 import smtlib.printer.RecursivePrinter
+import smtlib.theories.Core.And
+import smtlib.theories.Ints._
+import smtlib.trees.Commands.{Assert, CheckSat, DeclareConst}
+import smtlib.trees.Terms.{QualifiedIdentifier, SSymbol, SimpleIdentifier}
 
-// import scala.util.Properties
+import java.io.StringReader
 
 object LogicalExpression {
 
   def main(args: Array[String]): Unit = {
 
     val x: QualifiedIdentifier =
-      QualifiedIdentifier(SimpleIdentifier(SSymbol("x")))
+      QualifiedIdentifier(SimpleIdentifier(SSymbol("x.a_0")))
     val y: QualifiedIdentifier =
       QualifiedIdentifier(SimpleIdentifier(SSymbol("y")))
-    val xDecl = DeclareConst(SSymbol("x"), IntSort())
+    val xDecl = DeclareConst(SSymbol("x.a_0"), IntSort())
     val yDecl = DeclareConst(SSymbol("y"), IntSort())
     val formula: Assert = Assert(
       And(
@@ -45,7 +41,7 @@ object LogicalExpression {
     SimpleAPI.withProver(dumpSMT = true)(p => {
       p.execSMTLIB(new StringReader(formulaStr))
       println(p.partialModel)
-//      println(p.???)
+      //      println(p.???)
     })
 
   }
