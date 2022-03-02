@@ -223,7 +223,9 @@ object ExtractLogic {
   ): EitherNel[String, List[String]] = {
     objs.toList.flatTraverse { case (_, tree) =>
       for {
-        currentRes <- checkMethods _ tupled tree.info
+        currentRes <- tree.info match {
+          case (before, after) => checkMethods(before, after)
+        }
         recurseRes <- processObjectTree(tree.children)
       } yield currentRes ++ recurseRes
     }
