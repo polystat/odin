@@ -113,15 +113,15 @@ object Optics {
       )
 
     def nonEmptyVectorIndexOptional[A](
-      i: Int
-    ): Optional[NonEmpty[A, Vector[A]], A] =
+                                        i: Int
+                                      ): Optional[NonEmpty[A, Vector[A]], A] =
       Optional[NonEmpty[A, Vector[A]], A](_.lift(i))(item =>
         seq => if (seq.isDefinedAt(i)) seq.updated(i, item) else seq
       )
 
     def focusBndAttrWithName(
-      name: EONamedBnd
-    ): Optional[EOObj[EOExprOnly], EOExprOnly] =
+                              name: EONamedBnd
+                            ): Optional[EOObj[EOExprOnly], EOExprOnly] =
       Optional[EOObj[EOExprOnly], EOExprOnly](obj =>
         obj.bndAttrs.find(_.bndName == name).map(_.expr)
       )(expr =>
@@ -137,8 +137,8 @@ object Optics {
       )
 
     def focusCopyArgAtIndex(
-      i: Int
-    ): Optional[EOCopy[EOExprOnly], EOExprOnly] =
+                             i: Int
+                           ): Optional[EOCopy[EOExprOnly], EOExprOnly] =
       Optional[EOCopy[EOExprOnly], EOExprOnly](copy =>
         copy.args.lift(i).map(_.expr)
       )(expr =>
@@ -153,8 +153,8 @@ object Optics {
       )
 
     def focusArrayElemAtIndex(
-      i: Int
-    ): Optional[EOArray[EOExprOnly], EOExprOnly] =
+                               i: Int
+                             ): Optional[EOArray[EOExprOnly], EOExprOnly] =
       Optional[EOArray[EOExprOnly], EOExprOnly](arr =>
         arr.elems.lift(i).map(_.expr)
       )(expr =>
@@ -167,6 +167,14 @@ object Optics {
             .getOrElse(arr)
       )
 
+    val bndToEONamedBND: Optional[EOBnd[EOExprOnly], EONamedBnd] =
+      Optional[EOBnd[EOExprOnly], EONamedBnd] {
+        case EOAnonExpr(_) => None
+        case EOBndExpr(bndName, _) => Some(bndName)
+      }(newName => {
+        case bnd@EOAnonExpr(_) => bnd
+        case bnd@EOBndExpr(_, _) => bnd.copy(bndName = newName)
+      })
   }
 
   object traversals {
@@ -174,7 +182,7 @@ object Optics {
     def nonEmptyVectorTraversal[A]: Traversal[NonEmpty[A, Vector[A]], A] =
       new Traversal[NonEmpty[A, Vector[A]], A] {
 
-        override def modifyA[F[_]: Applicative](f: A => F[A])(
+        override def modifyA[F[_] : Applicative](f: A => F[A])(
           s: NonEmpty[A, Vector[A]]
         ): F[NonEmpty[A, Vector[A]]] = {
           (
@@ -202,7 +210,7 @@ object Optics {
     val eoCopy: Traversal[EOCopy[EOExprOnly], EOExprOnly] =
       new Traversal[EOCopy[EOExprOnly], EOExprOnly] {
 
-        override def modifyA[F[_]: Applicative](f: EOExprOnly => F[EOExprOnly])(
+        override def modifyA[F[_] : Applicative](f: EOExprOnly => F[EOExprOnly])(
           s: EOCopy[EOExprOnly]
         ): F[EOCopy[EOExprOnly]] =
           (
@@ -210,14 +218,40 @@ object Optics {
             nonEmptyVectorTraversal[EOBnd[EOExprOnly]]
               .andThen(lenses.focusFromBndToExpr)
               .modifyA(f)(s.args),
-          ).mapN(EOCopy.apply)
+            ).mapN(EOCopy.apply)
 
       }
 
-    val eoObjBndAttrs: Traversal[EOObj[EOExprOnly], EOExprOnly] =
+    val eoProgBndAttrs: Traversal[EOProg[EOExprOnly], EOBnd[EOExprOnly]] =
+      new Traversal[EOProg[EOExprOnly], EOBnd[EOExprOnly]] {
+
+        override def modifyA[F[_] : Applicative](f: EOBnd[EOExprOnly] => F[EOBnd[EOExprOnly]])(
+          s: EOProg[EOExprOnly]
+        ): F[EOProg[EOExprOnly]] =
+          Traversal
+            .fromTraverse[Vector, EOBnd[EOExprOnly]]
+            .modifyA(f)(s.bnds)
+            .map(bnds => s.copy(bnds = bnds))
+
+      }
+
+    val eoObjBndAttrs: Traversal[EOObj[EOExprOnly], EOBndExpr[EOExprOnly]] =
+      new Traversal[EOObj[EOExprOnly], EOBndExpr[EOExprOnly]] {
+
+        override def modifyA[F[_] : Applicative](f: EOBndExpr[EOExprOnly] => F[EOBndExpr[EOExprOnly]])(
+          s: EOObj[EOExprOnly]
+        ): F[EOObj[EOExprOnly]] =
+          Traversal
+            .fromTraverse[Vector, EOBndExpr[EOExprOnly]]
+            .modifyA(f)(s.bndAttrs)
+            .map(bnds => s.copy(bndAttrs = bnds))
+
+      }
+
+    val eoObjBndAttrExprs: Traversal[EOObj[EOExprOnly], EOExprOnly] =
       new Traversal[EOObj[EOExprOnly], EOExprOnly] {
 
-        override def modifyA[F[_]: Applicative](f: EOExprOnly => F[EOExprOnly])(
+        override def modifyA[F[_] : Applicative](f: EOExprOnly => F[EOExprOnly])(
           s: EOObj[EOExprOnly]
         ): F[EOObj[EOExprOnly]] =
           Traversal
@@ -231,7 +265,7 @@ object Optics {
     val eoArrayElems: Traversal[EOArray[EOExprOnly], EOExprOnly] =
       new Traversal[EOArray[EOExprOnly], EOExprOnly] {
 
-        override def modifyA[F[_]: Applicative](f: EOExprOnly => F[EOExprOnly])(
+        override def modifyA[F[_] : Applicative](f: EOExprOnly => F[EOExprOnly])(
           s: EOArray[EOExprOnly]
         ): F[EOArray[EOExprOnly]] =
           Traversal

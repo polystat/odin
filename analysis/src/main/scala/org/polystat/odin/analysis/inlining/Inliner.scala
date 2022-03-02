@@ -49,10 +49,9 @@ object Inliner {
     GenLens[ObjectTree[O[P, M]]](_.children)
 
 
-
   def inlineAllCalls(
-    prog: EOProg[EOExprOnly]
-  ): EitherNel[String, EOProg[EOExprOnly]] = {
+                      prog: EOProg[EOExprOnly]
+                    ): EitherNel[String, EOProg[EOExprOnly]] = {
     for {
       progWithLocators <- setLocators(prog)
       newProg <- progWithLocators
@@ -69,8 +68,8 @@ object Inliner {
   }
 
   def createObjectTree(
-    prog: EOProg[EOExprOnly]
-  ): EitherNel[String, Map[EONamedBnd, PartialObjectTree]] = {
+                        prog: EOProg[EOExprOnly]
+                      ): EitherNel[String, Map[EONamedBnd, PartialObjectTree]] = {
     setLocators(prog).map(
       _.bnds
         .flatMap(bnd =>
@@ -83,8 +82,8 @@ object Inliner {
   }
 
   def zipWithInlinedMethod[P <: GenericParentInfo](
-    obj: ObjectTree[ObjectInfo[P, MethodInfo]]
-  ): EitherNel[String, ObjectTree[ObjectInfo[P, MethodInfoAfterInlining]]] = {
+                                                    obj: ObjectTree[ObjectInfo[P, MethodInfo]]
+                                                  ): EitherNel[String, ObjectTree[ObjectInfo[P, MethodInfoAfterInlining]]] = {
     obj.traverseMethods[P, MethodInfo, EitherNel[String, *], MethodInfoAfterInlining, ObjectInfo](
       (name, curMethod, curObj) =>
         inlineCalls(curObj.methods, name).map(bodyAfter =>
@@ -93,12 +92,12 @@ object Inliner {
             bodyAfterInlining = bodyAfter
           )
         )
-      )
+    )
   }
 
   def resolveParents(
-    objs: Map[EONamedBnd, PartialObjectTree]
-  ): EitherNel[String, Map[EONamedBnd, CompleteObjectTree]] = {
+                      objs: Map[EONamedBnd, PartialObjectTree]
+                    ): EitherNel[String, Map[EONamedBnd, CompleteObjectTree]] = {
 
     type Context = Map[EONamedBnd, PartialObjectTree]
     type PathToContext = Optional[Context, Context]
@@ -110,11 +109,11 @@ object Inliner {
       Option[ParentInfo[MethodInfo, ObjectInfo]]
     ] = {
       info match {
-        case Some(info @ ParentName(ObjectNameWithLocator(locator, name))) =>
+        case Some(info@ParentName(ObjectNameWithLocator(locator, name))) =>
           val names = name.names
           val pathFromCtxToObj =
-          names.map(name => optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](EOAnyNameBnd(LazyName(name))))
-            .reduceLeft((acc, next) => acc.andThen(focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo]).andThen(next))
+            names.map(name => optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](EOAnyNameBnd(LazyName(name))))
+              .reduceLeft((acc, next) => acc.andThen(focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo]).andThen(next))
           val pathToObject = ctxs.toList.lift(locator.toInt).toRight(Nel.one(
             s"Locator overshoot at ${info.toEOName}"
           )).map(_.andThen(pathFromCtxToObj))
@@ -138,25 +137,25 @@ object Inliner {
 
     def recurse(cur: PartialObjectTree)(ctxs: Nel[PathToContext]): EitherNel[String, CompleteObjectTree] = {
       val parentName = cur.info.parentInfo
-          (
-            retrieveParentInfo(ctxs)(parentName),
-            cur.children.toList.parTraverse {
-              case (name, subTree) =>
-                val ctx =
-                  ctxs
-                    .head
-                    .andThen(optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](name))
-                    .andThen(focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo])
-                recurse(subTree)(ctxs.prepend(ctx)).map((name, _))
-            }.map(_.toMap)
+      (
+        retrieveParentInfo(ctxs)(parentName),
+        cur.children.toList.parTraverse {
+          case (name, subTree) =>
+            val ctx =
+              ctxs
+                .head
+                .andThen(optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](name))
+                .andThen(focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo])
+            recurse(subTree)(ctxs.prepend(ctx)).map((name, _))
+        }.map(_.toMap)
 
-            )
-            .mapN((info, children) =>
-              ObjectTree(
-                cur.info.copy(parentInfo = info),
-                children
-              )
-            )
+        )
+        .mapN((info, children) =>
+          ObjectTree(
+            cur.info.copy(parentInfo = info),
+            children
+          )
+        )
     }
 
 
@@ -171,8 +170,8 @@ object Inliner {
   }
 
   def resolveIndirectMethods(
-    objs: Map[EONamedBnd, CompleteObjectTree]
-  ): EitherNel[String, Map[EONamedBnd, ObjectTreeForAnalysis]] = {
+                              objs: Map[EONamedBnd, CompleteObjectTree]
+                            ): EitherNel[String, Map[EONamedBnd, ObjectTreeForAnalysis]] = {
 
     def accumulateMethods(cur: CompleteObjectTree): Map[EONamedBnd, MethodInfo] = {
       val parent = cur.info.parentInfo.flatMap(_.linkToParent.getOption(objs))
@@ -184,13 +183,13 @@ object Inliner {
 
 
     def recurse(cur: CompleteObjectTree): EitherNel[String, ObjectTreeForAnalysis] = {
-       val allMethods = accumulateMethods(cur)
-        (
-          Right(allMethods.removedAll(cur.info.methods.keySet)),
-          cur.children.toList.parTraverse {
-            case (name, subTree) =>
-              recurse(subTree).map((name, _))
-          }.map(_.toMap)
+      val allMethods = accumulateMethods(cur)
+      (
+        Right(allMethods.removedAll(cur.info.methods.keySet)),
+        cur.children.toList.parTraverse {
+          case (name, subTree) =>
+            recurse(subTree).map((name, _))
+        }.map(_.toMap)
 
         )
         .mapN((methods, children) =>
@@ -219,10 +218,10 @@ object Inliner {
   }
 
   def collectIndirectMethods(objs: Map[EONamedBnd, ObjectTreeForAnalysis]
-  ): Vector[Map[EONamedBnd, MethodInfoForAnalysis]] = {
+                            ): Vector[Map[EONamedBnd, MethodInfoForAnalysis]] = {
 
     def collectIndirectMethodsFromSubTree(cur: ObjectTreeForAnalysis
-    ): Vector[Map[EONamedBnd, MethodInfoForAnalysis]] = {
+                                         ): Vector[Map[EONamedBnd, MethodInfoForAnalysis]] = {
       cur.info.indirectMethods +: collectIndirectMethods(cur.children)
     }
 
@@ -231,27 +230,14 @@ object Inliner {
     }
   }
 
+  type AnalysisInfo = ObjectInfoForAnalysis[ParentInfo[MethodInfo, ObjectInfoForAnalysis], MethodInfo]
 
-  // TODO: this is bound to fail at some point
-//  def zipIndirectMethods(
-//    a: Vector[Map[EONamedBnd, EOObj[EOExprOnly]]],
-//    b: Vector[Map[EONamedBnd, EOObj[EOExprOnly]]]
-//  ): Vector[Map[EONamedBnd, (EOObj[EOExprOnly], EOObj[EOExprOnly])]] = {
-//    a.alignWith(b)(_.onlyBoth.get match {
-//      case (a, b) => a.alignWith(b)(_.onlyBoth.get)
-//    })
-//  }
-
-  def zipMethodsWithTheirInlinedVersionsFromParent(prog: EOProg[EOExprOnly]
-  ): EitherNel[
+  def zipMethodsWithTheirInlinedVersionsFromParent(prog: EOProg[EOExprOnly]): EitherNel[
     String,
     Map[
       EONamedBnd,
       ObjectTree[
-        (
-          ObjectInfoForAnalysis[ParentInfo[MethodInfo, ObjectInfoForAnalysis], MethodInfo],
-          ObjectInfoForAnalysis[ParentInfo[MethodInfo, ObjectInfoForAnalysis], MethodInfo],
-        )
+        (AnalysisInfo, AnalysisInfo)
       ]
     ]
   ] = {
@@ -287,9 +273,9 @@ object Inliner {
   }
 
   def propagateArguments(
-    methodInfo: MethodInfo,
-    call: Call,
-  ): EOObj[EOExprOnly] = {
+                          methodInfo: MethodInfo,
+                          call: Call,
+                        ): EOObj[EOExprOnly] = {
     val argMap = methodInfo.body.freeAttrs.map(_.name).zip(call.args).toMap
     val localNames = methodInfo
       .body
@@ -301,8 +287,8 @@ object Inliner {
       .map(_.bndName.name.name)
 
     def getAppReplacementFromArgMap(
-      currentDepth: BigInt
-    ): EOExprOnly => Option[EOExprOnly] = {
+                                     currentDepth: BigInt
+                                   ): EOExprOnly => Option[EOExprOnly] = {
       case EOSimpleAppWithLocator(name, locator) if locator == currentDepth =>
         argMap
           .get(name)
@@ -311,11 +297,11 @@ object Inliner {
     }
 
     def propagateArguments(
-      currentDepth: BigInt
-    ): EOExprOnly => EOExprOnly = {
+                            currentDepth: BigInt
+                          ): EOExprOnly => EOExprOnly = {
       // It is an argument
-      case app @ Fix(EOSimpleAppWithLocator(name, locator))
-           if locator == currentDepth =>
+      case app@Fix(EOSimpleAppWithLocator(name, locator))
+        if locator == currentDepth =>
         argMap
           .get(name)
           // Increase all locators in the expression by their depth
@@ -328,9 +314,9 @@ object Inliner {
           .getOrElse(app)
 
       // It is some other application
-      case app @ Fix(EOSimpleAppWithLocator(name, locator))
-           // Checking that it does not point to a local attribute
-           if !(localNames.contains(name) && locator == currentDepth) =>
+      case app@Fix(EOSimpleAppWithLocator(name, locator))
+        // Checking that it does not point to a local attribute
+        if !(localNames.contains(name) && locator == currentDepth) =>
         prisms
           .fixToEOSimpleAppWithLocator
           .andThen(
@@ -372,9 +358,9 @@ object Inliner {
   }
 
   def processPhi(
-    phiExpr: EOExpr[EOExprOnly],
-    attrsObj: Option[EOBndExpr[EOExprOnly]]
-  ): EOExpr[EOExprOnly] = {
+                  phiExpr: EOExpr[EOExprOnly],
+                  attrsObj: Option[EOBndExpr[EOExprOnly]]
+                ): EOExpr[EOExprOnly] = {
 
     val attrsObjName = attrsObj.map(_.bndName.name.name)
     val availableBndNames =
@@ -385,25 +371,24 @@ object Inliner {
     def makeAppPointToAttrsObjIfNecessary(depth: BigInt)(
       app: EOExprOnly
     ): EOExprOnly = {
-      val attrMap = attrsObjName.flatMap { objName =>
-        {
-          availableBndNames.map { names =>
-            // Applications that are expected to refer to the attrsObj
-            val apps =
-              names.map(name => EOSimpleAppWithLocator(name, depth))
-            // Application properly referring to the attrsObj
-            val appsToAttrsObj = apps.map(app =>
-              EODot(
-                Fix[EOExpr](EOSimpleAppWithLocator(objName, depth)),
-                app.name
-              )
+      val attrMap = attrsObjName.flatMap { objName => {
+        availableBndNames.map { names =>
+          // Applications that are expected to refer to the attrsObj
+          val apps =
+            names.map(name => EOSimpleAppWithLocator(name, depth))
+          // Application properly referring to the attrsObj
+          val appsToAttrsObj = apps.map(app =>
+            EODot(
+              Fix[EOExpr](EOSimpleAppWithLocator(objName, depth)),
+              app.name
             )
-            // Making application correspond to the proper reference to attrsObj
-            apps
-              .zip(appsToAttrsObj)
-              .toMap[EOExpr[EOExprOnly], EODot[EOExprOnly]]
-          }
+          )
+          // Making application correspond to the proper reference to attrsObj
+          apps
+            .zip(appsToAttrsObj)
+            .toMap[EOExpr[EOExprOnly], EODot[EOExprOnly]]
         }
+      }
       }
 
       attrMap
@@ -430,9 +415,9 @@ object Inliner {
   }
 
   def inlineCalls(
-    availableMethods: Map[EONamedBnd, MethodInfo],
-    methodNameWhereToInline: EONamedBnd
-  ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
+                   availableMethods: Map[EONamedBnd, MethodInfo],
+                   methodNameWhereToInline: EONamedBnd
+                 ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
 
     val methodWhereInliningHappens = availableMethods(methodNameWhereToInline)
     val methodBody = methodWhereInliningHappens
@@ -452,8 +437,8 @@ object Inliner {
             )
 
         def checkThatTheAmountOfArgsIsCorrect(
-          methodToInlineInfo: MethodInfo
-        ): EitherNel[String, Unit] = {
+                                               methodToInlineInfo: MethodInfo
+                                             ): EitherNel[String, Unit] = {
 
           if (methodToInlineInfo.body.freeAttrs.length == call.args.length)
             Right(())
@@ -465,8 +450,8 @@ object Inliner {
         }
 
         def extractPhiExpr(
-          methodBody: EOObj[EOExprOnly]
-        ): EitherNel[String, EOExpr[EOExprOnly]] =
+                            methodBody: EOObj[EOExprOnly]
+                          ): EitherNel[String, EOExpr[EOExprOnly]] =
           methodBody
             .bndAttrs
             .collectFirst { case EOBndExpr(EODecoration, Fix(phiExpr)) =>
@@ -480,7 +465,7 @@ object Inliner {
 
         def getCallsite: EitherNel[String, EOObj[EOExprOnly]] =
           currentMethodBodyWhereInliningHappens match {
-            case err @ Left(_) => err
+            case err@Left(_) => err
             case Right(body) =>
               call
                 .callSite
@@ -495,9 +480,9 @@ object Inliner {
           }
 
         def addAttrsObjToCallSiteIfNecessary(
-          attrsObj: Option[EOBndExpr[EOExprOnly]],
-          callSite: EOObj[EOExprOnly]
-        ): EitherNel[String, EOObj[EOExprOnly]] = {
+                                              attrsObj: Option[EOBndExpr[EOExprOnly]],
+                                              callSite: EOObj[EOExprOnly]
+                                            ): EitherNel[String, EOObj[EOExprOnly]] = {
           attrsObj
             .map(localAttrsObj =>
               call
@@ -511,8 +496,8 @@ object Inliner {
                   Nel
                     .one(
                       s"""
-                        |Could not modify call-site for ${call.methodName}.
-                        |This is most probably a programming error, report to developers."""
+                         |Could not modify call-site for ${call.methodName}.
+                         |This is most probably a programming error, report to developers."""
                     )
                 )
             )
@@ -521,8 +506,8 @@ object Inliner {
         }
 
         def extractLocalAttrsObj(
-          nonPhiBnds: Vector[EOBndExpr[EOExprOnly]]
-        ): EitherNel[String, Option[EOBndExpr[Fix[EOExpr]]]] = {
+                                  nonPhiBnds: Vector[EOBndExpr[EOExprOnly]]
+                                ): EitherNel[String, Option[EOBndExpr[Fix[EOExpr]]]] = {
           if (nonPhiBnds.nonEmpty) {
 
             val attrsObjName = getCallsite.map(callsite =>
@@ -587,8 +572,8 @@ object Inliner {
   }
 
   def rebuildObject[P <: GenericParentInfo](
-    obj: ObjectTree[ObjectInfo[P, MethodInfo]]
-  ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
+                                             obj: ObjectTree[ObjectInfo[P, MethodInfo]]
+                                           ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
 
     val newBinds: EitherNel[String, Vector[EOBndExpr[EOExprOnly]]] = obj
       .info
@@ -601,11 +586,12 @@ object Inliner {
             .children
             .get(objName)
             .toRight(
-              Nel.one(s"""
-                         |Object with name ${objName.name.name}
-                         |can not be found directly in ${obj.info.name.name}. 
-                         |This is most probably a programming error, report to developers.
-                         |""".stripMargin)
+              Nel.one(
+                s"""
+                   |Object with name ${objName.name.name}
+                   |can not be found directly in ${obj.info.name.name}.
+                   |This is most probably a programming error, report to developers.
+                   |""".stripMargin)
             )
             .flatMap(rebuildObject[P])
         case ParentPlaceholder(expr) => Right(EOBndExpr(EODecoration, expr))

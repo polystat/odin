@@ -32,6 +32,8 @@ abstract class BaseLObj(attrs: List[AttrBnd], val name: String) extends LExpr {
   protected def innerDeclarations(prefix: String): List[DeclareConst] =
     attrs.map(_.content).flatMap {
       case obj: BaseLObj => obj.declarations(prefix + obj.name)
+      // TODO properly add methodname
+      case call: LCall => call.method.declarations("")
       case _ => List()
     }
 
@@ -62,15 +64,6 @@ abstract class BaseLObj(attrs: List[AttrBnd], val name: String) extends LExpr {
 final case class LObj(attrs: List[AttrBnd], phi: Option[LExpr], override val name: String) extends BaseLObj(attrs, name) {
   override def declarations(prefix: String): List[DeclareConst] =
     attrDeclarations(prefix) ++ innerDeclarations(prefix)
-  //    attrDeclarations.map(declLens.modify(prefix.concat))
-  //  {
-  //    val localIdentifiers = attrs.map(_.declaration)
-  //
-  //    localIdentifiers ++ attrs.flatMap(a => a.content match {
-  //      case obj: BaseLObj => obj.declarations // Todo adjust names for nested declarations
-  //      case _ => List()
-  //    })
-  //  }
 
   override def expr(prefix: String): Term = phi.map(_.expr(prefix)).getOrElse(True())
 
@@ -89,12 +82,6 @@ final case class LMethod(attrs: List[AttrBnd], arguments: List[Attr], phiAttr: L
   override def expr(prefix: String): Term = phiAttr.expr(prefix)
 
   override def properties(prefix: String): Term = And(namesCorrespond(prefix), attrProps(prefix), phiAttr.properties(prefix))
-
-//  lazy val SMTRepresentation: String = {
-//    // Todo check whether the prefix here should really be empty
-//    val prog = declarations("") ++ List(Assert(properties("")))
-//    prog.map(RecursivePrinter.toString).mkString
-//  }
 }
 
 final case class LCall(method: LMethod, argValues: List[LExpr], prefix: String = "") extends LExpr {
@@ -105,7 +92,8 @@ final case class LCall(method: LMethod, argValues: List[LExpr], prefix: String =
       case (name, arg) => Equals(name, arg.expr(prefix))
     }
 
-  override def properties(prefix: String): Term = And(And(argValues.map(_.properties(prefix))), And(argNamesCorrespond))
+  override def properties(prefix: String): Term =
+    And(And(argValues.map(_.properties(prefix))), And(argNamesCorrespond), method.properties(prefix))
 
   override def expr(prefix: String): Term = method.expr(prefix)
 }
@@ -118,7 +106,12 @@ final case class LAssert(content: LExpr) extends LExpr {
 }
 
 final case class LSeq(expressions: List[LExpr]) extends LExpr {
-  override def properties(prefix: String): Term = And(expressions.map(_.properties(prefix)))
+  override def properties(prefix: String): Term =
+    expressions match {
+      case one :: Nil => one.properties(prefix)
+      case several if several.nonEmpty =>  And(several.map(_.properties(prefix)))
+      case _ => True()
+    }
 
   override def expr(prefix: String): Term = expressions.last.expr(prefix)
 }

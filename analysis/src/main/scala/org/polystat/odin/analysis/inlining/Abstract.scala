@@ -39,7 +39,7 @@ object Abstract {
       Fix.un(subExpr) match {
         case obj: EOObj[EOExprOnly] =>
           traversals
-            .eoObjBndAttrs
+            .eoObjBndAttrExprs
             .modifyA(recurse(depth + 1)(modifyState(obj)(depth + 1)(state)))(
               obj
             )
