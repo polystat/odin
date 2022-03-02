@@ -4,8 +4,17 @@ import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import org.polystat.odin.analysis
 import org.polystat.odin.interop.java.OdinAnalysisErrorInterop.fromOdinAnalysisError
-import org.polystat.odin.analysis.EOOdinAnalyzer.advancedMutualRecursionAnalyzer
+import org.polystat.odin.analysis.EOOdinAnalyzer.{
+  advancedMutualRecursionAnalyzer,
+  unjustifiedAssumptionAnalyzer,
+  OdinAnalysisError
+}
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
+import fs2.Stream
+import org.polystat.odin.analysis.ASTAnalyzer
+import org.polystat.odin.core.ast.EOProg
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.parser.EoParser
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -21,6 +30,38 @@ trait EOOdinAnalyzer[R] {
 
 object EOOdinAnalyzer {
 
+  private val analyzers: List[(String, ASTAnalyzer[IO])] =
+    List(
+      ("[Mutual Recursion]", advancedMutualRecursionAnalyzer[IO]),
+      ("[Unjustified Assumption]", unjustifiedAssumptionAnalyzer[IO]),
+    )
+
+  private def runAnalyzers(
+    code: String,
+    parser: EoParser[String, IO, EOProg[EOExprOnly]]
+  )(implicit runtime: IORuntime): util.List[OdinAnalysisErrorInterop] = {
+    Stream
+      .emits(analyzers)
+      .flatMap { case (prefix, analyzer) =>
+        analysis
+          .EOOdinAnalyzer
+          .analyzeSourceCode(analyzer)(
+            code
+          )(
+            parser
+          )
+          .map { case OdinAnalysisError(msg) =>
+            OdinAnalysisError(List(prefix, msg).mkString(" "))
+          }
+          .map(fromOdinAnalysisError)
+      }
+      .compile
+      .toList
+      .unsafeRunSync()
+      .asJava
+
+  }
+
   class EOOdinSourceCodeAnalyzer() extends EOOdinAnalyzer[String] {
 
     implicit private val runtime: IORuntime = IORuntime.global
@@ -29,26 +70,13 @@ object EOOdinAnalyzer {
     override def analyze(
       eoRepr: String
     ): java.util.List[OdinAnalysisErrorInterop] =
-      analysis
-        .EOOdinAnalyzer
-        .analyzeSourceCode[String, IO](advancedMutualRecursionAnalyzer)(eoRepr)(
-          sourceCodeEoParser()
-        )
-        .map(fromOdinAnalysisError)
-        .compile
-        .toList
-        .unsafeRunSync()
-        .asJava
+      runAnalyzers(eoRepr, sourceCodeEoParser())
 
   }
 
   class EOOdinXmirAnalyzer() extends EOOdinAnalyzer[String] {
 
-    import org.polystat.odin.parser.EoParser.{
-      xmirToEoBndEoParser,
-      xmirToEoProgEoParser
-    }
-    import org.polystat.odin.parser.xmir.XmirToAst.string
+    import org.polystat.odin.parser.EoParser.xmirToEoProgEoParser
 
     implicit private val runtime: IORuntime = IORuntime.global
 
@@ -56,16 +84,7 @@ object EOOdinAnalyzer {
     override def analyze(
       eoRepr: String
     ): util.List[OdinAnalysisErrorInterop] =
-      analysis
-        .EOOdinAnalyzer
-        .analyzeSourceCode[String, IO](advancedMutualRecursionAnalyzer)(eoRepr)(
-          xmirToEoProgEoParser
-        )
-        .map(fromOdinAnalysisError)
-        .compile
-        .toList
-        .unsafeRunSync()
-        .asJava
+      runAnalyzers(eoRepr, xmirToEoProgEoParser)
 
   }
 
