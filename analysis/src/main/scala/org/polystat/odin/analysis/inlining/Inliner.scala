@@ -175,10 +175,12 @@ object Inliner {
 
     def accumulateMethods(cur: CompleteObjectTree): Map[EONamedBnd, MethodInfo] = {
       val parent = cur.info.parentInfo.flatMap(_.linkToParent.getOption(objs))
-      cur.info.methods.concat(parent match {
+      val parentMethods: Map[EONamedBnd, MethodInfo] = parent match {
         case Some(parent) => accumulateMethods(parent)
         case None => Map()
-      })
+      }
+
+      parentMethods.concat(cur.info.methods)
     }
 
 
