@@ -1,4 +1,3 @@
-
 // TODO: Unjustified assumption and Mutual Recursion analyses share a lot in common.
 // TODO: Would be nice to abstract the common stuff into this file
 //package org.polystat.odin

@@ -102,12 +102,7 @@ object Inliner {
     type Context = Map[EONamedBnd, PartialObjectTree]
     type PathToContext = Optional[Context, Context]
 
-    def retrieveParentInfo(ctxs: Nel[PathToContext])
-                          (info: Option[ParentName]):
-    EitherNel[
-      String,
-      Option[ParentInfo[MethodInfo, ObjectInfo]]
-    ] = {
+    def retrieveParentInfo(ctxs: Nel[PathToContext])(info: Option[ParentName]): EitherNel[String, Option[ParentInfo[MethodInfo, ObjectInfo]]] = {
       info match {
         case Some(info@ParentName(ObjectNameWithLocator(locator, name))) =>
           val names = name.names
