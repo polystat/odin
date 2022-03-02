@@ -185,17 +185,17 @@ package inlining {
       s"""MethodInfoAfterInlining(
          |  body = 
          |${body
-        .toEO
-        .map(_.map((" " * 4).concat(_)))
-        .map(_.mkString(util.Properties.lineSeparator))
-        .merge}
+          .toEO
+          .map(_.map((" " * 4).concat(_)))
+          .map(_.mkString(util.Properties.lineSeparator))
+          .merge}
          |  bodyAfterInlining = 
          |${bodyAfterInlining
-        .expr
-        .toEO
-        .map(_.map((" " * 4).concat(_)))
-        .map(_.mkString(util.Properties.lineSeparator))
-        .merge}
+          .expr
+          .toEO
+          .map(_.map((" " * 4).concat(_)))
+          .map(_.mkString(util.Properties.lineSeparator))
+          .merge}
          |)
          |""".stripMargin
 

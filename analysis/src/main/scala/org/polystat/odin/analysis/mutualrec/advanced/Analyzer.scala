@@ -209,7 +209,8 @@ object Analyzer {
   def resolveParent[F[_]](
     progTree: Tree[PartialObject] // only for lookup
   )(
-    of: ObjectName, // object whose parent is being resolved, used for error reporting
+    of: ObjectName, /* object whose parent is being resolved, used for error
+     * reporting */
     maybeParentName: Option[ObjectName], // parent object name
   )(implicit F: MonadError[F, String]): F[Option[ParentInfo]] = {
     // returns:
@@ -245,9 +246,11 @@ object Analyzer {
   }
 
   def convertPartialCg[F[_]](
-    objectName: ObjectName, // where call graph is defined, used for error reporting
+    objectName: ObjectName, /* where call graph is defined, used for error
+     * reporting */
     pcg: PartialCallGraph, // call graph to resolve
-    maybeParent: Option[ParentInfo] // the parent object to resolve methods from parent obj
+    maybeParent: Option[ParentInfo] /* the parent object to resolve methods from
+     * parent obj */
   )(implicit F: MonadError[F, String]): F[CallGraph] = {
 
     def createErrorMsg(methodName: String): String = {

@@ -140,8 +140,8 @@ object LocateCalls {
     Fix.un(methodBnd.expr) match {
       case obj @ EOObj(params, _, bndAttrs)
            if hasSelfAsFirstParam(params) &&
-             hasPhiAttribute(bndAttrs) &&
-             hasNoReferencesToPhi(bndAttrs) =>
+           hasPhiAttribute(bndAttrs) &&
+           hasNoReferencesToPhi(bndAttrs) =>
         Some(MethodInfo(findCalls(obj), obj, bndDepth))
       case _ => None
     }
