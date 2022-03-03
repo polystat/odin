@@ -305,7 +305,7 @@ object ParserTests {
 
   val examplesFromSources: IO[List[TestCase[EOProg[EOExprOnly]]]] =
     files
-      .readEoCodeFromDirectory[IO]("/eo_sources")
+      .readEoCodeFromDirectory[IO]("eo_sources")
       .map(
         _.map { case (name, code) =>
           TestCase(label = name, code = code)

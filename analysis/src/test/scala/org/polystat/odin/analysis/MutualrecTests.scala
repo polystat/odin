@@ -96,7 +96,7 @@ class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
       """Method "f" was called from the object "derived", although it is not defined there!"""
   )
 
-  runTestsFrom[IO]("/mutualrec/with_recursion") { (fileName, code) =>
+  runTestsFrom[IO]("mutualrec/with_recursion") { (fileName, code) =>
     for {
       expectedErrors <- parseCallChains[IO](fileNameToChain(fileName))
       actualErrors <- odinErrors[IO](code)
@@ -104,11 +104,11 @@ class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
     } yield assertEquals(actualErrors.toSet, expectedErrors.toSet)
   }.unsafeRunSync()
 
-  runTestsFrom[IO]("/mutualrec/no_recursion") { (_, code) =>
+  runTestsFrom[IO]("mutualrec/no_recursion") { (_, code) =>
     odinErrors[IO](code).map(errors => assert(errors.isEmpty))
   }.unsafeRunSync()
 
-  runTestsFrom[IO]("/mutualrec/failing") { (fileName, code) =>
+  runTestsFrom[IO]("mutualrec/failing") { (fileName, code) =>
     interceptIO[Exception](odinErrors[IO](code))
       .map(error => assertEquals(error.getMessage, expectedError(fileName)))
   }.unsafeRunSync()
