@@ -1,11 +1,11 @@
 package org.polystat.odin.parser.eo
 
 import cats.parse.{Parser => P}
+import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Tokens._
-import com.github.tarao.nonempty.collection.NonEmpty
 
 object SingleLine {
 
@@ -42,7 +42,8 @@ object SingleLine {
     float.map(EOFloatData(_)) |
       integer.map(EOIntData(_)) |
       char.map(EOCharData(_)) |
-      string.map(EOStrData(_))
+      string.map(EOStrData(_)) |
+      boolean.map(EOBoolData(_))
   ).map(Fix[EOExpr](_))
 
   val singleLineApplication: P[EOExprOnly] =
