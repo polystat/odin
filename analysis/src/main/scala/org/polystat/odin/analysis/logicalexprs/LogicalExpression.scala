@@ -21,13 +21,18 @@ object LogicalExpression {
     //    val yDecl = DeclareConst(SSymbol("y"), IntSort())
     val formula: Assert = Assert(
 //      Forall(SortedVar(SSymbol("x"), IntSort()), List(),
-      Exists(SortedVar(SSymbol("y"), IntSort()), List(),
-          And(
-            Exists(SortedVar(SSymbol("x"), IntSort()), List(),
-            Equals(NumeralLit(10), x)),
-            LessEquals(Neg(NumeralLit(1)), y)
-          )
+      Exists(
+        SortedVar(SSymbol("y"), IntSort()),
+        List(),
+        And(
+          Exists(
+            SortedVar(SSymbol("x"), IntSort()),
+            List(),
+            Equals(NumeralLit(10), x)
+          ),
+          LessEquals(Neg(NumeralLit(1)), y)
         )
+      )
 //      )
     )
     val prog =
