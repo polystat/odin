@@ -57,7 +57,15 @@ object Context {
     code: EOProg[EOExprOnly]
   ): EitherNel[String, EOProg[EOExprOnly]] = {
     val initialCtx =
-      rebuildContext(Map(), 0, code.bnds, Vector())
+      rebuildContext(
+        Map(
+          "seq" -> 0,
+          "assert" -> 0,
+        ),
+        0,
+        code.bnds,
+        Vector()
+      )
     val modify = modifyExprWithState(initialCtx)(modifyExpr =
       ctx =>
         depth =>

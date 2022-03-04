@@ -348,10 +348,7 @@ object InlineCallsTestCases {
   val withInheritance: InliningTestCase = InliningTestCase(
     label = "method from parent is inlined",
     codeBefore =
-      """
-        |1 > seq
-        |2 > assert
-        |[] > a
+      """[] > a
         |  [self x] > f
         |    x.sub 5 > y1
         |    seq > @
@@ -370,9 +367,7 @@ object InlineCallsTestCases {
         |
         |""".stripMargin,
     codeAfter =
-      """1 > seq
-        |2 > assert
-        |[] > a
+      """[] > a
         |  [self x] > f
         |    $.x.sub > y1
         |      5

@@ -18,6 +18,7 @@ class InliningTests extends AnyWordSpec {
       vitaliyTestLocators,
       nikolayTestLocators,
       nonExistentNameTestLocators,
+      builtinObjects,
     )
     locatorTests.foreach { case LocatorTestCase(label, before, after) =>
       registerTest(label) {
