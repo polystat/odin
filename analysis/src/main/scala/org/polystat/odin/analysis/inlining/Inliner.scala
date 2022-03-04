@@ -4,7 +4,9 @@ package org.polystat.odin.analysis.inlining
 import cats.data.{EitherNel, NonEmptyList => Nel}
 import cats.syntax.align._
 import cats.syntax.apply._
+import cats.syntax.either._
 import cats.syntax.foldable._
+import cats.syntax.functor._
 import cats.syntax.parallel._
 import higherkindness.droste.data.Fix
 import monocle.macros.GenLens
@@ -34,6 +36,7 @@ object Inliner {
    * 4. Either the errors or the rebuilt AST are returned */
   type PartialObjectTree = ObjectTree[ObjectInfo[ParentName, MethodInfo]]
   type CompleteObjectTree = ObjectTree[ObjectInfo[ParentInfo[MethodInfo, ObjectInfo], MethodInfo]]
+  type ObjectTreeForInlining = ObjectTree[ObjectInfo[ParentInfoForInlining[MethodInfo], MethodInfo]]
   type ObjectTreeForAnalysis = ObjectTree[
     ObjectInfoForAnalysis[
       ParentInfo[MethodInfo, ObjectInfoForAnalysis],
@@ -52,19 +55,41 @@ object Inliner {
   def inlineAllCalls(
                       prog: EOProg[EOExprOnly]
                     ): EitherNel[String, EOProg[EOExprOnly]] = {
+
+    type ToplevelBndInfo = (
+      Vector[Either[EOBnd[EOExprOnly], ObjectPlaceholder]],
+        Map[EONamedBnd, PartialObjectTree],
+      )
+    def parseTopLevelBnds(
+    bnds: Vector[EOBnd[EOExprOnly]]
+    ): ToplevelBndInfo
+     =
+      bnds.foldLeft[ToplevelBndInfo]((Vector(), Map())) {
+        case ((bnds, objs), bnd) => parseObject(bnd, 0) match {
+          case Some(value) => (
+            bnds.appended(ObjectPlaceholder(value.info.name).asRight),
+            objs.updated(value.info.name, value)
+          )
+          case None => (
+            bnds.appended(bnd.asLeft),
+            objs
+          )
+        }
+      }
+
     for {
       progWithLocators <- setLocators(prog)
-      newProg <- progWithLocators
-        .bnds
-        .parTraverse(bnd =>
-          LocateMethods.parseObject(bnd, 0) match {
-            case Some(objInfo) =>
-              rebuildObject(objInfo)
-            case None => Right(bnd)
-          }
-        )
-        .map(bnds => prog.copy(bnds = bnds))
-    } yield newProg
+      (bnds, tree) <- parseTopLevelBnds(progWithLocators.bnds).asRight[Nel[String]]
+      treeWithParents <- resolveParents(tree)
+      inlinedObjs <- resolveParentsForInlining(treeWithParents).toVector.parTraverse {
+        case (name, tree) => rebuildObject(tree).map((name, _))
+      }
+        .map(_.toMap)
+      inlinedBnds = bnds.map {
+        case Left(bnd) => bnd
+        case Right(ObjectPlaceholder(name)) => inlinedObjs(name)
+      }
+    } yield prog.copy(bnds = inlinedBnds)
   }
 
   def createObjectTree(
@@ -164,23 +189,24 @@ object Inliner {
     }.map(_.toMap)
   }
 
+  def accumulateMethods(fullTree: Map[EONamedBnd, CompleteObjectTree])(cur: CompleteObjectTree): Map[EONamedBnd, MethodInfo] = {
+    val parent = cur.info.parentInfo.flatMap(_.linkToParent.getOption(fullTree))
+    val parentMethods: Map[EONamedBnd, MethodInfo] = parent match {
+      case Some(parent) => accumulateMethods(fullTree)(parent)
+      case None => Map()
+    }
+
+    parentMethods.concat(cur.info.methods)
+  }
+
+
   def resolveIndirectMethods(
                               objs: Map[EONamedBnd, CompleteObjectTree]
                             ): EitherNel[String, Map[EONamedBnd, ObjectTreeForAnalysis]] = {
 
-    def accumulateMethods(cur: CompleteObjectTree): Map[EONamedBnd, MethodInfo] = {
-      val parent = cur.info.parentInfo.flatMap(_.linkToParent.getOption(objs))
-      val parentMethods: Map[EONamedBnd, MethodInfo] = parent match {
-        case Some(parent) => accumulateMethods(parent)
-        case None => Map()
-      }
-
-      parentMethods.concat(cur.info.methods)
-    }
-
 
     def recurse(cur: CompleteObjectTree): EitherNel[String, ObjectTreeForAnalysis] = {
-      val allMethods = accumulateMethods(cur)
+      val allMethods = accumulateMethods(objs)(cur)
       (
         Right(allMethods.removedAll(cur.info.methods.keySet)),
         cur.children.toList.parTraverse {
@@ -212,6 +238,20 @@ object Inliner {
     }.map(_.toMap)
 
 
+  }
+
+  def resolveParentsForInlining(objs: Map[EONamedBnd, CompleteObjectTree]): Map[EONamedBnd, ObjectTreeForInlining] = {
+    objs.fmap {
+      subTree =>
+        ObjectTree(
+          info = subTree.info.copy(
+            parentInfo = subTree.info.parentInfo.map(_ =>
+              ParentInfoForInlining(accumulateMethods(objs)(subTree))
+            )
+          ),
+          children = resolveParentsForInlining(subTree.children)
+        )
+    }
   }
 
   def collectIndirectMethods(objs: Map[EONamedBnd, ObjectTreeForAnalysis]
@@ -429,7 +469,7 @@ object Inliner {
             .get(EOAnyNameBnd(LazyName(call.methodName)))
             .toRight(
               Nel.one(
-                s"Attempt to call non-existent method ${call.methodName}"
+                s"Inliner: attempt to call non-existent method \"${call.methodName}\""
               )
             )
 
@@ -568,16 +608,17 @@ object Inliner {
     methodBody.map(body => EOBndExpr(methodNameWhereToInline, Fix(body)))
   }
 
-  def rebuildObject[P <: GenericParentInfo](
-                                             obj: ObjectTree[ObjectInfo[P, MethodInfo]]
-                                           ): EitherNel[String, EOBndExpr[EOExprOnly]] = {
+  def rebuildObject(obj: ObjectTreeForInlining): EitherNel[String, EOBndExpr[EOExprOnly]] = {
 
     val newBinds: EitherNel[String, Vector[EOBndExpr[EOExprOnly]]] = obj
       .info
       .bnds
       .parTraverse {
         case MethodPlaceholder(methodName) =>
-          inlineCalls(obj.info.methods, methodName)
+          inlineCalls(
+            obj.info.parentInfo.map(_.parentMethods).getOrElse(Map()).concat(obj.info.methods),
+            methodName
+          )
         case ObjectPlaceholder(objName) =>
           obj
             .children
@@ -590,7 +631,7 @@ object Inliner {
                    |This is most probably a programming error, report to developers.
                    |""".stripMargin)
             )
-            .flatMap(rebuildObject[P])
+            .flatMap(rebuildObject)
         case ParentPlaceholder(expr) => Right(EOBndExpr(EODecoration, expr))
         case BndItself(value) => Right(value)
       }

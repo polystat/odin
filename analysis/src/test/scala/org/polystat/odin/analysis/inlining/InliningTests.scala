@@ -44,6 +44,7 @@ class InliningTests extends AnyWordSpec {
       average3WithComponentsTest,
       notEnoughArgs,
       tooManyArgs,
+      withInheritance,
     )
       .concat(simpleTests)
 

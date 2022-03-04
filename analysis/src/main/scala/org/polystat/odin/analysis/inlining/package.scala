@@ -1,17 +1,17 @@
 package org.polystat.odin.analysis
 
 import cats.Applicative
+import cats.data.{NonEmptyList => Nel}
+import cats.syntax.align._
 import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.functor._
 import cats.syntax.traverse._
-import cats.syntax.align._
 import org.polystat.odin.analysis.inlining.types._
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast.{EOBndExpr, EONamedBnd, EOObj}
-import cats.data.{NonEmptyList => Nel}
 
 package inlining {
 
@@ -166,6 +166,10 @@ package inlining {
       Map[EONamedBnd, ObjectTree[O[ParentInfo[M, O], M]]],
       ObjectTree[O[ParentInfo[M, O], M]]
     ]
+  ) extends GenericParentInfo
+
+  final case class ParentInfoForInlining[M <: GenericMethodInfo](
+    parentMethods: Map[EONamedBnd, M]
   ) extends GenericParentInfo
 
   sealed trait GenericMethodInfo

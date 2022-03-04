@@ -345,4 +345,62 @@ object InlineCallsTestCases {
       Nel.one("Wrong number of arguments given for method method.").asLeft
   )
 
+  val withInheritance: InliningTestCase = InliningTestCase(
+    label = "method from parent is inlined",
+    codeBefore =
+      """
+        |1 > seq
+        |2 > assert
+        |[] > a
+        |  [self x] > f
+        |    x.sub 5 > y1
+        |    seq > @
+        |      assert (0.less y1)
+        |      x
+        |  [self y] > g
+        |    self.f self y >  @
+        |  [self z] > h
+        |    z > @
+        |[] > b
+        |  a > @
+        |  [self y] > f
+        |    y > @
+        |  [self z] > h
+        |    self.g self z > @
+        |
+        |""".stripMargin,
+    codeAfter =
+      """1 > seq
+        |2 > assert
+        |[] > a
+        |  [self x] > f
+        |    $.x.sub > y1
+        |      5
+        |    ^.^.seq > @
+        |      ^.^.assert
+        |        0.less
+        |          $.y1
+        |      $.x
+        |  [self y] > g
+        |    [] > local_f
+        |      ^.y.sub > y1
+        |        5
+        |    ^.^.seq > @
+        |      ^.^.assert
+        |        0.less
+        |          $.local_f.y1
+        |      $.y
+        |  [self z] > h
+        |    $.z > @
+        |[] > b
+        |  ^.a > @
+        |  [self y] > f
+        |    $.y > @
+        |  [self z] > h
+        |    $.self.f > @
+        |      $.self
+        |      $.z
+        |""".stripMargin.asRight
+  )
+
 }

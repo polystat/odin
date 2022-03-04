@@ -7,7 +7,10 @@ object Sandbox extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = for {
     exitCode <- IO.pure(ExitCode.Success)
-    code = """[] > a
+    code = """
+             |1 > seq
+             |2 > assert
+             |[] > a
              |  [self x] > f
              |    x.sub 5 > y1
              |    seq > @
