@@ -214,7 +214,7 @@ object ExtractLogic {
     List(valueDef, propertiesDef)
   }
 
-  def checkImplication2(before: Info, methodsBefore: Map[EONamedBnd, Info], after: Info, methodsAfter: Map[EONamedBnd, Info]): EitherNel[String, String] = {
+  def checkImplication2(methodName : String, before: Info, methodsBefore: Map[EONamedBnd, Info], after: Info, methodsAfter: Map[EONamedBnd, Info]): EitherNel[String, Option[String]] = {
     (before.forall, after.forall) match {
       case (x::xs, y::ys) =>
         val impl = Forall(x, xs,
@@ -227,7 +227,16 @@ object ExtractLogic {
         val declsBefore = methodsBefore.toList.flatMap{ case (name, info) => mkFunDecls("before", name, info) }
         val declsAfter = methodsAfter.toList.flatMap{ case (name, info) => mkFunDecls("after", name, info) }
         val prog = declsBefore ++ declsAfter ++ List(Assert(impl), CheckSat())
-        Right(prog.map(RecursivePrinter.toString).mkString)
+        val formula = prog.map(RecursivePrinter.toString).mkString
+
+        SimpleAPI.withProver()(p => {
+          p.execSMTLIB(new StringReader(formula))
+          p.getStatus(true) match {
+            case ap.SimpleAPI.ProverStatus.Sat => Right(None)
+            case ap.SimpleAPI.ProverStatus.Unsat => Right(Some(s"Method $methodName is not referentially transparent"))
+            case err => Left(Nel.one(s"SMT solver failed with error: $err"))
+          }
+        })
 
       case _ => Left(Nel.one("Methods with no arguments are not supported"))
     }
@@ -385,8 +394,9 @@ object ExtractLogic {
   (infoBefore: AnalysisInfo, infoAfter: AnalysisInfo): EitherNel[String, List[String]] = {
     val methodPairs = infoBefore.indirectMethods.alignWith(infoAfter.indirectMethods)(_.onlyBoth.get)
 
-    methodPairs.toList.traverse {
+    methodPairs.toList.flatTraverse{
       case (name, (before, after)) =>
+        val methodName = name.name.name
         // println("==================================================")
         // println(before.body.toEOPretty)
         // println("==================================================")
@@ -396,10 +406,10 @@ object ExtractLogic {
           methodsBefore <- getMethodsInfo("before", infoBefore.allMethods)
           methodsAfter <- getMethodsInfo("after", infoAfter.allMethods)
 
-          res1 <- processMethod2("before", before, name.name.name, methodsBefore)
-          res2 <- processMethod2("after", after, name.name.name, methodsAfter)
-          res <- checkImplication2(res1, methodsBefore, res2, methodsAfter)
-        } yield res
+          res1 <- processMethod2("before", before, methodName, methodsBefore)
+          res2 <- processMethod2("after", after, methodName, methodsAfter)
+          res <- checkImplication2(methodName, res1, methodsBefore, res2, methodsAfter)
+        } yield res.toList
     }
   }
 
@@ -435,8 +445,6 @@ object ExtractLogic {
         |    self.g self z > @
         |""".stripMargin
 //      """
-//        |10 > seq
-//        |22 > assert
 //        |
 //        |[] > base
 //        |  [self x] > f
@@ -463,15 +471,7 @@ object ExtractLogic {
         processObjectTree(tree)
           .leftMap(println)
           .foreach(_.map(formula => {
-//            println(formula)
-            SimpleAPI.withProver(dumpSMT = true)(p => {
-              p.execSMTLIB(new StringReader(formula))
-              p.getStatus(true) match {
-                case ap.SimpleAPI.ProverStatus.Sat => println("sat")
-                case ap.SimpleAPI.ProverStatus.Unsat => println("bad")
-                case _ => ???
-              }
-            })
+            println(formula)
           }
           ))
       }
