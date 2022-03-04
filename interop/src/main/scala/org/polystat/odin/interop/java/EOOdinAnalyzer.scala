@@ -2,19 +2,19 @@ package org.polystat.odin.interop.java
 
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
+import fs2.Stream
 import org.polystat.odin.analysis
-import org.polystat.odin.interop.java.OdinAnalysisErrorInterop.fromOdinAnalysisError
+import org.polystat.odin.analysis.ASTAnalyzer
 import org.polystat.odin.analysis.EOOdinAnalyzer.{
   advancedMutualRecursionAnalyzer,
   unjustifiedAssumptionAnalyzer,
   OdinAnalysisError
 }
-import org.polystat.odin.parser.EoParser.sourceCodeEoParser
-import fs2.Stream
-import org.polystat.odin.analysis.ASTAnalyzer
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.interop.java.OdinAnalysisErrorInterop.fromOdinAnalysisError
 import org.polystat.odin.parser.EoParser
+import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 
 import java.util
 import scala.jdk.CollectionConverters._
@@ -45,11 +45,7 @@ object EOOdinAnalyzer {
       .flatMap { case (prefix, analyzer) =>
         analysis
           .EOOdinAnalyzer
-          .analyzeSourceCode(analyzer)(
-            code
-          )(
-            parser
-          )
+          .analyzeSourceCode(analyzer)(code)(parser)
           .map { case OdinAnalysisError(msg) =>
             OdinAnalysisError(List(prefix, msg).mkString(" "))
           }

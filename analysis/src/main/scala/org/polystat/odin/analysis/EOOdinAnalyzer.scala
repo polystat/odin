@@ -96,13 +96,18 @@ object EOOdinAnalyzer {
 
     }
 
-  def analyzeSourceCode[EORepr, F[_]](analyzer: ASTAnalyzer[F])(
+  def analyzeSourceCode[EORepr, F[_]](
+    analyzer: ASTAnalyzer[F]
+  )(
     eoRepr: EORepr
   )(implicit
     parser: EoParser[EORepr, F, EOProg[EOExprOnly]]
   ): Stream[F, OdinAnalysisError] = for {
     programAst <- Stream.eval(parser.parse(eoRepr))
-    mutualRecursionErrors <- analyzer.analyze(programAst)
+    mutualRecursionErrors <-
+      analyzer
+        .analyze(programAst)
+        .handleErrorWith(_ => Stream.empty)
   } yield mutualRecursionErrors
 
 }
