@@ -134,7 +134,7 @@ object ExtractLogic {
   def extractInfo(
     depth: List[String],
     expr: EOExprOnly,
-    availableMethods: Map[EONamedBnd, Info]
+    availableMethods: Set[EONamedBnd]
   ): EitherNel[String, Info] = {
     Fix.un(expr) match {
       case EOObj(Vector(), None, bndAttrs) =>
@@ -203,30 +203,32 @@ object ExtractLogic {
                     extractInfo(depth, Fix(expr), availableMethods)
                   )
                   .flatMap(infos =>
-                    availableMethods
-                      .get(EOAnyNameBnd(LazyName(methodName))) match {
-                      case Some(_) => Right(
-                          Info(
-                            List.empty,
-                            List.empty,
-                            FunctionApplication(
-                              mkValueFunIdent(
-                                methodName,
-                                depth.drop(locator.toInt + 1)
-                              ),
-                              infos.map(arg => arg.value)
+                    if (
+                      availableMethods
+                        .contains(EOAnyNameBnd(LazyName(methodName)))
+                    ) {
+                      Right(
+                        Info(
+                          List.empty,
+                          List.empty,
+                          FunctionApplication(
+                            mkValueFunIdent(
+                              methodName,
+                              depth.drop(locator.toInt + 1)
                             ),
-                            FunctionApplication(
-                              mkPropertiesFunIdent(
-                                methodName,
-                                depth.drop(locator.toInt + 1)
-                              ),
-                              infos.map(arg => arg.properties)
-                            )
+                            infos.map(arg => arg.value)
+                          ),
+                          FunctionApplication(
+                            mkPropertiesFunIdent(
+                              methodName,
+                              depth.drop(locator.toInt + 1)
+                            ),
+                            infos.map(arg => arg.properties)
                           )
                         )
-                      case None => Left(Nel.one(s"Unknown method $methodName"))
-                    }
+                      )
+                    } else
+                      Left(Nel.one(s"Unknown method $methodName"))
                   )
               case _ => Left(Nel.one(s"Unsupported EOCopy with self: $app"))
             }
@@ -310,7 +312,7 @@ object ExtractLogic {
     tag: String,
     method: MethodInfoForAnalysis,
     name: String,
-    availableMethods: Map[EONamedBnd, Info]
+    availableMethods: Set[EONamedBnd]
   ): EitherNel[String, Info] = {
     val body = method.body
     val depth = List(tag)
@@ -626,16 +628,18 @@ object ExtractLogic {
   def getMethodsInfo(
     tag: String,
     methods: Map[EONamedBnd, MethodInfoForAnalysis]
-  ): EitherNel[String, Map[EONamedBnd, Info]] =
+  ): EitherNel[String, Map[EONamedBnd, Info]] = {
+    val methodNames = methods.keySet
     methods
       .toList
       .foldLeft[EitherNel[String, Map[EONamedBnd, Info]]](Right(Map())) {
         case (acc, (key, value)) =>
           for {
             acc <- acc
-            newVal <- processMethod2(tag, value, key.name.name, acc)
+            newVal <- processMethod2(tag, value, key.name.name, methodNames)
           } yield acc.updated(key, newVal)
       }
+  }
 
   def checkMethods(
     infoBefore: AnalysisInfo,
@@ -656,8 +660,9 @@ object ExtractLogic {
         methodsBefore <- getMethodsInfo("before", infoBefore.allMethods)
         methodsAfter <- getMethodsInfo("after", infoAfter.allMethods)
 
-        res1 <- processMethod2("before", before, methodName, methodsBefore)
-        res2 <- processMethod2("after", after, methodName, methodsAfter)
+        res1 <-
+          processMethod2("before", before, methodName, methodsBefore.keySet)
+        res2 <- processMethod2("after", after, methodName, methodsAfter.keySet)
         res <-
           checkImplication2(methodName, res1, methodsBefore, res2, methodsAfter)
       } yield res.toList
@@ -678,22 +683,42 @@ object ExtractLogic {
   def main(args: Array[String]): Unit = {
     val code =
       """
-        |[] > a
-        |  [self x] > f
-        |    x.sub 5 > y1
-        |    seq > @
-        |      assert (0.less y1)
-        |      x
-        |  [self y] > g
-        |    self.f self y >  @
-        |  [self z] > h
-        |    z > @
-        |[] > b
-        |  a > @
-        |  [self y] > f
-        |    y > @
-        |  [self z] > h
-        |    self.g self z > @
+        |[] > test
+        |  [] > base
+        |    [self x] > f
+        |      x.sub 5 > y1
+        |      seq > @
+        |        assert (0.less y1)
+        |        x
+        |    [self y] > g
+        |      self.f self y >  @
+        |    [self z] > h
+        |      z > @
+        |
+        |  [] > derived
+        |    base > @
+        |    [self y] > f
+        |      y > @
+        |    [self z] > h
+        |      self.g self z > @
+        |      
+        |   
+        |  [] > a
+        |    [] > new
+        |      b.new > @
+        |      [self x y] > func
+        |        self.gonc self y x > @
+        |  
+        |  [] > b
+        |    [] > new
+        |      c.new > @
+        |  [] > c
+        |    [] > new
+        |      [self y x] > gonc
+        |        self.func self x y > @
+        |      [self x y] > func
+        |        self > @
+        |  
         |""".stripMargin
 //      """
 //        |
