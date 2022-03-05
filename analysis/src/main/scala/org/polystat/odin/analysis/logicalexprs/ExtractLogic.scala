@@ -1,6 +1,7 @@
 package org.polystat.odin.analysis.logicalexprs
 
 import ap.SimpleAPI
+import ap.SimpleAPI.FunctionalityMode
 // import ap.util.UnionMap
 
 // import scala.collection.immutable.{AbstractMap, SeqMap, SortedMap}
@@ -19,14 +20,15 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Parser
 import smtlib.printer.RecursivePrinter
+import smtlib.theories.Ints._
 import smtlib.trees.Commands._
 import smtlib.trees.Terms._
-import smtlib.theories.Ints._
 // import org.polystat.odin.backend.eolang.ToEO.instances._
 // import org.polystat.odin.backend.eolang.ToEO.ops._
+import smtlib.theories.Core._
+
 import java.io.StringReader
 import scala.annotation.unused
-import smtlib.theories.Core._
 
 object ExtractLogic {
 
@@ -65,6 +67,7 @@ object ExtractLogic {
     )
   }
 
+  @annotation.tailrec
   def dotToSimpleAppsWithLocator(
     src: EOExprOnly,
     lastNames: List[String]
@@ -435,11 +438,22 @@ object ExtractLogic {
         val declsAfter = methodsAfter.toList.flatMap { case (name, info) =>
           mkFunDecls("after", name, info)
         }
-        val prog = declsBefore ++ declsAfter ++ List(Assert(impl), CheckSat())
+        val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
         val formula = prog.map(RecursivePrinter.toString).mkString
 
-        SimpleAPI.withProver()(p => {
-          p.execSMTLIB(new StringReader(formula))
+        SimpleAPI.withProver(p => {
+          val (assertions, functions, constants, predicates) =
+            p.extractSMTLIBAssertionsSymbols(
+              new StringReader(formula),
+              fullyInline = true
+            )
+          assertions.foreach(p.addAssertion)
+          functions
+            .keySet
+            .foreach(f => p.addFunction(f, FunctionalityMode.NoUnification))
+          constants.keySet.foreach(p.addConstantRaw)
+          predicates.keySet.foreach(p.addRelation)
+          p.checkSat(true)
           p.getStatus(true) match {
             case ap.SimpleAPI.ProverStatus.Sat => Right(None)
             case ap.SimpleAPI.ProverStatus.Unsat => Right(
