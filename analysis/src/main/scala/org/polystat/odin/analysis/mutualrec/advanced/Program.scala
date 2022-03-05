@@ -45,11 +45,11 @@ object Program {
           case (name, calls) =>
             s"""$spaces[self] > ${name.name}
                |  $spaces${if (calls.nonEmpty)
-              calls
-                .map(call => s"self.${call.name} self > @")
-                .mkString(s"\n$spaces  ")
-            else
-              "self > @"}""".stripMargin
+                calls
+                  .map(call => s"self.${call.name} self > @")
+                  .mkString(s"\n$spaces  ")
+              else
+                "self > @"}""".stripMargin
         }
       }
 
@@ -57,18 +57,18 @@ object Program {
         val spaces = "  " * (depth + 1)
         s"""[] > ${obj.name.name}
            |${obj
-          .parent
-          .fold("")(parent => s"$spaces${parent.name.show} > @\n")}${obj
-          .callGraph
-          .filter { case (method, _) =>
-            method.whereDefined == obj.name
-          }
-          .map(renderMethod(depth + 1))
-          .mkString("\n")}
+            .parent
+            .fold("")(parent => s"$spaces${parent.name.show} > @\n")}${obj
+            .callGraph
+            .filter { case (method, _) =>
+              method.whereDefined == obj.name
+            }
+            .map(renderMethod(depth + 1))
+            .mkString("\n")}
            |$spaces${obj
-          .nestedObjs
-          .map(helper(_, depth + 1))
-          .mkString("\n" + spaces)}""".stripMargin
+            .nestedObjs
+            .map(helper(_, depth + 1))
+            .mkString("\n" + spaces)}""".stripMargin
       }
 
       helper(this, 0)
@@ -80,16 +80,16 @@ object Program {
         cg match {
           case (name, calls) =>
             s"${spaces}virtual void ${name.name}(){${calls
-              .map(call => s"${call.name}();")
-              .mkString(s"\n  $spaces")}};"
+                .map(call => s"${call.name}();")
+                .mkString(s"\n  $spaces")}};"
         }
       }
 
       def helper(obj: Object, depth: Int): String = {
         val spaces = "  " * (depth + 1)
         val class_def = s"""class ${obj.name.name.toUpperCase()} ${obj
-          .parent
-          .fold("")(ext => s": public ${ext.name.name.toUpperCase()}")}"""
+            .parent
+            .fold("")(ext => s": public ${ext.name.name.toUpperCase()}")}"""
         val class_methods =
           "  " + obj
             .callGraph

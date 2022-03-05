@@ -107,8 +107,41 @@ object SetLocatorsTestCases {
         |    self.magic > @
         |""".stripMargin,
     codeAfter = Nel
-      .one("Could not set locator for non-existent object with name self")
+      .one("Could not set locator for non-existent object with name \"self\"")
       .asLeft
+  )
+
+  val builtinObjects: LocatorTestCase = LocatorTestCase(
+    label = "locators are set correctly for seq and assert",
+    codeBefore =
+      """
+        |[] > a
+        |  assert ("true") > @
+        |  [] > b
+        |    assert ("false") > @
+        |    [] > c
+        |      seq > @
+        |        seq
+        |          assert (0.less 1)
+        |          assert (0.less 2)
+        |""".stripMargin,
+    codeAfter =
+      """[] > a
+        |  ^.assert > @
+        |    "true"
+        |  [] > b
+        |    ^.^.assert > @
+        |      "false"
+        |    [] > c
+        |      ^.^.^.seq > @
+        |        ^.^.^.seq
+        |          ^.^.^.assert
+        |            0.less
+        |              1
+        |          ^.^.^.assert
+        |            0.less
+        |              2
+        |""".stripMargin.asRight
   )
 
 }

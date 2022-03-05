@@ -7,7 +7,9 @@ import org.scalatest.wordspec.AnyWordSpec
 import SetLocatorsTestCases._
 import InlineCallsTestCases._
 import cats.syntax.either._
+import cats.syntax.traverse._
 import cats.data.{EitherNel, NonEmptyList => Nel}
+// import org.polystat.odin.core.ast._
 
 class InliningTests extends AnyWordSpec {
 
@@ -16,6 +18,7 @@ class InliningTests extends AnyWordSpec {
       vitaliyTestLocators,
       nikolayTestLocators,
       nonExistentNameTestLocators,
+      builtinObjects,
     )
     locatorTests.foreach { case LocatorTestCase(label, before, after) =>
       registerTest(label) {
@@ -42,19 +45,30 @@ class InliningTests extends AnyWordSpec {
       average3WithComponentsTest,
       notEnoughArgs,
       tooManyArgs,
-    ) ++
-      simpleTests
+      withInheritance,
+    )
+      .concat(simpleTests)
 
     inliningTests.foreach { case InliningTestCase(label, before, after) =>
       registerTest(label) {
         val expected = after
-        val actual = Parser
+        val obtained = Parser
           .parse(before)
           .leftMap(Nel.one)
           .flatMap(Inliner.inlineAllCalls)
           .map(_.toEOPretty)
 
-        assert(actual == expected)
+        println(
+          Parser
+            .parse(before)
+            .leftMap(Nel.one)
+            .flatMap(Inliner.createObjectTree)
+            .flatMap(
+              _.toList.traverse(kv => Inliner.zipWithInlinedMethod(kv._2))
+            )
+        )
+
+        assert(obtained == expected)
       }
 
     }
@@ -65,29 +79,57 @@ class InliningTests extends AnyWordSpec {
 object InliningTests {
 
   def main(args: Array[String]): Unit = {
-    val code = """[] > a
-                 |  [self y] > x
-                 |    y > @
+    val code = """
+                 |[] > obj
+                 |  [self y] > g
+                 |    3.div y  > @
                  |
-                 |  [self x y] > f
-                 |    self.g self x > h
-                 |    [] > @
-                 |      self.g self y > z
+                 |  [self z] > method
+                 |    self.g self z > x
+                 |    x > @
+                 |    
+                 |  
+                 |  [] > bebra
+                 |    ^.zhepa > @
+                 |    [self] > aboba
+                 |      12 > @
+                 |  [] > zhepa
+                 |    opa > @
+                 |    [self] > aboba
+                 |      1 > @
+                 |    [self] > indirect
+                 |      2 > @
+                 |  [] > opa
+                 |    [self] > even-more-indirect
+                 |      3 > @
+                 |    
+                 |  
                  |
-                 |  [self z] > g
-                 |    x > k
-                 |    z > l
-                 |    [] > @
-                 |      l > a
-                 |      k > b
-                 |      z > c
-                 |      self > d
+                 |[] > derived
+                 |  obj > @
+                 |  [self y] > g
+                 |    3.div (y.add 1) > @  
+                 |  [] > kukozh
+                 |    ^.^.obj.bebra > @
+                 |    
+                 |[] > am
+                 |  derived > @
                  |""".stripMargin
 
-    Parser.parse(code) match {
-      case Left(value) => println(value)
-      case Right(value) => pprint.pprintln(value)
-    }
+    val parsed = Parser.parse(code)
+
+//    val tree = parsed
+//      .leftMap(Nel.one)
+//      .flatMap(Inliner.createObjectTree)
+
+//    val newTree = tree
+//      .flatMap(Inliner.resolveParents)
+
+    parsed
+      .map(Inliner.zipMethodsWithTheirInlinedVersionsFromParent)
+      .bimap(pprint.pprintln(_), pprint.pprintln(_))
+      .merge
+
   }
 
 }
