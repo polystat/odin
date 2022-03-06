@@ -107,7 +107,7 @@ object EOOdinAnalyzer {
     mutualRecursionErrors <-
       analyzer
         .analyze(programAst)
-        .handleErrorWith(_ => Stream.empty)
+//        .handleErrorWith(_ => Stream.empty)
   } yield mutualRecursionErrors
 
 }
