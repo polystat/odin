@@ -5,7 +5,6 @@ import cats.data.{EitherNel, NonEmptyList => Nel}
 import cats.syntax.align._
 import cats.syntax.apply._
 import cats.syntax.either._
-import cats.syntax.foldable._
 import cats.syntax.functor._
 import cats.syntax.parallel._
 import higherkindness.droste.data.Fix
@@ -241,30 +240,22 @@ object Inliner {
   }
 
   def resolveParentsForInlining(objs: Map[EONamedBnd, CompleteObjectTree]): Map[EONamedBnd, ObjectTreeForInlining] = {
-    objs.fmap {
-      subTree =>
-        ObjectTree(
-          info = subTree.info.copy(
-            parentInfo = subTree.info.parentInfo.map(_ =>
-              ParentInfoForInlining(accumulateMethods(objs)(subTree))
-            )
-          ),
-          children = resolveParentsForInlining(subTree.children)
-        )
-    }
-  }
-
-  def collectIndirectMethods(objs: Map[EONamedBnd, ObjectTreeForAnalysis]
-                            ): Vector[Map[EONamedBnd, MethodInfoForAnalysis]] = {
-
-    def collectIndirectMethodsFromSubTree(cur: ObjectTreeForAnalysis
-                                         ): Vector[Map[EONamedBnd, MethodInfoForAnalysis]] = {
-      cur.info.indirectMethods +: collectIndirectMethods(cur.children)
+    def recurse(currentLevel: Map[EONamedBnd, CompleteObjectTree]): Map[EONamedBnd, ObjectTreeForInlining] = {
+      currentLevel.fmap {
+        subTree =>
+          ObjectTree(
+            info = subTree.info.copy(
+              parentInfo = subTree.info.parentInfo.map(_ =>
+                ParentInfoForInlining(accumulateMethods(objs)(subTree))
+              )
+            ),
+            children = recurse(subTree.children)
+          )
+      }
     }
 
-    objs.toList.foldMapK {
-      case (_, node) => collectIndirectMethodsFromSubTree(node)
-    }
+    recurse(objs)
+
   }
 
   type AnalysisInfo = ObjectInfoForAnalysis[ParentInfo[MethodInfo, ObjectInfoForAnalysis], MethodInfo]

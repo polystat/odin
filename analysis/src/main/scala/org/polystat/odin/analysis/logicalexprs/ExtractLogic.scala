@@ -1,6 +1,7 @@
 package org.polystat.odin.analysis.logicalexprs
 
 import ap.SimpleAPI
+import ap.SimpleAPI.FunctionalityMode
 // import ap.util.UnionMap
 
 // import scala.collection.immutable.{AbstractMap, SeqMap, SortedMap}
@@ -19,14 +20,15 @@ import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Parser
 import smtlib.printer.RecursivePrinter
+import smtlib.theories.Ints._
 import smtlib.trees.Commands._
 import smtlib.trees.Terms._
-import smtlib.theories.Ints._
 // import org.polystat.odin.backend.eolang.ToEO.instances._
 // import org.polystat.odin.backend.eolang.ToEO.ops._
+import smtlib.theories.Core._
+
 import java.io.StringReader
 import scala.annotation.unused
-import smtlib.theories.Core._
 
 object ExtractLogic {
 
@@ -65,6 +67,7 @@ object ExtractLogic {
     )
   }
 
+  @annotation.tailrec
   def dotToSimpleAppsWithLocator(
     src: EOExprOnly,
     lastNames: List[String]
@@ -131,7 +134,7 @@ object ExtractLogic {
   def extractInfo(
     depth: List[String],
     expr: EOExprOnly,
-    availableMethods: Map[EONamedBnd, Info]
+    availableMethods: Set[EONamedBnd]
   ): EitherNel[String, Info] = {
     Fix.un(expr) match {
       case EOObj(Vector(), None, bndAttrs) =>
@@ -200,30 +203,32 @@ object ExtractLogic {
                     extractInfo(depth, Fix(expr), availableMethods)
                   )
                   .flatMap(infos =>
-                    availableMethods
-                      .get(EOAnyNameBnd(LazyName(methodName))) match {
-                      case Some(_) => Right(
-                          Info(
-                            List.empty,
-                            List.empty,
-                            FunctionApplication(
-                              mkValueFunIdent(
-                                methodName,
-                                depth.drop(locator.toInt + 1)
-                              ),
-                              infos.map(arg => arg.value)
+                    if (
+                      availableMethods
+                        .contains(EOAnyNameBnd(LazyName(methodName)))
+                    ) {
+                      Right(
+                        Info(
+                          List.empty,
+                          List.empty,
+                          FunctionApplication(
+                            mkValueFunIdent(
+                              methodName,
+                              depth.drop(locator.toInt + 1)
                             ),
-                            FunctionApplication(
-                              mkPropertiesFunIdent(
-                                methodName,
-                                depth.drop(locator.toInt + 1)
-                              ),
-                              infos.map(arg => arg.properties)
-                            )
+                            infos.map(arg => arg.value)
+                          ),
+                          FunctionApplication(
+                            mkPropertiesFunIdent(
+                              methodName,
+                              depth.drop(locator.toInt + 1)
+                            ),
+                            infos.map(arg => arg.properties)
                           )
                         )
-                      case None => Left(Nel.one(s"Unknown method $methodName"))
-                    }
+                      )
+                    } else
+                      Left(Nel.one(s"Unknown method $methodName"))
                   )
               case _ => Left(Nel.one(s"Unsupported EOCopy with self: $app"))
             }
@@ -307,7 +312,7 @@ object ExtractLogic {
     tag: String,
     method: MethodInfoForAnalysis,
     name: String,
-    availableMethods: Map[EONamedBnd, Info]
+    availableMethods: Set[EONamedBnd]
   ): EitherNel[String, Info] = {
     val body = method.body
     val depth = List(tag)
@@ -435,11 +440,22 @@ object ExtractLogic {
         val declsAfter = methodsAfter.toList.flatMap { case (name, info) =>
           mkFunDecls("after", name, info)
         }
-        val prog = declsBefore ++ declsAfter ++ List(Assert(impl), CheckSat())
+        val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
         val formula = prog.map(RecursivePrinter.toString).mkString
 
-        SimpleAPI.withProver()(p => {
-          p.execSMTLIB(new StringReader(formula))
+        SimpleAPI.withProver(p => {
+          val (assertions, functions, constants, predicates) =
+            p.extractSMTLIBAssertionsSymbols(
+              new StringReader(formula),
+              fullyInline = true
+            )
+          assertions.foreach(p.addAssertion)
+          functions
+            .keySet
+            .foreach(f => p.addFunction(f, FunctionalityMode.NoUnification))
+          constants.keySet.foreach(p.addConstantRaw)
+          predicates.keySet.foreach(p.addRelation)
+          p.checkSat(true)
           p.getStatus(true) match {
             case ap.SimpleAPI.ProverStatus.Sat => Right(None)
             case ap.SimpleAPI.ProverStatus.Unsat => Right(
@@ -612,16 +628,18 @@ object ExtractLogic {
   def getMethodsInfo(
     tag: String,
     methods: Map[EONamedBnd, MethodInfoForAnalysis]
-  ): EitherNel[String, Map[EONamedBnd, Info]] =
+  ): EitherNel[String, Map[EONamedBnd, Info]] = {
+    val methodNames = methods.keySet
     methods
       .toList
       .foldLeft[EitherNel[String, Map[EONamedBnd, Info]]](Right(Map())) {
         case (acc, (key, value)) =>
           for {
             acc <- acc
-            newVal <- processMethod2(tag, value, key.name.name, acc)
+            newVal <- processMethod2(tag, value, key.name.name, methodNames)
           } yield acc.updated(key, newVal)
       }
+  }
 
   def checkMethods(
     infoBefore: AnalysisInfo,
@@ -642,8 +660,9 @@ object ExtractLogic {
         methodsBefore <- getMethodsInfo("before", infoBefore.allMethods)
         methodsAfter <- getMethodsInfo("after", infoAfter.allMethods)
 
-        res1 <- processMethod2("before", before, methodName, methodsBefore)
-        res2 <- processMethod2("after", after, methodName, methodsAfter)
+        res1 <-
+          processMethod2("before", before, methodName, methodsBefore.keySet)
+        res2 <- processMethod2("after", after, methodName, methodsAfter.keySet)
         res <-
           checkImplication2(methodName, res1, methodsBefore, res2, methodsAfter)
       } yield res.toList
@@ -664,22 +683,42 @@ object ExtractLogic {
   def main(args: Array[String]): Unit = {
     val code =
       """
-        |[] > a
-        |  [self x] > f
-        |    x.sub 5 > y1
-        |    seq > @
-        |      assert (0.less y1)
-        |      x
-        |  [self y] > g
-        |    self.f self y >  @
-        |  [self z] > h
-        |    z > @
-        |[] > b
-        |  a > @
-        |  [self y] > f
-        |    y > @
-        |  [self z] > h
-        |    self.g self z > @
+        |[] > test
+        |  [] > base
+        |    [self x] > f
+        |      x.sub 5 > y1
+        |      seq > @
+        |        assert (0.less y1)
+        |        x
+        |    [self y] > g
+        |      self.f self y >  @
+        |    [self z] > h
+        |      z > @
+        |
+        |  [] > derived
+        |    base > @
+        |    [self y] > f
+        |      y > @
+        |    [self z] > h
+        |      self.g self z > @
+        |      
+        |   
+        |  [] > a
+        |    [] > new
+        |      b.new > @
+        |      [self x y] > func
+        |        self.gonc self y x > @
+        |  
+        |  [] > b
+        |    [] > new
+        |      c.new > @
+        |  [] > c
+        |    [] > new
+        |      [self y x] > gonc
+        |        self.func self x y > @
+        |      [self x y] > func
+        |        self > @
+        |  
         |""".stripMargin
 //      """
 //        |

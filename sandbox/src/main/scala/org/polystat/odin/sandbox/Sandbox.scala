@@ -7,24 +7,25 @@ object Sandbox extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = for {
     exitCode <- IO.pure(ExitCode.Success)
-    code = """
-             |1 > seq
-             |2 > assert
-             |[] > a
-             |  [self x] > f
-             |    x.sub 5 > y1
-             |    seq > @
-             |      assert (0.less y1)
-             |  [self y] > g
-             |    self.f self y >  @
-             |  [self z] > h
-             |    z > @
-             |[] > b
-             |  a > @
-             |  [self y] > f
-             |    y > @
-             |  [self z] > h
-             |    self.g self z > @
+    code = """[] > test
+             |  [] > base
+             |    [self x] > f
+             |      x.sub 5 > y1
+             |      seq > @
+             |        assert (0.less y1)
+             |        x
+             |    [self y] > g
+             |      self.f self y >  @
+             |    [self z] > h
+             |      z > @
+             |
+             |  [] > derived
+             |    test.base > @
+             |    [self y] > f
+             |      y > @
+             |    [self z] > h
+             |      self.g self z > @
+             |
              |""".stripMargin
     analyzed <- IO(new EOOdinAnalyzer.EOOdinSourceCodeAnalyzer().analyze(code))
     _ <- IO.println(analyzed)
