@@ -3,21 +3,20 @@ package org.polystat.odin.analysis
 import cats.data.NonEmptyList
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Sync}
+import cats.parse.{Parser => P, Parser0 => P0}
 import cats.syntax.functor._
+import fs2.io.file.Files
+import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
+import org.polystat.odin.analysis.mutualrec.advanced.Analyzer
+import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
+import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.polystat.odin.parser.eo.Parser
 import org.polystat.odin.utils.files
-import org.scalacheck.{Prop, Test}
+import org.scalacheck.{Gen, Prop, Test}
+import org.scalatest.Assertion
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.Checkers
-import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
 import pprint.pprintln
-import org.polystat.odin.analysis.mutualrec.advanced.Program._
-import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
-import org.polystat.odin.analysis.mutualrec.advanced.Analyzer
-import org.scalatest.Assertion
-import fs2.io.file.Files
-import org.polystat.odin.parser.eo.Parser
-import org.scalacheck.Gen
-import cats.parse.{Parser => P, Parser0 => P0}
 
 import scala.util.Try
 
@@ -27,7 +26,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
     .Parameters
     .default
     .withMinSuccessfulTests(1000)
-    .withWorkers(4)
+    .withWorkers(1)
 
   def odinErrors(
     code: String
@@ -43,7 +42,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
   "odin" should {
     "find mutual recursion in auto-generated tests" in {
       val gen = Gen
-        .choose(2, 100)
+        .choose(2, 2)
         .flatMap(n =>
           genProgram(n).retryUntil(p => p.findMultiObjectCycles.nonEmpty)
         )
@@ -153,6 +152,138 @@ class MutualrecTests extends AnyWordSpec with Checkers {
 }
 
 object MutualrecTests {
+
+  def main(args: Array[String]): Unit = {
+    val program = List(
+      Object(
+        name = ObjectName(names = NonEmptyList(head = "g", tail = List())),
+        parent = None,
+        nestedObjs = List(),
+        callGraph = Map(
+          MethodName(
+            whereDefined =
+              ObjectName(names = NonEmptyList(head = "g", tail = List())),
+            name = "j"
+          ) -> Set(
+            MethodName(
+              whereDefined =
+                ObjectName(names = NonEmptyList(head = "g", tail = List())),
+              name = "h"
+            )
+          ),
+          MethodName(
+            whereDefined =
+              ObjectName(names = NonEmptyList(head = "g", tail = List())),
+            name = "w"
+          ) -> Set(
+            MethodName(
+              whereDefined =
+                ObjectName(names = NonEmptyList(head = "g", tail = List())),
+              name = "j"
+            )
+          ),
+          MethodName(
+            whereDefined =
+              ObjectName(names = NonEmptyList(head = "g", tail = List())),
+            name = "h"
+          ) -> Set()
+        )
+      ),
+      Object(
+        name = ObjectName(names = NonEmptyList(head = "p", tail = List())),
+        parent = Some(
+          value = ParentInfo(
+            name = ObjectName(names = NonEmptyList(head = "g", tail = List())),
+            callGraph = Map(
+              MethodName(
+                whereDefined =
+                  ObjectName(names = NonEmptyList(head = "g", tail = List())),
+                name = "j"
+              ) -> Set(
+                MethodName(
+                  whereDefined =
+                    ObjectName(names = NonEmptyList(head = "g", tail = List())),
+                  name = "h"
+                )
+              ),
+              MethodName(
+                whereDefined =
+                  ObjectName(names = NonEmptyList(head = "g", tail = List())),
+                name = "w"
+              ) -> Set(
+                MethodName(
+                  whereDefined =
+                    ObjectName(names = NonEmptyList(head = "g", tail = List())),
+                  name = "j"
+                )
+              ),
+              MethodName(
+                whereDefined =
+                  ObjectName(names = NonEmptyList(head = "g", tail = List())),
+                name = "h"
+              ) -> Set()
+            ),
+            parent = None
+          )
+        ),
+        nestedObjs = List(),
+        callGraph = Map(
+          MethodName(
+            whereDefined =
+              ObjectName(names = NonEmptyList(head = "g", tail = List())),
+            name = "w"
+          ) -> Set(
+            MethodName(
+              whereDefined =
+                ObjectName(names = NonEmptyList(head = "p", tail = List())),
+              name = "j"
+            )
+          ),
+          MethodName(
+            whereDefined =
+              ObjectName(names = NonEmptyList(head = "p", tail = List())),
+            name = "j"
+          ) -> Set(
+            MethodName(
+              whereDefined =
+                ObjectName(names = NonEmptyList(head = "g", tail = List())),
+              name = "w"
+            )
+          ),
+          MethodName(
+            whereDefined =
+              ObjectName(names = NonEmptyList(head = "p", tail = List())),
+            name = "h"
+          ) -> Set(
+            MethodName(
+              whereDefined =
+                ObjectName(names = NonEmptyList(head = "g", tail = List())),
+              name = "w"
+            )
+          )
+        )
+      )
+    )
+
+    val code = program.toEO + "\r\n"
+
+    val parsed = Parser.parse(code)
+
+    println("before:")
+    program.foreach(obj => {
+      println(obj.name.show)
+      println(obj.callGraph.show)
+    })
+
+    println("after:")
+    parsed
+      .flatMap(Analyzer.buildObjectTree)
+      .foreach(_.foreach(obj => {
+        println(obj.name.show)
+        println(obj.callGraph.show)
+      }))
+
+  }
 
   import cats.syntax.foldable._
 
