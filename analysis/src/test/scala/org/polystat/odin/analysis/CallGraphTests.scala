@@ -1,9 +1,8 @@
 package org.polystat.odin.analysis
 
-import org.scalatest.wordspec.AnyWordSpec
-
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.scalatest.wordspec.AnyWordSpec
 
 class CallGraphTests extends AnyWordSpec {
 
@@ -54,29 +53,29 @@ class CallGraphTests extends AnyWordSpec {
     "correctly find cycles" in {
       val cycles: Set[CallChain] = Set(
         List(
-          MethodName(ObjectName(None, "a"), "s"),
-          MethodName(ObjectName(None, "a"), "b"),
-          MethodName(ObjectName(None, "a"), "d"),
-          MethodName(ObjectName(None, "a"), "s")
+          MethodName(ObjectName("a"), "s"),
+          MethodName(ObjectName("a"), "b"),
+          MethodName(ObjectName("a"), "d"),
+          MethodName(ObjectName("a"), "s")
         ),
         List(
-          MethodName(ObjectName(None, "a"), "b"),
-          MethodName(ObjectName(None, "a"), "d"),
-          MethodName(ObjectName(None, "a"), "s"),
-          MethodName(ObjectName(None, "a"), "b")
+          MethodName(ObjectName("a"), "b"),
+          MethodName(ObjectName("a"), "d"),
+          MethodName(ObjectName("a"), "s"),
+          MethodName(ObjectName("a"), "b")
         ),
         List(
-          MethodName(ObjectName(None, "a"), "c"),
-          MethodName(ObjectName(None, "a"), "b"),
-          MethodName(ObjectName(None, "a"), "d"),
-          MethodName(ObjectName(None, "a"), "s"),
-          MethodName(ObjectName(None, "a"), "b")
+          MethodName(ObjectName("a"), "c"),
+          MethodName(ObjectName("a"), "b"),
+          MethodName(ObjectName("a"), "d"),
+          MethodName(ObjectName("a"), "s"),
+          MethodName(ObjectName("a"), "b")
         ),
         List(
-          MethodName(ObjectName(None, "a"), "d"),
-          MethodName(ObjectName(None, "a"), "s"),
-          MethodName(ObjectName(None, "a"), "b"),
-          MethodName(ObjectName(None, "a"), "d")
+          MethodName(ObjectName("a"), "d"),
+          MethodName(ObjectName("a"), "s"),
+          MethodName(ObjectName("a"), "b"),
+          MethodName(ObjectName("a"), "d")
         )
       )
 

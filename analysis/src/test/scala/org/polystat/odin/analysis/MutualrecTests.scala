@@ -161,9 +161,7 @@ object MutualrecTests {
 
   def stringsToMethodName(strs: NonEmptyList[String]): Option[MethodName] = {
     def stringsToObjName(strs: List[String]): Option[ObjectName] =
-      strs.foldLeft[Option[ObjectName]](None) { case (acc, next) =>
-        Some(ObjectName(acc, next))
-      }
+      NonEmptyList.fromList(strs).map(ObjectName(_))
 
     stringsToObjName(strs.init).map(MethodName(_, strs.last))
   }

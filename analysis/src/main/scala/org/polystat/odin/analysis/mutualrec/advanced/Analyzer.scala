@@ -1,16 +1,16 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
+import cats.MonadError
+import cats.data.{NonEmptyList => Nel}
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.traverse._
-import cats.MonadError
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
 
 object Analyzer {
 
@@ -35,6 +35,56 @@ object Analyzer {
     cg: PartialCallGraph,
     parentName: Option[ObjectName], // parent or decoratee
   )
+
+//  def buildObjectTree(
+//    prog: EOProg[EOExprOnly]
+//  ) = {
+//    for {
+//      partialTree <- Inliner.createObjectTree(prog)
+//      treeWithParents <- Inliner.resolveParents(partialTree)
+//      program <- buildProgramFromObjectTree(treeWithParents)
+//    } yield program
+//  }
+//
+//  def buildProgramFromObjectTree(
+//    objTree: Map[EONamedBnd, Inliner.CompleteObjectTree]
+//  ): EitherNel[String, Program] = {
+//
+//    @unused def recurseCurrentLevel(
+//      currentLevel: Map[EONamedBnd, Inliner.CompleteObjectTree]
+//    )(curNames: Nel[String]): EitherNel[String, Program] = {
+//      currentLevel.toList.traverse { case (_, tree) =>
+//        recurse(tree)(curNames)
+//      }
+//    }
+//
+//
+//    def extractCallGraph(
+//      tree: Inliner.CompleteObjectTree
+//    )(methods: Map[EONamedBnd, inlining.MethodInfo]): CallGraph = {
+//      val objectName = tree.info.fqn
+//      methods.map { case (_, _) =>
+//        val methodName = MethodName(objectName, name.name.name)
+//        val calls = info.calls
+//        ???
+//      }
+//
+//    }
+//
+//    def recurse(
+//      curTree: Inliner.CompleteObjectTree
+//    )(curNames: Nel[String]): EitherNel[String, Object] = {
+//      val objectName = curNames.concatNel(Nel.one(curTree.info.name.name.name))
+//      val parentInfo = ???
+//      val nestedObjs = recurseCurrentLevel(curTree.children)(objectName)
+//      val callGraph = extractCallGraph(objectName)(curTree.info.methods)
+//      ???
+//    }
+//
+//    objTree.toList.traverse { case (name, tree) =>
+//      recurse(tree)(Nel.one(name.name.name))
+//    }
+//  }
 
   type PartialCall = (Option[ObjectName], String)
   type PartialCallGraphEntry = (MethodName, Set[PartialCall])
@@ -67,7 +117,7 @@ object Analyzer {
           case EOBndExpr(
                  EODecoration,
                  Fix(EOSimpleApp(name))
-               ) => acc.copy(parent = Some(ObjectName(None, name)))
+               ) => acc.copy(parent = Some(ObjectName(name)))
 
           // parent (eo dot)
           // a.b.c > @
@@ -106,9 +156,9 @@ object Analyzer {
   def eoDotToObjectName(eoDot: EODot[EOExprOnly]): Option[ObjectName] =
     eoDot match {
       case EODot(EOSimpleApp(obj), attr) =>
-        Some(ObjectName(Some(ObjectName(None, obj)), attr))
+        Some(ObjectName(Nel(obj, List(attr))))
       case EODot(Fix(dot: EODot[EOExprOnly]), name) => eoDotToObjectName(dot)
-          .map(container => ObjectName(Some(container), name))
+          .map(container => ObjectName(container.names.append(name)))
       case _ => None
     }
 
@@ -182,7 +232,7 @@ object Analyzer {
 
     val (name, body) = obj
     val bodyInfo = splitObjectBody(body.bndAttrs)
-    val objectName = ObjectName(container, name)
+    val objectName = ObjectName.fromContainer(container, name)
 
     for {
       cg <- extractCallGraph(objectName)(bodyInfo.methods)
@@ -325,7 +375,7 @@ object Analyzer {
   )(implicit F: MonadError[F, String]): F[Program] = {
 
     val dummyObj: PartialObject = PartialObject(
-      name = ObjectName(None, "THIS NAME DOESN'T MATTER"),
+      name = ObjectName("THIS NAME DOESN'T MATTER"),
       parentName = None,
       cg = Map(),
     )

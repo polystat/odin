@@ -1,15 +1,15 @@
 package org.polystat.odin.analysis.gens
 
-import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import cats.effect.IO
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.implicits.global
-import fs2.io.file.{Files, Path}
-import org.scalacheck.Gen
-import fs2.Stream
-import fs2.text.utf8
 import cats.syntax.flatMap._
+import fs2.Stream
+import fs2.io.file.{Files, Path}
+import fs2.text.utf8
+import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.scalacheck.Gen
 
 import scala.util.Try
 
@@ -28,7 +28,7 @@ object MutualRecursionTestGen {
           .map(_.mkString)
       )
       .retryUntil(!p.containsObjectWithName(_))
-      .map(ObjectName(containerObjName, _))
+      .map(name => ObjectName.fromContainer(containerObjName, name))
   }
 
   def between[T](min: Int, max: Int, g: Gen[T]): Gen[List[T]] =
@@ -219,7 +219,8 @@ object MutualRecursionTestGen {
       else
         addObjRec(
           Object(
-            name = ObjectName(None, "THE VALUE OF THIS STRING DOESN'T MATTER"),
+            name =
+              ObjectName("THE VALUE OF THIS STRING DOESN'T MATTER"),
             parent = None,
             nestedObjs = prog,
             callGraph = Map()
