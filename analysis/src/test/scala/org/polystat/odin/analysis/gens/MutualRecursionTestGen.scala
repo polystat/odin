@@ -10,6 +10,7 @@ import fs2.text.utf8
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.scalacheck.Gen
+import org.polystat.odin.analysis.ObjectName
 
 import scala.util.Try
 

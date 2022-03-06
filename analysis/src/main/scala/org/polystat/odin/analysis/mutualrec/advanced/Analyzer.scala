@@ -7,6 +7,7 @@ import cats.syntax.functor._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
+import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.polystat.odin.core.ast._
@@ -50,7 +51,7 @@ object Analyzer {
 //    objTree: Map[EONamedBnd, Inliner.CompleteObjectTree]
 //  ): EitherNel[String, Program] = {
 //
-//    @unused def recurseCurrentLevel(
+//    def recurseCurrentLevel(
 //      currentLevel: Map[EONamedBnd, Inliner.CompleteObjectTree]
 //    )(curNames: Nel[String]): EitherNel[String, Program] = {
 //      currentLevel.toList.traverse { case (_, tree) =>
@@ -58,14 +59,13 @@ object Analyzer {
 //      }
 //    }
 //
-//
 //    def extractCallGraph(
 //      tree: Inliner.CompleteObjectTree
 //    )(methods: Map[EONamedBnd, inlining.MethodInfo]): CallGraph = {
-//      val objectName = tree.info.fqn
-//      methods.map { case (_, _) =>
+//      val objectName = ObjectName(tree.info.fqn.names)
+//      methods.map { case (name, info) =>
 //        val methodName = MethodName(objectName, name.name.name)
-//        val calls = info.calls
+//        val calls = info.calls.map(_.methodName)
 //        ???
 //      }
 //
@@ -73,11 +73,11 @@ object Analyzer {
 //
 //    def recurse(
 //      curTree: Inliner.CompleteObjectTree
-//    )(curNames: Nel[String]): EitherNel[String, Object] = {
-//      val objectName = curNames.concatNel(Nel.one(curTree.info.name.name.name))
+//    ): EitherNel[String, Object] = {
+//      val objectName = ObjectName(curTree.info.fqn.names)
 //      val parentInfo = ???
 //      val nestedObjs = recurseCurrentLevel(curTree.children)(objectName)
-//      val callGraph = extractCallGraph(objectName)(curTree.info.methods)
+//      val callGraph = extractCallGraph(curTree)(curTree.info.methods)
 //      ???
 //    }
 //

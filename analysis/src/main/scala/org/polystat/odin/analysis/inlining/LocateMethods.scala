@@ -3,6 +3,7 @@ package org.polystat.odin.analysis.inlining
 import cats.data.{NonEmptyList => Nel}
 import cats.syntax.foldable._
 import higherkindness.droste.data.Fix
+import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.inlining.LocateCalls._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
