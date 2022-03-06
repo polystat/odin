@@ -64,7 +64,7 @@ object Inliner {
     ): ToplevelBndInfo
      =
       bnds.foldLeft[ToplevelBndInfo]((Vector(), Map())) {
-        case ((bnds, objs), bnd) => parseObject(bnd, 0) match {
+        case ((bnds, objs), bnd) => parseObject(bnd, 0, List()) match {
           case Some(value) => (
             bnds.appended(ObjectPlaceholder(value.info.name).asRight),
             objs.updated(value.info.name, value)
@@ -97,7 +97,7 @@ object Inliner {
     setLocators(prog).map(
       _.bnds
         .flatMap(bnd =>
-          parseObject(bnd, 0).map(obj =>
+          parseObject(bnd, 0, List()).map(obj =>
             (obj.info.name, obj)
           )
         )

@@ -96,6 +96,7 @@ package inlining {
     M <: GenericMethodInfo,
   ](
     name: EONamedBnd,
+    fqn: ObjectName,
     bnds: Vector[BndPlaceholder],
     depth: BigInt,
     override val parentInfo: Option[P],
