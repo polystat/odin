@@ -1,0 +1,17 @@
+[] > test
+  [] > parent
+    [self x] > f
+      x.sub 5 > y1
+      seq > @
+        assert (0.less y1)
+        x
+    [self y] > g
+      self.h self y > @
+    [self z] > h
+      z > @
+  [] > child
+    parent > @
+    [self y] > f
+      y > @
+    [self z] > h
+      self.g self z > @

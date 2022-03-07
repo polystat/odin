@@ -45,7 +45,7 @@ object Analyzer {
 
   def buildObjectTree(
     prog: EOProg[EOExprOnly]
-  ): Either[Nel[String], Program] = {
+  ): EitherNel[String, Program] = {
     for {
       tree <- Inliner
         .createObjectTree(prog)
@@ -499,8 +499,7 @@ object Analyzer {
     prog: EOProg[EOExprOnly]
   )(implicit F: MonadError[F, String]): F[List[OdinAnalysisError]] =
     for {
-      tree <- buildTree(prog)
-      program <- buildProgram(tree)
+      program <- fromEitherNel(buildObjectTree(prog))
     } yield filterCycleShifts(program.findMultiObjectCyclesWithObject).map {
       case (objName, ccs) =>
         val fancyChain = ccs
