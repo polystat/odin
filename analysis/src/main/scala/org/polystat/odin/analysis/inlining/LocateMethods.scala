@@ -1,11 +1,12 @@
 package org.polystat.odin.analysis.inlining
 
-import higherkindness.droste.data.Fix
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast._
-import LocateCalls._
-import cats.syntax.foldable._
 import cats.data.{NonEmptyList => Nel}
+import cats.syntax.foldable._
+import higherkindness.droste.data.Fix
+import org.polystat.odin.analysis.ObjectName
+import org.polystat.odin.analysis.inlining.LocateCalls._
+import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
 
 object LocateMethods {
 
@@ -47,11 +48,13 @@ object LocateMethods {
 
   def parseObject(
     obj: EOBnd[EOExprOnly],
-    objDepth: BigInt
+    objDepth: BigInt,
+    containingNames: List[String],
   ): Option[ObjectTree[ObjectInfo[ParentName, MethodInfo]]] = {
 
     obj match {
       case EOBndExpr(bndName, Fix(EOObj(Vector(), None, bnds))) =>
+        val fqn = Nel.ofInitLast(containingNames, bndName.name.name)
         val BndInfo(parentName, objects, methods, otherBnds) =
           bnds.foldLeft[BndInfo](BndInfo(None, Map(), Map(), Vector())) {
             case (
@@ -68,7 +71,7 @@ object LocateMethods {
                       )
                     )
                   ),
-                parseObject(next, objDepth + 1)
+                parseObject(next, objDepth + 1, fqn.toList)
                   .map(o =>
                     acc.copy(
                       nestedObjs = objects.updated(next.bndName, o),
@@ -101,6 +104,7 @@ object LocateMethods {
               methods = methods,
               bnds = otherBnds,
               depth = objDepth,
+              fqn = ObjectName(fqn),
             ),
             children = objects,
           )

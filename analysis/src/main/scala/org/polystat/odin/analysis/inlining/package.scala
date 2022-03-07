@@ -1,7 +1,6 @@
 package org.polystat.odin.analysis
 
 import cats.Applicative
-import cats.data.{NonEmptyList => Nel}
 import cats.syntax.align._
 import cats.syntax.apply._
 import cats.syntax.foldable._
@@ -23,7 +22,6 @@ package inlining {
   final case class BndItself(bnd: EOBndExpr[EOExprOnly]) extends BndPlaceholder
   final case class ParentPlaceholder(name: EOExprOnly) extends BndPlaceholder
 
-  final case class ObjectName(names: Nel[String])
   final case class ObjectNameWithLocator(locator: BigInt, name: ObjectName)
 
   sealed trait GenericObjectInfo[
@@ -96,6 +94,7 @@ package inlining {
     M <: GenericMethodInfo,
   ](
     name: EONamedBnd,
+    fqn: ObjectName,
     bnds: Vector[BndPlaceholder],
     depth: BigInt,
     override val parentInfo: Option[P],

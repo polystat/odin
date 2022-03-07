@@ -61,6 +61,15 @@ object Context {
         Map(
           "seq" -> 0,
           "assert" -> 0,
+          "random" -> 0,
+          "memory" -> 0,
+          "cage" -> 0,
+          "stdout" -> 0,
+          "sprintf" -> 0,
+          "goto" -> 0,
+          "heap" -> 0,
+          "ram" -> 0,
+          "try" -> 0,
         ),
         0,
         code.bnds,
@@ -71,8 +80,8 @@ object Context {
         depth =>
           expr =>
             Fix.un(expr) match {
-              case app: EOSimpleApp[EOExprOnly] =>
-                resolveLocator(ctx, app.name, depth)
+              case EOSimpleApp(name) =>
+                resolveLocator(ctx, name, depth)
               case other => Right(Fix(other))
             }
     )(modifyState =

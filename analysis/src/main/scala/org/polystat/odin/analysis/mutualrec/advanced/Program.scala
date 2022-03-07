@@ -1,13 +1,11 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
+import cats.data.{NonEmptyList => Nel}
+import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 
 object Program {
   type Program = List[Object]
-
-  case class ObjectName(container: Option[ObjectName], name: String) {
-    def show: String = container.fold(name)(p => s"${p.show}.$name")
-  }
 
   case class MethodName(whereDefined: ObjectName, name: String) {
     def show: String = s"${whereDefined.show}.$name"
@@ -121,7 +119,7 @@ object Program {
   implicit final class MethodNameOps(obj: String) {
 
     def %(method: String): MethodName =
-      MethodName(ObjectName(None, obj), method)
+      MethodName(ObjectName(Nel.one(obj)), method)
 
   }
 
