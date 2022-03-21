@@ -338,7 +338,8 @@ object ExtractLogic {
                     )
                   )
                 case ("greater", infoArg :: Nil) =>
-                  Right(Info(
+                  Right(
+                    Info(
                       List.empty,
                       List.empty,
                       GreaterThan(infoSrc.value, infoArg.value),
@@ -362,7 +363,7 @@ object ExtractLogic {
                   )
                 case _ => Left(
                     Nel.one(
-                       s"Unsupported ${infoArgs.length}-ary primitive .$attr"
+                      s"Unsupported ${infoArgs.length}-ary primitive .$attr"
                     )
                   )
               }
