@@ -2,6 +2,11 @@
 .idea/
 .bsp/
 *.iml
+.metals/
+.vscode/
+.bloop/
+project/project/
+metals.sbt
 
 # Build
 target/
