@@ -88,12 +88,13 @@ object EOOdinAnalyzer {
         ast: EOProg[EOExprOnly]
       ): Stream[F, OdinAnalysisError] =
         Stream.evals {
-            for {
-              tree <- toThrow(Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast))
-              errors <- MonadThrow[F].handleError(toThrow(ExtractLogic.processObjectTree(tree)))(
-                _ => List.empty[String]
-              )
-            } yield errors.map(OdinAnalysisError.apply)
+          for {
+            tree <-
+              toThrow(Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast))
+            errors <- MonadThrow[F].handleError(
+              toThrow(ExtractLogic.processObjectTree(tree))
+            )(_ => List.empty[String])
+          } yield errors.map(OdinAnalysisError.apply)
         }
 
     }
