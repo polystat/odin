@@ -207,26 +207,43 @@ object ExtractLogic {
                       availableMethods
                         .contains(EOAnyNameBnd(LazyName(methodName)))
                     ) {
-                      Right(
-                        Info(
-                          List.empty,
-                          List.empty,
-                          FunctionApplication(
+
+                      if (infos.nonEmpty)
+                        Right(
+                          Info(
+                            List.empty,
+                            List.empty,
+                            FunctionApplication(
+                              mkValueFunIdent(
+                                methodName,
+                                depth.drop(locator.toInt + 1)
+                              ),
+                              infos.map(arg => arg.value)
+                            ),
+                            FunctionApplication(
+                              mkPropertiesFunIdent(
+                                methodName,
+                                depth.drop(locator.toInt + 1)
+                              ),
+                              infos.map(arg => arg.properties)
+                            )
+                          )
+                        )
+                      else
+                        Right(
+                          Info(
+                            List.empty,
+                            List.empty,
                             mkValueFunIdent(
                               methodName,
                               depth.drop(locator.toInt + 1)
                             ),
-                            infos.map(arg => arg.value)
-                          ),
-                          FunctionApplication(
                             mkPropertiesFunIdent(
                               methodName,
                               depth.drop(locator.toInt + 1)
-                            ),
-                            infos.map(arg => arg.properties)
+                            )
                           )
                         )
-                      )
                     } else
                       Left(Nel.one(s"Unknown method $methodName"))
                   )
@@ -271,6 +288,37 @@ object ExtractLogic {
                 .value
                 .traverse(arg => extractInfo(depth, arg.expr, availableMethods))
               result <- (attr, infoArgs.toList) match {
+                case ("add", infoArg :: Nil) =>
+                  Right(
+                    Info(
+                      List.empty,
+                      List.empty,
+                      Add(infoSrc.value, infoArg.value),
+                      And(infoSrc.properties, infoArg.properties)
+                    )
+                  )
+                case ("div", infoArg :: Nil) =>
+                  Right(
+                    Info(
+                      List.empty,
+                      List.empty,
+                      Div(infoSrc.value, infoArg.value),
+                      And(
+                        infoSrc.properties,
+                        infoArg.properties,
+                        Not(Equals(infoArg.value, SNumeral(0)))
+                      )
+                    )
+                  )
+                case ("mul", infoArg :: Nil) =>
+                  Right(
+                    Info(
+                      List.empty,
+                      List.empty,
+                      Mul(infoSrc.value, infoArg.value),
+                      And(infoSrc.properties, infoArg.properties)
+                    )
+                  )
                 case ("sub", infoArg :: Nil) =>
                   Right(
                     Info(
@@ -289,9 +337,32 @@ object ExtractLogic {
                       And(infoSrc.properties, infoArg.properties)
                     )
                   )
+                case ("greater", infoArg :: Nil) =>
+                  Right(Info(
+                      List.empty,
+                      List.empty,
+                      GreaterThan(infoSrc.value, infoArg.value),
+                      And(infoSrc.properties, infoArg.properties)
+                    )
+                  )
+                case ("if", ifTrue :: ifFalse :: Nil) =>
+                  Right(
+                    Info(
+                      List.empty,
+                      List.empty,
+                      ITE(infoSrc.value, ifTrue.value, ifFalse.value),
+                      And(
+                        infoSrc.properties,
+                        Or(
+                          And(infoSrc.value, ifTrue.properties),
+                          And(Not(infoSrc.value), ifFalse.properties)
+                        )
+                      )
+                    )
+                  )
                 case _ => Left(
                     Nel.one(
-                      s"Unsupported ${infoArgs.length}-ary primitive .$attr"
+                       s"Unsupported ${infoArgs.length}-ary primitive .$attr"
                     )
                   )
               }
@@ -443,27 +514,87 @@ object ExtractLogic {
         val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
         val formula = prog.map(RecursivePrinter.toString).mkString
 
-        SimpleAPI.withProver(p => {
-          val (assertions, functions, constants, predicates) =
-            p.extractSMTLIBAssertionsSymbols(
-              new StringReader(formula),
-              fullyInline = true
-            )
-          assertions.foreach(p.addAssertion)
-          functions
-            .keySet
-            .foreach(f => p.addFunction(f, FunctionalityMode.NoUnification))
-          constants.keySet.foreach(p.addConstantRaw)
-          predicates.keySet.foreach(p.addRelation)
-          p.checkSat(true)
-          p.getStatus(true) match {
-            case ap.SimpleAPI.ProverStatus.Sat => Right(None)
-            case ap.SimpleAPI.ProverStatus.Unsat => Right(
-                Some(s"Method $methodName is not referentially transparent")
+        //        println(formula)
+
+        util
+          .Try(SimpleAPI.withProver(p => {
+            val (assertions, functions, constants, predicates) =
+              p.extractSMTLIBAssertionsSymbols(
+                new StringReader(formula),
+                fullyInline = true
               )
-            case err => Left(Nel.one(s"SMT solver failed with error: $err"))
-          }
-        })
+            assertions.foreach(p.addAssertion)
+            functions
+              .keySet
+              .foreach(f => p.addFunction(f, FunctionalityMode.NoUnification))
+            constants.keySet.foreach(p.addConstantRaw)
+            predicates.keySet.foreach(p.addRelation)
+            p.checkSat(true)
+            p.getStatus(true) match {
+              case ap.SimpleAPI.ProverStatus.Sat => Right(None)
+              case ap.SimpleAPI.ProverStatus.Unsat => Right(
+                  Some(s"Method $methodName is not referentially transparent")
+                )
+              case err => Left(Nel.one(s"SMT solver failed with error: $err"))
+            }
+          }))
+          .toEither
+          .leftMap(t =>
+            Nel.one(
+              s"SMT failed to parse the generated program with error: ${t.getMessage}"
+            )
+          )
+          .flatten
+
+      // case (Nil, y :: ys ) => Left(Nel.one("Methods with no arguments are not
+      // supported"))
+      // case (x :: xs, Nil) => Left(Nel.one("Methods with no arguments are not
+      // supported"))
+      // case (Nil, Nil) => Left(Nel.one("Methods with no arguments are not
+      // supported"))
+      case (Nil, Nil) =>
+        val impl = Implies(before.properties, after.properties)
+        val declsBefore = methodsBefore.toList.flatMap { case (name, info) =>
+          mkFunDecls("before", name, info)
+        }
+        val declsAfter = methodsAfter.toList.flatMap { case (name, info) =>
+          mkFunDecls("after", name, info)
+        }
+        val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
+        val formula = prog.map(RecursivePrinter.toString).mkString
+
+        util
+          .Try(SimpleAPI.withProver(p => {
+            val (assertions, functions, constants, predicates) =
+              p.extractSMTLIBAssertionsSymbols(
+                new StringReader(formula),
+                fullyInline = true
+              )
+            assertions.foreach(p.addAssertion)
+            functions
+              .keySet
+              .foreach(f => p.addFunction(f, FunctionalityMode.NoUnification))
+            constants.keySet.foreach(p.addConstantRaw)
+            predicates.keySet.foreach(p.addRelation)
+            p.checkSat(true)
+            p.getStatus(true) match {
+              case ap.SimpleAPI.ProverStatus.Sat => Right(None)
+              case ap.SimpleAPI.ProverStatus.Unsat => Right(
+                  Some(s"Method $methodName is not referentially transparent")
+                )
+              case err => Left(Nel.one(s"SMT solver failed with error: $err"))
+            }
+          }))
+          .toEither
+          .leftMap(t =>
+            Nel.one(
+              s"SMT failed to parse the generated program with error: ${t.getMessage}"
+            )
+          )
+          .flatten
+
+      case (_, _) =>
+        Left(Nel.one("Methods with no arguments are not supported"))
 
       case _ => Left(Nel.one("Methods with no arguments are not supported"))
     }
