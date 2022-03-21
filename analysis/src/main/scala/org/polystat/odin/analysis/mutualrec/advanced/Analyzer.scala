@@ -1,15 +1,23 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
+import cats.MonadError
+import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.syntax.apply._
+import cats.syntax.either._
 import cats.syntax.flatMap._
+import cats.syntax.foldable._
 import cats.syntax.functor._
-import cats.{MonadError, Traverse}
+import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
+import org.polystat.odin.analysis.ObjectName
+import org.polystat.odin.analysis.inlining.Inliner
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+
+import scala.annotation.tailrec
 
 object Analyzer {
 
@@ -35,17 +43,140 @@ object Analyzer {
     parentName: Option[ObjectName], // parent or decoratee
   )
 
+  def buildObjectTree(
+    prog: EOProg[EOExprOnly]
+  ): EitherNel[String, Program] = {
+    for {
+      tree <- Inliner
+        .createObjectTree(prog)
+        .flatMap(Inliner.resolveParents)
+      program <- buildProgramFromObjectTree(tree)
+    } yield program
+  }
+
+  def buildProgramFromObjectTree(
+    objTree: Map[EONamedBnd, Inliner.CompleteObjectTree]
+  ): EitherNel[String, Program] = {
+
+    def getParentTree(
+      cur: Inliner.CompleteObjectTree
+    ): Option[Inliner.CompleteObjectTree] =
+      cur.info.parentInfo.flatMap(_.linkToParent.getOption(objTree))
+
+    def recurseCurrentLevel(
+      currentLevel: Map[EONamedBnd, Inliner.CompleteObjectTree]
+    ): EitherNel[String, Program] = {
+      currentLevel.toList.traverse { case (_, tree) =>
+        recurse(tree)
+      }
+    }
+
+    def resolveParentInfoOf(
+      cur: Inliner.CompleteObjectTree
+    ): EitherNel[String, Option[ParentInfo]] = {
+      val parentTree = getParentTree(cur)
+
+      parentTree match {
+        case Some(parent) =>
+          val parentOfParent = getParentTree(parent)
+          (
+            resolveParentInfoOf(parent),
+            resolveCallgraph(parentOfParent)(parent)
+          ).mapN((parentOfParent, cg) =>
+            Some(
+              ParentInfo(
+                name = parent.info.fqn,
+                callGraph =
+                  parentOfParent.map(_.callGraph.extendWith(cg)).getOrElse(cg),
+                parent = parentOfParent
+              )
+            )
+          )
+        case None => Right(None)
+      }
+    }
+
+    @tailrec
+    def resolveCall(cur: Inliner.CompleteObjectTree)(
+      parentInfo: Option[Inliner.CompleteObjectTree]
+    )(methodName: String): EitherNel[String, MethodName] = {
+      val curMethods = cur.info.methods.keySet.map(_.name.name)
+      val fullMethodName = MethodName(cur.info.fqn, methodName)
+      // TODO: resolve calls relative to extended call graph
+      if (curMethods.contains(methodName)) {
+        fullMethodName.asRight
+      } else {
+        parentInfo match {
+          case Some(parent) =>
+            val parentOfParent = getParentTree(parent)
+            resolveCall(parent)(parentOfParent)(methodName)
+          case None =>
+            (s"Method \"$methodName\" was called from the object \"${cur.info.fqn.show}\"," +
+              s" although it is not defined there!").leftNel
+        }
+      }
+    }
+
+    def resolveCallgraph(parentInfo: Option[Inliner.CompleteObjectTree])(
+      cur: Inliner.CompleteObjectTree
+    ): EitherNel[String, CallGraph] = {
+      cur
+        .info
+        .methods
+        .toList
+        .traverse { case (name, info) =>
+          val methodName = MethodName(cur.info.fqn, name.name.name)
+          val calls = info
+            .calls
+            .map(_.methodName)
+            .distinct
+            .traverse(resolveCall(cur)(parentInfo))
+            .map(_.toSet)
+          calls.map(calls => (methodName, calls))
+
+        }
+        .map(_.toMap)
+    }
+
+    def recurse(
+      curTree: Inliner.CompleteObjectTree
+    ): EitherNel[String, Object] = {
+      val parentTree =
+        getParentTree(curTree)
+
+      val parentInfo = resolveParentInfoOf(curTree)
+      val cg = resolveCallgraph(parentTree)(curTree)
+      val nestedObjs = recurseCurrentLevel(curTree.children)
+      (
+        parentInfo,
+        cg,
+        nestedObjs,
+      ).mapN((parentInfo, cg, nestedObjs) =>
+        Object(
+          name = curTree.info.fqn,
+          parent = parentInfo,
+          nestedObjs = nestedObjs,
+          callGraph = parentInfo.map(_.callGraph.extendWith(cg)).getOrElse(cg)
+        )
+      )
+    }
+
+    objTree.toList.traverse { case (_, tree) =>
+      recurse(tree)
+    }
+  }
+
   type PartialCall = (Option[ObjectName], String)
   type PartialCallGraphEntry = (MethodName, Set[PartialCall])
   type PartialCallGraph = Map[MethodName, Set[PartialCall]]
 
-  def untilDefined[A, B](lst: List[A])(f: A => Option[B]): Option[B] =
-    lst match {
-      case Nil => None
-      case head :: tail => f(head).orElse(untilDefined(tail)(f))
-    }
+  final case class Tree[A](node: A, children: List[Tree[A]]) {
 
-  sealed case class Tree[A](node: A, children: List[Tree[A]]) {
+    private def untilDefined[B, C](lst: List[B])(f: B => Option[C]): Option[C] =
+      lst match {
+        case Nil => None
+        case head :: tail => f(head).orElse(untilDefined(tail)(f))
+      }
 
     def find(predicate: A => Boolean): Option[A] =
       if (predicate(node))
@@ -66,7 +197,7 @@ object Analyzer {
           case EOBndExpr(
                  EODecoration,
                  Fix(EOSimpleApp(name))
-               ) => acc.copy(parent = Some(ObjectName(None, name)))
+               ) => acc.copy(parent = Some(ObjectName(name)))
 
           // parent (eo dot)
           // a.b.c > @
@@ -105,9 +236,9 @@ object Analyzer {
   def eoDotToObjectName(eoDot: EODot[EOExprOnly]): Option[ObjectName] =
     eoDot match {
       case EODot(EOSimpleApp(obj), attr) =>
-        Some(ObjectName(Some(ObjectName(None, obj)), attr))
+        Some(ObjectName(Nel(obj, List(attr))))
       case EODot(Fix(dot: EODot[EOExprOnly]), name) => eoDotToObjectName(dot)
-          .map(container => ObjectName(Some(container), name))
+          .map(container => ObjectName(container.names.append(name)))
       case _ => None
     }
 
@@ -170,7 +301,7 @@ object Analyzer {
         calls
       )
     }
-    Traverse[Vector].sequence(methods.map(extractCallGraphEntry)).map(_.toMap)
+    methods.traverse(extractCallGraphEntry).map(_.toMap)
   }
 
   def buildTreeFromObj[F[_]: MonadError[*[_], String]](
@@ -181,13 +312,12 @@ object Analyzer {
 
     val (name, body) = obj
     val bodyInfo = splitObjectBody(body.bndAttrs)
-    val objectName = ObjectName(container, name)
+    val objectName = ObjectName.fromContainer(container, name)
 
     for {
       cg <- extractCallGraph(objectName)(bodyInfo.methods)
-      nestedObjs <- Traverse[Vector].sequence(
-        bodyInfo.nestedObjects.map(buildTreeFromObj[F](Some(objectName)))
-      )
+      nestedObjs <-
+        bodyInfo.nestedObjects.traverse(buildTreeFromObj[F](Some(objectName)))
     } yield Tree(
       node =
         PartialObject(
@@ -202,14 +332,15 @@ object Analyzer {
   def buildTree[F[_]: MonadError[*[_], String]](
     prog: EOProg[EOExprOnly]
   ): F[Vector[Tree[PartialObject]]] =
-    Traverse[Vector].sequence(
-      splitObjectBody(prog.bnds).nestedObjects.map(buildTreeFromObj[F](None))
-    )
+    splitObjectBody(prog.bnds)
+      .nestedObjects
+      .traverse(buildTreeFromObj[F](None))
 
   def resolveParent[F[_]](
     progTree: Tree[PartialObject] // only for lookup
   )(
-    of: ObjectName, // object whose parent is being resolved, used for error reporting
+    of: ObjectName, /* object whose parent is being resolved, used for error
+     * reporting */
     maybeParentName: Option[ObjectName], // parent object name
   )(implicit F: MonadError[F, String]): F[Option[ParentInfo]] = {
     // returns:
@@ -245,9 +376,11 @@ object Analyzer {
   }
 
   def convertPartialCg[F[_]](
-    objectName: ObjectName, // where call graph is defined, used for error reporting
+    objectName: ObjectName, /* where call graph is defined, used for error
+     * reporting */
     pcg: PartialCallGraph, // call graph to resolve
-    maybeParent: Option[ParentInfo] // the parent object to resolve methods from parent obj
+    maybeParent: Option[ParentInfo] /* the parent object to resolve methods from
+     * parent obj */
   )(implicit F: MonadError[F, String]): F[CallGraph] = {
 
     def createErrorMsg(methodName: String): String = {
@@ -290,12 +423,14 @@ object Analyzer {
       case None => resolveCallNoParent
     }
 
-    Traverse[List]
-      .sequence(pcg.toList.map { case (methodName, partialCalls) =>
-        Traverse[List]
-          .sequence(partialCalls.toList.map(resolveCall))
+    pcg
+      .toList
+      .traverse { case (methodName, partialCalls) =>
+        partialCalls
+          .toList
+          .traverse(resolveCall)
           .map(calls => (methodName, calls.toSet))
-      })
+      }
       .map(_.toMap)
   }
 
@@ -306,9 +441,7 @@ object Analyzer {
     for {
       parent <- resolveParent[F](progTree)(partialObjName, maybeParent)
       cg <- convertPartialCg[F](partialObjName, pcg, parent)
-      nestedObjs <- Traverse[List].sequence(
-        tree.children.map(restoreObjectFromTree[F](progTree))
-      )
+      nestedObjs <- tree.children.traverse(restoreObjectFromTree[F](progTree))
     } yield Object(
       name = partialObjName,
       parent = parent,
@@ -322,25 +455,29 @@ object Analyzer {
   )(implicit F: MonadError[F, String]): F[Program] = {
 
     val dummyObj: PartialObject = PartialObject(
-      name = ObjectName(None, "THIS NAME DOESN'T MATTER"),
+      name = ObjectName("THIS NAME DOESN'T MATTER"),
       parentName = None,
       cg = Map(),
     )
 
-    Traverse[Vector]
-      .sequence(
-        trees
-          .map(restoreObjectFromTree[F](Tree(dummyObj, trees.toList)))
-      )
+    trees
+      .traverse(restoreObjectFromTree[F](Tree(dummyObj, trees.toList)))
       .map(objs => objs.toList)
+  }
+
+  private def fromEitherNel[F[_]: MonadError[*[_], String], A](
+    einel: EitherNel[String, A]
+  ): F[A] = {
+    val either: Either[String, A] =
+      einel.leftMap(_.mkString_(util.Properties.lineSeparator))
+    MonadError[F, String].fromEither(either)
   }
 
   private[analysis] def produceChains[F[_]: MonadError[*[_], String]](
     prog: EOProg[EOExprOnly]
   ): F[List[CallChain]] =
     for {
-      tree <- buildTree(prog)
-      program <- buildProgram(tree)
+      program <- fromEitherNel(buildObjectTree(prog))
     } yield program.findMultiObjectCycles
 
   def filterCycleShifts(
@@ -362,8 +499,7 @@ object Analyzer {
     prog: EOProg[EOExprOnly]
   )(implicit F: MonadError[F, String]): F[List[OdinAnalysisError]] =
     for {
-      tree <- buildTree(prog)
-      program <- buildProgram(tree)
+      program <- fromEitherNel(buildObjectTree(prog))
     } yield filterCycleShifts(program.findMultiObjectCyclesWithObject).map {
       case (objName, ccs) =>
         val fancyChain = ccs

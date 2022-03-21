@@ -12,3 +12,5 @@ target/
 # JVM
 
 .jvmopts
+/.metals
+/.vscode
