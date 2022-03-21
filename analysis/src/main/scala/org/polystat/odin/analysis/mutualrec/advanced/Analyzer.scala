@@ -9,7 +9,6 @@ import cats.syntax.foldable._
 import cats.syntax.functor._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
 import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.inlining.Inliner
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
@@ -497,7 +496,7 @@ object Analyzer {
 
   def analyzeAst[F[_]](
     prog: EOProg[EOExprOnly]
-  )(implicit F: MonadError[F, String]): F[List[OdinAnalysisError]] =
+  )(implicit F: MonadError[F, String]): F[List[String]] =
     for {
       program <- fromEitherNel(buildObjectTree(prog))
     } yield filterCycleShifts(program.findMultiObjectCyclesWithObject).map {
@@ -511,7 +510,7 @@ object Analyzer {
           )
           .mkString(" -> ")
 
-        OdinAnalysisError(s"${objName.show}: $fancyChain")
+        s"${objName.show}: $fancyChain"
     }
 
 }
