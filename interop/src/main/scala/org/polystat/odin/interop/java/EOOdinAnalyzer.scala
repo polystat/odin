@@ -40,7 +40,7 @@ object EOOdinAnalyzer {
     parser: EoParser[String, IO, EOProg[EOExprOnly]]
   )(implicit runtime: IORuntime): util.List[OdinAnalysisResultInterop] = {
     analyzers
-      .flatTraverse { analyzer =>
+      .parFlatTraverse { analyzer =>
         analysis
           .EOOdinAnalyzer
           .analyzeSourceCode(analyzer)(code)(cats.Monad[IO], parser)

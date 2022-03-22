@@ -32,7 +32,7 @@ object EOOdinAnalyzer {
 
     final case class DefectDetected(
       override val analysisName: String,
-      messages: List[String]
+      message: String
     ) extends OdinAnalysisResult
 
     final case class AnalyzerFailure(
@@ -46,7 +46,7 @@ object EOOdinAnalyzer {
       if (errors.isEmpty)
         Ok(analyzer)
       else
-        DefectDetected(analyzer, errors)
+        DefectDetected(analyzer, errors.mkString("\n"))
 
     def fromThrow[F[_]: ApplicativeThrow](
       analyzer: String
