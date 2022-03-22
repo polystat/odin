@@ -134,11 +134,8 @@ object EOOdinAnalyzer {
             tree <-
               toThrow(Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast))
             errors <-
-              MonadThrow[F].handleError(
-                toThrow(ExtractLogic.processObjectTree(tree))
-              )(_ => List.empty[String])
+              toThrow(ExtractLogic.processObjectTree(tree))
           } yield errors
-
         }
 
     }
