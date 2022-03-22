@@ -64,6 +64,8 @@ object eo {
     after <- digits
   } yield s"$before.$after"
 
+  val boolean: Gen[String] = Gen.oneOf("TRUE", "FALSE")
+
   val escapedUnicode: Gen[String] = betweenStr(4, 4, digit).map("\\u" + _)
 
   val javaEscape: Gen[String] = Gen.frequency(
@@ -182,7 +184,8 @@ object eo {
     integer,
     float,
     string,
-    char
+    char,
+    boolean
   )
 
   def singleLineApplication(

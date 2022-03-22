@@ -135,8 +135,16 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
       "very simple" -> verySimple,
       "simple" -> simple,
       "division by zero" -> divByZero,
-    ) ++ FullProgramExamples.correct.init.map(tc => (tc.label, tc.code))
-
+    ).appendedAll(
+      FullProgramExamples
+        .correct
+        // "dir walk" test is not run
+        // because it is not yet supported by EO parser
+        // https://github.com/cqfn/eo/issues/584
+        // TODO: remove .init when it is supported
+        .init
+        .map(tc => (tc.label, tc.code))
+    )
     tests.foreach { case (label, code) =>
       registerAsyncTest(label) {
         compare[IO](code)
