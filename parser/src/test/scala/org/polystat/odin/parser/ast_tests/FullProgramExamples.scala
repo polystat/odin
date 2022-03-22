@@ -10,6 +10,7 @@ object FullProgramExamples {
 
   val correct: List[TestCase[EOProg[EOExprOnly]]] = List(
     mutualRecursionExample,
+    booleanLiteralsExample,
     dirWalk,
   )
 
@@ -66,6 +67,41 @@ object FullProgramExamples {
                         )
                       )
                     )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+
+  private lazy val booleanLiteralsExample = TestCase(
+    "boolean literals are recognized correctly",
+    code =
+      """[] > main
+        |  TRUE > a_true
+        |  FALSE > a_false
+        |""".stripMargin,
+    ast = Some(
+      EOProg(
+        metas = EOMetas(None, Vector()),
+        bnds = Vector(
+          EOBndExpr(
+            bndName = EOAnyNameBnd(LazyName("main")),
+            expr = Fix(
+              EOObj(
+                Vector(),
+                None,
+                Vector(
+                  EOBndExpr(
+                    EOAnyNameBnd(LazyName("a_true")),
+                    Fix[EOExpr](EOBoolData(true))
+                  ),
+                  EOBndExpr(
+                    EOAnyNameBnd(LazyName("a_false")),
+                    Fix[EOExpr](EOBoolData(false)),
                   )
                 )
               )
