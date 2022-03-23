@@ -22,22 +22,22 @@ trait ASTAnalyzer[F[_]] {
 object EOOdinAnalyzer {
 
   sealed trait OdinAnalysisResult {
-    val analysisName: String
+    val ruleId: String
   }
 
   object OdinAnalysisResult {
 
-    final case class Ok(override val analysisName: String)
+    final case class Ok(override val ruleId: String)
       extends OdinAnalysisResult
 
     final case class DefectDetected(
-      override val analysisName: String,
+      override val ruleId: String,
       message: String
     ) extends OdinAnalysisResult
 
     final case class AnalyzerFailure(
-      override val analysisName: String,
-      reason: String
+      override val ruleId: String,
+      reason: Throwable
     ) extends OdinAnalysisResult
 
     def fromErrors(
@@ -52,7 +52,7 @@ object EOOdinAnalyzer {
       analyzer: String
     )(f: F[List[String]]): F[OdinAnalysisResult] =
       f.attempt.map {
-        case Left(value) => AnalyzerFailure(analyzer, value.getMessage)
+        case Left(value) => AnalyzerFailure(analyzer, value)
         case Right(errors) => fromErrors(analyzer)(errors)
       }
 

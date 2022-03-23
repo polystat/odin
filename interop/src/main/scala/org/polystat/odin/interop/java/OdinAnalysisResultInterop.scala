@@ -4,15 +4,15 @@ import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisResult
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisResult._
 
 class OdinAnalysisResultInterop(
-  val analysisName: java.lang.String,
-  val detectedDefects: java.util.Optional[java.lang.String],
-  val analyzerFailure: java.util.Optional[java.lang.String],
+  val ruleId: java.lang.String,
+  val detectedDefect: java.util.Optional[java.lang.String],
+  val analyzerFailure: java.util.Optional[java.lang.Throwable],
 ) {
 
   override def toString(): String =
     s"""OdinAnalysisErrorInterop(
-       |  analysisName = "$analysisName",
-       |  detectedDefects = $detectedDefects,
+       |  analysisName = "$ruleId",
+       |  detectedDefects = $detectedDefect,
        |  analyzerFailure = $analyzerFailure,
        |)""".stripMargin
 
@@ -24,26 +24,26 @@ object OdinAnalysisResultInterop {
     oar: OdinAnalysisResult
   ): List[OdinAnalysisResultInterop] = {
     oar match {
-      case Ok(analysisName) =>
+      case Ok(rule) =>
         List(
           new OdinAnalysisResultInterop(
-            analysisName,
+            rule,
             java.util.Optional.empty,
             java.util.Optional.empty,
           )
         )
-      case DefectDetected(analysisName, message) =>
+      case DefectDetected(rule, message) =>
         List(
           new OdinAnalysisResultInterop(
-            analysisName,
+            rule,
             java.util.Optional.of(message),
             java.util.Optional.empty,
           )
         )
-      case AnalyzerFailure(analysisName, reason) =>
+      case AnalyzerFailure(rule, reason) =>
         List(
           new OdinAnalysisResultInterop(
-            analysisName,
+            rule,
             java.util.Optional.empty,
             java.util.Optional.of(reason),
           )
