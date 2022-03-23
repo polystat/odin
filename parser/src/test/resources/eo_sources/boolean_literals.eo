@@ -1,0 +1,13 @@
+[] > boolean_literals
+  TRUE > a_true
+  FALSE > a_false
+  assert ((TRUE.and TRUE).eq TRUE)
+  assert
+    eq.
+      and.
+        TRUE
+        TRUE
+      TRUE
+
+TRUE
+FALSE
