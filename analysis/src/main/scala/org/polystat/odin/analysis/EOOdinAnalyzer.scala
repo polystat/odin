@@ -27,8 +27,7 @@ object EOOdinAnalyzer {
 
   object OdinAnalysisResult {
 
-    final case class Ok(override val ruleId: String)
-      extends OdinAnalysisResult
+    final case class Ok(override val ruleId: String) extends OdinAnalysisResult
 
     final case class DefectDetected(
       override val ruleId: String,
