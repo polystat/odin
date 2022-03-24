@@ -32,11 +32,11 @@ import java.io.StringReader
 object ExtractLogic {
 
   final case class Info(
-    forall: List[SortedVar],
-    exists: List[SortedVar],
-    value: Term,
-    properties: Term
-  ) {}
+                         forall: List[SortedVar],
+                         exists: List[SortedVar],
+                         value: Term,
+                         properties: Term
+                       ) {}
 
   def nameToSSymbol(names: List[String], depth: List[String]): SSymbol = {
     val name = (depth.reverse ++ names).mkString("-")
@@ -54,31 +54,31 @@ object ExtractLogic {
 
   @annotation.tailrec
   def dotToSimpleAppsWithLocator(
-    src: EOExprOnly,
-    lastNames: List[String]
-  ): EitherNel[String, (BigInt, List[String])] = {
+                                  src: EOExprOnly,
+                                  lastNames: List[String]
+                                ): EitherNel[String, (BigInt, List[String])] = {
     Fix.un(src) match {
       case EOObj(_, _, _) => Left(Nel.one("Cannot analyze [someObject].attr"))
       case app: EOApp[_] => app match {
-          case EOSimpleApp(name) =>
-            Left(Nel.one(s"Encountered unqualified attribute $name"))
-          case EOSimpleAppWithLocator(name, locator) =>
-            Right((locator, lastNames.prepended(name)))
-          case EODot(src, name) =>
-            dotToSimpleAppsWithLocator(src, lastNames.prepended(name))
-          case EOCopy(_, _) =>
-            Left(Nel.one("Cannot analyze dot of app:  (t1 t2).a"))
-        }
+        case EOSimpleApp(name) =>
+          Left(Nel.one(s"Encountered unqualified attribute $name"))
+        case EOSimpleAppWithLocator(name, locator) =>
+          Right((locator, lastNames.prepended(name)))
+        case EODot(src, name) =>
+          dotToSimpleAppsWithLocator(src, lastNames.prepended(name))
+        case EOCopy(_, _) =>
+          Left(Nel.one("Cannot analyze dot of app:  (t1 t2).a"))
+      }
       case _: EOData[_] =>
         Left(Nel.one("Cannot analyze arbitrary attributes of data"))
     }
   }
 
   def mkEqualsBndAttr(
-    name: EONamedBnd,
-    depth: List[String],
-    value: Term
-  ): Term = {
+                       name: EONamedBnd,
+                       depth: List[String],
+                       value: Term
+                     ): Term = {
     value match {
       case QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value")), _) =>
         True()
@@ -98,9 +98,9 @@ object ExtractLogic {
   }
 
   def mkValueFunIdent(
-    name: String,
-    depth: List[String]
-  ): QualifiedIdentifier = {
+                       name: String,
+                       depth: List[String]
+                     ): QualifiedIdentifier = {
     QualifiedIdentifier(SimpleIdentifier(mkValueFunSSymbol(name, depth)))
   }
 
@@ -110,17 +110,17 @@ object ExtractLogic {
   }
 
   def mkPropertiesFunIdent(
-    name: String,
-    depth: List[String]
-  ): QualifiedIdentifier = {
+                            name: String,
+                            depth: List[String]
+                          ): QualifiedIdentifier = {
     QualifiedIdentifier(SimpleIdentifier(mkPropertiesFunSSymbol(name, depth)))
   }
 
   def extractInfo(
-    depth: List[String],
-    expr: EOExprOnly,
-    availableMethods: Set[EONamedBnd]
-  ): EitherNel[String, Info] = {
+                   depth: List[String],
+                   expr: EOExprOnly,
+                   availableMethods: Set[EONamedBnd]
+                 ): EitherNel[String, Info] = {
     Fix.un(expr) match {
       case EOObj(Vector(), None, bndAttrs) =>
         val infos = bndAttrs.traverse { case EOBndExpr(bndName, expr) =>
@@ -141,8 +141,8 @@ object ExtractLogic {
           }
           val newProperties = localInfos.toList match {
             case _ :: _ :: _ => And(localInfos.map { case (name, info) =>
-                And(info.properties, mkEqualsBndAttr(name, depth, info.value))
-              })
+              And(info.properties, mkEqualsBndAttr(name, depth, info.value))
+            })
             case (name, info) :: Nil =>
               And(info.properties, mkEqualsBndAttr(name, depth, info.value))
             case Nil => True()
@@ -151,210 +151,213 @@ object ExtractLogic {
             case Some(resultInfo) =>
               Info(List.empty, newExists, resultInfo.value, newProperties)
             case None => Info(
-                List.empty,
-                newExists,
-                QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value"))),
-                newProperties
-              )
+              List.empty,
+              newExists,
+              QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value"))),
+              newProperties
+            )
           }
         })
       case EOObj(_, _, _) =>
         Left(Nel.one("object with void attributes are not supported yet!")) /*
          * FIXME */
       case app: EOApp[_] => app match {
-          case EOSimpleApp(name) =>
-            Left(Nel.one(s"Encountered unqualified attribute $name"))
-          case EOSimpleAppWithLocator(name, locator) =>
-            Right(simpleAppToInfo(List(name), depth.drop(locator.toInt + 1)))
-          case EODot(src, name) =>
-            dotToSimpleAppsWithLocator(src, List(name)).map {
-              case (locator, names) =>
-                simpleAppToInfo(names, depth.drop(locator.toInt + 1))
-            }
-          case EOCopy(
-                 Fix(
-                   EODot(
-                     Fix(EOSimpleAppWithLocator("self", locator)),
-                     methodName
-                   )
-                 ),
-                 args
-               ) =>
-            args.value.toList.map(x => Fix.un(x.expr)) match {
-              case EOSimpleAppWithLocator("self", locator2) :: moreArgs
-                   if locator == locator2 =>
-                moreArgs
-                  .traverse(expr =>
-                    extractInfo(depth, Fix(expr), availableMethods)
-                  )
-                  .flatMap(infos =>
-                    if (
-                      availableMethods
-                        .contains(EOAnyNameBnd(LazyName(methodName)))
-                    ) {
+        case EOSimpleApp(name) =>
+          Left(Nel.one(s"Encountered unqualified attribute $name"))
+        case EOSimpleAppWithLocator(name, locator) =>
+          Right(simpleAppToInfo(List(name), depth.drop(locator.toInt + 1)))
+        case EODot(src, name) =>
+          dotToSimpleAppsWithLocator(src, List(name)).map {
+            case (locator, names) =>
+              simpleAppToInfo(names, depth.drop(locator.toInt + 1))
+          }
+        case EOCopy(
+        Fix(
+        EODot(
+        Fix(EOSimpleAppWithLocator("self", locator)),
+        methodName
+        )
+        ),
+        args
+        ) =>
+          args.value.toList.map(x => Fix.un(x.expr)) match {
+            case EOSimpleAppWithLocator("self", locator2) :: moreArgs
+              if locator == locator2 =>
+              moreArgs
+                .traverse(expr =>
+                  extractInfo(depth, Fix(expr), availableMethods)
+                )
+                .flatMap(infos =>
+                  if (
+                    availableMethods
+                      .contains(EOAnyNameBnd(LazyName(methodName)))
+                  ) {
 
-                      if (infos.nonEmpty)
-                        Right(
-                          Info(
-                            List.empty,
-                            List.empty,
-                            FunctionApplication(
-                              mkValueFunIdent(
-                                methodName,
-                                depth.drop(locator.toInt + 1)
-                              ),
-                              infos.map(arg => arg.value)
-                            ),
-                            FunctionApplication(
-                              mkPropertiesFunIdent(
-                                methodName,
-                                depth.drop(locator.toInt + 1)
-                              ),
-                              infos.map(arg => arg.properties)
-                            )
-                          )
+                    // Todo handle empty infos
+                    //                    if (infos.nonEmpty)
+                    Right(
+                      Info(
+                        List.empty,
+                        List.empty,
+                        FunctionApplication(
+                          mkValueFunIdent(
+                            methodName,
+                            depth.drop(locator.toInt + 1)
+                          ),
+                          infos.map(arg => arg.value)
+                        ),
+                        FunctionApplication(
+                          mkPropertiesFunIdent(
+                            methodName,
+                            depth.drop(locator.toInt + 1)
+                          ),
+                          infos.map(arg => arg.value)
                         )
-                      else
-                        Right(
-                          Info(
-                            List.empty,
-                            List.empty,
-                            mkValueFunIdent(
-                              methodName,
-                              depth.drop(locator.toInt + 1)
-                            ),
-                            mkPropertiesFunIdent(
-                              methodName,
-                              depth.drop(locator.toInt + 1)
-                            )
-                          )
-                        )
-                    } else
-                      Left(Nel.one(s"Unknown method $methodName"))
-                  )
-              case _ => Left(Nel.one(s"Unsupported EOCopy with self: $app"))
-            }
-          case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for { /*
+                      )
+                    )
+                    //                    else
+                    //                      Right(
+                    //                        Info(
+                    //                          List.empty,
+                    //                          List.empty,
+                    //                          mkValueFunIdent(
+                    //                            methodName,
+                    //                            depth.drop(locator.toInt + 1)
+                    //                          ),
+                    //                          mkPropertiesFunIdent(
+                    //                            methodName,
+                    //                            depth.drop(locator.toInt + 1)
+                    //                          )
+                    //                        )
+                    //                      )
+                  } else
+                    Left(Nel.one(s"Unknown method $methodName"))
+                )
+            case _ => Left(Nel.one(s"Unsupported EOCopy with self: $app"))
+          }
+        case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for {/*
                * FIXME: check locators */
-              infoArgs <- args
-                .value
-                .traverse(arg => extractInfo(depth, arg.expr, availableMethods))
-              result <- (name, infoArgs.toList) match {
-                case ("seq", Nil) =>
-                  Left(Nel.one("seq is expecting at least one term"))
-                case ("seq", args) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      args.last.exists,
-                      args.last.value,
-                      And(args.map(x => x.properties))
+          infoArgs <- args
+            .value
+            .traverse(arg => extractInfo(depth, arg.expr, availableMethods))
+          result <- (name, infoArgs.toList) match {
+            case ("seq", Nil) =>
+              Left(Nel.one("seq is expecting at least one term"))
+            case ("seq", args) =>
+              Right(
+                Info(
+                  List.empty,
+                  args.last.exists,
+                  args.last.value,
+                  And(args.map(x => x.properties))
+                )
+              )
+            // Todo if possible check that assert content is a boolean
+            // assert (3.div 2) causes problems with type correspondance
+            case ("assert", arg :: Nil) =>
+              Right(
+                Info(
+                  List.empty,
+                  List.empty,
+                  arg.value,
+                  And(arg.properties, arg.value)
+                )
+              )
+            case _ => Left(
+              Nel.one(
+                s"Unsupported ${infoArgs.length}-ary primitive $name"
+              )
+            )
+          }
+        } yield result
+        case EOCopy(Fix(EODot(src, attr)), args) => for {
+          infoSrc <- extractInfo(depth, src, availableMethods)
+          infoArgs <- args
+            .value
+            .traverse(arg => extractInfo(depth, arg.expr, availableMethods))
+          result <- (attr, infoArgs.toList) match {
+            case ("add", infoArg :: Nil) =>
+              Right(
+                Info(
+                  List.empty,
+                  List.empty,
+                  Add(infoSrc.value, infoArg.value),
+                  And(infoSrc.properties, infoArg.properties)
+                )
+              )
+            case ("div", infoArg :: Nil) =>
+              Right(
+                Info(
+                  List.empty,
+                  List.empty,
+                  Div(infoSrc.value, infoArg.value),
+                  And(
+                    infoSrc.properties,
+                    infoArg.properties,
+                    Not(Equals(infoArg.value, SNumeral(0)))
+                  )
+                )
+              )
+            case ("mul", infoArg :: Nil) =>
+              Right(
+                Info(
+                  List.empty,
+                  List.empty,
+                  Mul(infoSrc.value, infoArg.value),
+                  And(infoSrc.properties, infoArg.properties)
+                )
+              )
+            case ("sub", infoArg :: Nil) =>
+              Right(
+                Info(
+                  List.empty,
+                  List.empty,
+                  Sub(infoSrc.value, infoArg.value),
+                  And(infoSrc.properties, infoArg.properties)
+                )
+              )
+            case ("less", infoArg :: Nil) =>
+              Right(
+                Info(
+                  List.empty,
+                  List.empty,
+                  LessThan(infoSrc.value, infoArg.value),
+                  And(infoSrc.properties, infoArg.properties)
+                )
+              )
+            case ("greater", infoArg :: Nil) =>
+              Right(
+                Info(
+                  List.empty,
+                  List.empty,
+                  GreaterThan(infoSrc.value, infoArg.value),
+                  And(infoSrc.properties, infoArg.properties)
+                )
+              )
+            case ("if", ifTrue :: ifFalse :: Nil) =>
+              Right(
+                Info(
+                  List.empty,
+                  List.empty,
+                  ITE(infoSrc.value, ifTrue.value, ifFalse.value),
+                  And(
+                    infoSrc.properties,
+                    Or(
+                      And(infoSrc.value, ifTrue.properties),
+                      And(Not(infoSrc.value), ifFalse.properties)
                     )
                   )
-                case ("assert", arg :: Nil) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      List.empty,
-                      arg.value,
-                      And(arg.properties, arg.value)
-                    )
-                  )
-                case _ => Left(
-                    Nel.one(
-                      s"Unsupported ${infoArgs.length}-ary primitive $name"
-                    )
-                  )
-              }
-            } yield result
-          case EOCopy(Fix(EODot(src, attr)), args) => for {
-              infoSrc <- extractInfo(depth, src, availableMethods)
-              infoArgs <- args
-                .value
-                .traverse(arg => extractInfo(depth, arg.expr, availableMethods))
-              result <- (attr, infoArgs.toList) match {
-                case ("add", infoArg :: Nil) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      List.empty,
-                      Add(infoSrc.value, infoArg.value),
-                      And(infoSrc.properties, infoArg.properties)
-                    )
-                  )
-                case ("div", infoArg :: Nil) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      List.empty,
-                      Div(infoSrc.value, infoArg.value),
-                      And(
-                        infoSrc.properties,
-                        infoArg.properties,
-                        Not(Equals(infoArg.value, SNumeral(0)))
-                      )
-                    )
-                  )
-                case ("mul", infoArg :: Nil) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      List.empty,
-                      Mul(infoSrc.value, infoArg.value),
-                      And(infoSrc.properties, infoArg.properties)
-                    )
-                  )
-                case ("sub", infoArg :: Nil) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      List.empty,
-                      Sub(infoSrc.value, infoArg.value),
-                      And(infoSrc.properties, infoArg.properties)
-                    )
-                  )
-                case ("less", infoArg :: Nil) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      List.empty,
-                      LessThan(infoSrc.value, infoArg.value),
-                      And(infoSrc.properties, infoArg.properties)
-                    )
-                  )
-                case ("greater", infoArg :: Nil) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      List.empty,
-                      GreaterThan(infoSrc.value, infoArg.value),
-                      And(infoSrc.properties, infoArg.properties)
-                    )
-                  )
-                case ("if", ifTrue :: ifFalse :: Nil) =>
-                  Right(
-                    Info(
-                      List.empty,
-                      List.empty,
-                      ITE(infoSrc.value, ifTrue.value, ifFalse.value),
-                      And(
-                        infoSrc.properties,
-                        Or(
-                          And(infoSrc.value, ifTrue.properties),
-                          And(Not(infoSrc.value), ifFalse.properties)
-                        )
-                      )
-                    )
-                  )
-                case _ => Left(
-                    Nel.one(
-                      s"Unsupported ${infoArgs.length}-ary primitive .$attr"
-                    )
-                  )
-              }
-            } yield result
-          case _ => Left(Nel.one(s"Some EOCopy is not supported yet: $app"))
-        }
+                )
+              )
+            case _ => Left(
+              Nel.one(
+                s"Unsupported ${infoArgs.length}-ary primitive .$attr"
+              )
+            )
+          }
+        } yield result
+        case _ => Left(Nel.one(s"Some EOCopy is not supported yet: $app"))
+      }
       case EOIntData(n) =>
         Right(Info(List.empty, List.empty, SNumeral(n), True()))
       case _ => Left(Nel.one(s"Some case is not checked: $expr")) // FIXME
@@ -366,11 +369,11 @@ object ExtractLogic {
   }
 
   def processMethod2(
-    tag: String,
-    method: MethodInfoForAnalysis,
-    name: String,
-    availableMethods: Set[EONamedBnd]
-  ): EitherNel[String, Info] = {
+                      tag: String,
+                      method: MethodInfoForAnalysis,
+                      name: String,
+                      availableMethods: Set[EONamedBnd]
+                    ): EitherNel[String, Info] = {
     val body = method.body
     val depth = List(tag)
 
@@ -389,52 +392,52 @@ object ExtractLogic {
         infos.flatMap(infos =>
           infos.toMap.get(EODecoration) match {
             case Some(resultInfo) => Right {
-                val localInfos = infos.filter {
-                  case (EODecoration, _) => false
-                  case _ => true
-                }
-                val newExists = localInfos.toList.flatMap { case (name, info) =>
-                  SortedVar(
-                    nameToSSymbol(List(name.name.name), depth),
-                    IntSort()
-                  ) :: info.exists
-                }
-                val newProperties = localInfos.toList match {
-                  case _ :: _ :: _ => And(localInfos.map { case (name, info) =>
-                      And(
-                        info.properties,
-                        mkEqualsBndAttr(name, depth, info.value)
-                      )
-                    })
-                  case (name, info) :: Nil =>
-                    And(
-                      info.properties,
-                      mkEqualsBndAttr(name, depth, info.value)
-                    )
-                  case Nil => True()
-                }
-                val params = body
-                  .freeAttrs
-                  .tail
-                  .toList
-                  .map(name => mkIntVar(name.name, depth))
-                newExists match {
-                  // FIXME: add Let for value (note, you need to store bindings,
-                  // not only names in "exists")
-                  case x :: xs => Info(
-                      params,
-                      List.empty,
-                      resultInfo.value,
-                      Exists(x, xs, And(resultInfo.properties, newProperties))
-                    )
-                  case Nil => Info(
-                      params,
-                      List.empty,
-                      resultInfo.value,
-                      And(resultInfo.properties, newProperties)
-                    )
-                }
+              val localInfos = infos.filter {
+                case (EODecoration, _) => false
+                case _ => true
               }
+              val newExists = localInfos.toList.flatMap { case (name, info) =>
+                SortedVar(
+                  nameToSSymbol(List(name.name.name), depth),
+                  IntSort()
+                ) :: info.exists
+              }
+              val newProperties = localInfos.toList match {
+                case _ :: _ :: _ => And(localInfos.map { case (name, info) =>
+                  And(
+                    info.properties,
+                    mkEqualsBndAttr(name, depth, info.value)
+                  )
+                })
+                case (name, info) :: Nil =>
+                  And(
+                    info.properties,
+                    mkEqualsBndAttr(name, depth, info.value)
+                  )
+                case Nil => True()
+              }
+              val params = body
+                .freeAttrs
+                .tail
+                .toList
+                .map(name => mkIntVar(name.name, depth))
+              newExists match {
+                // FIXME: add Let for value (note, you need to store bindings,
+                // not only names in "exists")
+                case x :: xs => Info(
+                  params,
+                  List.empty,
+                  resultInfo.value,
+                  Exists(x, xs, And(resultInfo.properties, newProperties))
+                )
+                case Nil => Info(
+                  params,
+                  List.empty,
+                  resultInfo.value,
+                  And(resultInfo.properties, newProperties)
+                )
+              }
+            }
             case None => Left(Nel.one("Impossible happened!"))
           }
         )
@@ -443,6 +446,21 @@ object ExtractLogic {
         Left(Nel.one(s"Method $name does not have attached @ attribute"))
     }
 
+  }
+
+  def funDecls(tag: String, name: EONamedBnd, info: Info): List[FunDec] = {
+    val value = FunDec(
+      mkValueFunSSymbol(name.name.name, List(tag)),
+      info.forall,
+      IntSort()
+    )
+    val properties = FunDec(
+      mkPropertiesFunSSymbol(name.name.name, List(tag)),
+      info.forall,
+      BoolSort()
+    )
+    //    println(RecursivePrinter.toString(valueDef))
+    List(value, properties)
   }
 
   def mkFunDecls(tag: String, name: EONamedBnd, info: Info): List[Command] = {
@@ -466,13 +484,48 @@ object ExtractLogic {
     List(valueDef, propertiesDef)
   }
 
+  def mkFunDecls_new(tag: String, name: EONamedBnd, info: Info): List[Command] = {
+    val value = DeclareFun(
+      mkValueFunSSymbol(name.name.name, List(tag)),
+      info.forall.map(_.sort),
+      IntSort()
+    )
+    val properties = DeclareFun(
+      mkPropertiesFunSSymbol(name.name.name, List(tag)),
+      info.forall.map(_.sort),
+      BoolSort()
+    )
+    //    println(RecursivePrinter.toString(valueDef))
+    List(value, properties)
+  }
+
+  def funBodies(tag: String, name: EONamedBnd, info: Info): List[Command] = {
+
+    // Todo: make "head" safe
+    val value = Forall(info.forall.head, info.forall.tail,
+      Equals(
+        FunctionApplication(mkValueFunIdent(name.name.name, List(tag)),
+          info.forall.map(v => QualifiedIdentifier(SimpleIdentifier(v.name)))), info.value
+      )
+    )
+    val properties = Forall(info.forall.head, info.forall.tail,
+      Equals(
+        FunctionApplication(mkPropertiesFunIdent(name.name.name, List(tag)),
+          info.forall.map(v => QualifiedIdentifier(SimpleIdentifier(v.name)))), info.properties
+      )
+    )
+
+    //    println(RecursivePrinter.toString(valueDef))
+    List(value, properties).map(Assert)
+  }
+
   def checkImplication2(
-    methodName: String,
-    before: Info,
-    methodsBefore: Map[EONamedBnd, Info],
-    after: Info,
-    methodsAfter: Map[EONamedBnd, Info]
-  ): EitherNel[String, Option[String]] = {
+                         methodName: String,
+                         before: Info,
+                         methodsBefore: Map[EONamedBnd, Info],
+                         after: Info,
+                         methodsAfter: Map[EONamedBnd, Info]
+                       ): EitherNel[String, Option[String]] = {
     (before.forall, after.forall) match {
       case (x :: xs, y :: ys) =>
         val impl = Forall(
@@ -492,16 +545,49 @@ object ExtractLogic {
             )
           )
         )
+
+        //////////////////////////// USING DefineFunsRec ///////////////////////
+        //        val decls = DefineFunsRec(
+        //          methodsBefore.toList.flatMap { case (name, info) =>
+        //            funDecls("before", name, info)
+        //          } ++ methodsAfter.toList.flatMap { case (name, info) =>
+        //            funDecls("after", name, info)
+        //          },
+        //          methodsBefore.toList.flatMap { case (_, info) =>
+        //            List(info.value, info.properties)
+        //          } ++ methodsAfter.toList.flatMap { case (_, info) =>
+        //            List(info.value, info.properties)
+        //          }
+        //        )
+        //        val prog = List(decls, Assert(impl))
+
+        //////////////////////////// USING Asserts ///////////////////////
         val declsBefore = methodsBefore.toList.flatMap { case (name, info) =>
-          mkFunDecls("before", name, info)
+          mkFunDecls_new("before", name, info)
         }
         val declsAfter = methodsAfter.toList.flatMap { case (name, info) =>
-          mkFunDecls("after", name, info)
+          mkFunDecls_new("after", name, info)
         }
-        val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
+        val bodiesBefore = methodsBefore.toList.flatMap { case (name, info) =>
+          funBodies("before", name, info)
+        }
+        val bodiesAfter = methodsAfter.toList.flatMap { case (name, info) =>
+          funBodies("after", name, info)
+        }
+        val prog = declsBefore ++ declsAfter ++ bodiesBefore ++ bodiesAfter ++ List(Assert(impl))
+
+        //////////////////////////// Initial version ///////////////////////
+        //        val declsBefore = methodsBefore.toList.flatMap { case (name, info) =>
+        //          mkFunDecls("before", name, info)
+        //        }
+        //        val declsAfter = methodsAfter.toList.flatMap { case (name, info) =>
+        //          mkFunDecls("after", name, info)
+        //        }
+        //        val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
+
         val formula = prog.map(RecursivePrinter.toString).mkString
 
-        //        println(formula)
+        println(formula)
 
         util
           .Try(SimpleAPI.withProver(p => {
@@ -520,8 +606,8 @@ object ExtractLogic {
             p.getStatus(true) match {
               case ap.SimpleAPI.ProverStatus.Sat => Right(None)
               case ap.SimpleAPI.ProverStatus.Unsat => Right(
-                  Some(s"Method $methodName is not referentially transparent")
-                )
+                Some(s"Method $methodName is not referentially transparent")
+              )
               case err => Left(Nel.one(s"SMT solver failed with error: $err"))
             }
           }))
@@ -533,53 +619,13 @@ object ExtractLogic {
           )
           .flatten
 
+      // Todo support other cases
       // case (Nil, y :: ys ) => Left(Nel.one("Methods with no arguments are not
       // supported"))
       // case (x :: xs, Nil) => Left(Nel.one("Methods with no arguments are not
       // supported"))
       // case (Nil, Nil) => Left(Nel.one("Methods with no arguments are not
       // supported"))
-      case (Nil, Nil) =>
-        val impl = Implies(before.properties, after.properties)
-        val declsBefore = methodsBefore.toList.flatMap { case (name, info) =>
-          mkFunDecls("before", name, info)
-        }
-        val declsAfter = methodsAfter.toList.flatMap { case (name, info) =>
-          mkFunDecls("after", name, info)
-        }
-        val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
-        val formula = prog.map(RecursivePrinter.toString).mkString
-
-        util
-          .Try(SimpleAPI.withProver(p => {
-            val (assertions, functions, constants, predicates) =
-              p.extractSMTLIBAssertionsSymbols(
-                new StringReader(formula),
-                fullyInline = true
-              )
-            assertions.foreach(p.addAssertion)
-            functions
-              .keySet
-              .foreach(f => p.addFunction(f, FunctionalityMode.NoUnification))
-            constants.keySet.foreach(p.addConstantRaw)
-            predicates.keySet.foreach(p.addRelation)
-            p.checkSat(true)
-            p.getStatus(true) match {
-              case ap.SimpleAPI.ProverStatus.Sat => Right(None)
-              case ap.SimpleAPI.ProverStatus.Unsat => Right(
-                  Some(s"Method $methodName is not referentially transparent")
-                )
-              case err => Left(Nel.one(s"SMT solver failed with error: $err"))
-            }
-          }))
-          .toEither
-          .leftMap(t =>
-            Nel.one(
-              s"SMT failed to parse the generated program with error: ${t.getMessage}"
-            )
-          )
-          .flatten
-
       case (_, _) =>
         Left(Nel.one("Methods with no arguments are not supported"))
 
@@ -587,9 +633,9 @@ object ExtractLogic {
   }
 
   def getMethodsInfo(
-    tag: String,
-    methods: Map[EONamedBnd, MethodInfoForAnalysis]
-  ): EitherNel[String, Map[EONamedBnd, Info]] = {
+                      tag: String,
+                      methods: Map[EONamedBnd, MethodInfoForAnalysis]
+                    ): EitherNel[String, Map[EONamedBnd, Info]] = {
     val methodNames = methods.keySet
     methods
       .toList
@@ -603,9 +649,9 @@ object ExtractLogic {
   }
 
   def checkMethods(
-    infoBefore: AnalysisInfo,
-    infoAfter: AnalysisInfo
-  ): EitherNel[String, List[String]] = {
+                    infoBefore: AnalysisInfo,
+                    infoAfter: AnalysisInfo
+                  ): EitherNel[String, List[String]] = {
     val methodPairs = infoBefore
       .indirectMethods
       .alignWith(infoAfter.indirectMethods)(_.onlyBoth.get)
@@ -631,8 +677,8 @@ object ExtractLogic {
   }
 
   def processObjectTree(
-    objs: Map[EONamedBnd, ObjectTree[(AnalysisInfo, AnalysisInfo)]]
-  ): EitherNel[String, List[String]] = {
+                         objs: Map[EONamedBnd, ObjectTree[(AnalysisInfo, AnalysisInfo)]]
+                       ): EitherNel[String, List[String]] = {
     objs.toList.flatTraverse { case (_, tree) =>
       for {
         currentRes <- checkMethods _ tupled tree.info
