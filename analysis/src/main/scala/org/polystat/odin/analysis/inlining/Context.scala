@@ -28,8 +28,6 @@ object Context {
     "random" -> 0,
     "memory" -> 0,
     "cage" -> 0,
-    "stdout" -> 0,
-    "sprintf" -> 0,
     "goto" -> 0,
     "heap" -> 0,
     "ram" -> 0,
