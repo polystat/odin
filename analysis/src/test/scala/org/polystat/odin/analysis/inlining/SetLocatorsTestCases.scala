@@ -220,4 +220,60 @@ object SetLocatorsTestCases {
         |""".stripMargin.asRight
   )
 
+  val withAliases: LocatorTestCase = LocatorTestCase(
+    label = "setting locators for aliases (imports)",
+    codeBefore =
+      """
+        |+alias org.eolang.io.stdout
+        |+alias print org.eolang.txt.sprintf
+        |[] > a
+        |  [self] > method
+        |    stdout > out
+        |    seq > @
+        |      print "output"
+        |      22
+        |""".stripMargin,
+    codeAfter =
+      """+alias org.eolang.io.stdout
+        |+alias print org.eolang.txt.sprintf
+        |
+        |[] > a
+        |  [self] > method
+        |    ^.^.stdout > out
+        |    ^.^.seq > @
+        |      ^.^.print
+        |        "output"
+        |      22
+        |""".stripMargin.asRight
+  )
+
+  val withPredef: LocatorTestCase = LocatorTestCase(
+    label = "setting locators for EO keywords (seq, assert, random)",
+    codeBefore =
+      """
+        |[] > a
+        |  [self] > method
+        |    random > num
+        |    memory > var
+        |    cage > what
+        |    seq > @
+        |      goto "somewhere"
+        |      assert (3.less 10)
+        |      22
+        |""".stripMargin,
+    codeAfter =
+      """[] > a
+        |  [self] > method
+        |    ^.^.random > num
+        |    ^.^.memory > var
+        |    ^.^.cage > what
+        |    ^.^.seq > @
+        |      ^.^.goto
+        |        "somewhere"
+        |      ^.^.assert
+        |        3.less
+        |          10
+        |      22
+        |""".stripMargin.asRight
+  )
 }
