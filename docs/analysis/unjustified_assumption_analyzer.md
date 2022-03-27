@@ -14,7 +14,7 @@ The following stages and steps take place during program analysis:
 3. Every method in the resulting set is paired with its  version in which all valid calls (criteria can be found below) to other methods of the containing object are inlined non-recursively.
 #### Logic extraction
 4. Logical properties (constraints on variables in the form of a logical expression) are extracted for both versions of the method in the pair.
-5. The derived expression for the version before inlining is connected with the expression after inlining by the means of implication. Doing so allows us to discover whetner the constraints on the variables have become weaker or stronger.
+5. The derived expression for the version before inlining is connected with the expression after inlining by the means of implication. Doing so allows us to discover whether the constraints on the variables have become weaker or stronger.
 6. We deduce that the unjustified assumption takes place if the resulting logical expression is false, meaning that there exist some inputs such that they worked before the inlining, and stopped working after.
 
 
@@ -30,11 +30,11 @@ The following stages and steps take place during program analysis:
 1. The called method belongs to the same object as the method containing the call.
 2. The call the general form `self.method self ...`. Meaning that `self` is used as both the source for the method and is passed as the first argument.
 
-### Algorith for setting locators:
+### Algorithm for setting locators:
 0. Explicit locator chains of from (^.^.value) are resolved at parse-time and are converted to corresponding AST-nodes.
 1. All predefined EO-keywords are stored in a special structure called 'context' and have locators point to the root of the program.
 2. The first step of actual processing extends the existing context by adding all top-level objects.
-3. Each top-level object is recursiely explored while keeping keeping track of encountered objects and their depth in the context.
+3. Each top-level object is recursively explored while keeping track of encountered objects and their depth in the context.
 4. The terms that refer to the definitions in the current scope are given 0-locators (\$), while terms contained in the context are given locators by subtracting their depth from current depth.
 
 Before:
@@ -97,7 +97,7 @@ After:
 ```
 ### Inlining algorithm:
 0. All objects are extracted from the AST
-1. Every AST-object is converted into the 'Object' data strucutre
+1. Every AST-object is converted into the 'Object' data structure
 2. Each created 'Object' is processed as follows:
    2.1 All calls in the object are processed, while non-call binds are returned as is.
    2.1.1 Replace occurrences of formal parameters in the method body with the argument values.
@@ -148,7 +148,7 @@ After:
          ^.local_average3.average > average
 ```
 
-### Alogrithm for logical expression extraction:
+### Algorithm for logical expression extraction:
 0. The list of recognized terms and their corresponding expressions/properties:
    ![](https://i.imgur.com/PBFB7ac.png)
 1. All methods that can be called from the target method are collected and stored.
@@ -200,7 +200,7 @@ Resulting SMT-code:
 ## Current Limitations:
 1. Method pairs for inspection are formed by considering only direct descendants. For example, in case of an inheritance chain A -> B -> C only combinations (A,B) and (B,C) are examined. It would be ideal to examine all possible combinations. So, in the given example an additional pair (A,C) is to be examined.
 <!-- 2. Only NOT redefined methods are examined for the presence unjustified assumptions. This might not be the ideal approach? -->
-2. Presence of methods with mutual recursion causes the program to be unable to detect defects of related to unjistifed assumptions.
+2. Presence of methods with mutual recursion causes the program to be unable to detect defects of related to unjustified assumptions.
 3. Current implementation makes it impossible to store boolean values in object fields. Only integer values are supported as of now.
 4. No checks are performed on the contents of asserts in EO. As such, it is possible to assert an integer value, which would cause unanticipated behavior. For example, `assert (3.add 5)`.
 5. Imported functions are not supported by the analyzer.
