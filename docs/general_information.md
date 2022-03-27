@@ -7,11 +7,11 @@ Tool to inspect EO programs for potential defects. Additionaly, it can be used t
 ### 1. Unanticipaded mutual recursion
 > Mutual recursion caused by method redefinition during inheritance.
 
-(refer to [this document](https://github.com/polystat/odin/blob/master/docs/analysis/mutual_recursion_analyzer.md) for more information)
+(refer to [this document](analysis/mutual_recursion_analyzer.md) for more information)
 ### 2. Unjustifed assumptions about methods of superclasses
 > Assumptions made in subclasses regarding method dependencies in superclasses.
 
-(refer to [this document](https://github.com/polystat/odin/blob/master/docs/analysis/unjustified_assumption_detection.md) for more information)
+(refer to [this document](analysis/unjustified_assumption_analyzer.md) for more information)
 ## Assumptions and Limitations
 Some assumptions are made about EO programs and used EO constructs during analysis for all type of defects. Additionally, some constructs and syntax are not supported intentionally.
 
