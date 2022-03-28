@@ -29,6 +29,7 @@ import smtlib.theories.Core._
 
 import java.io.StringReader
 import scala.annotation.unused
+import scala.util.Try
 
 object ExtractLogic {
 
@@ -443,7 +444,7 @@ object ExtractLogic {
         val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
         val formula = prog.map(RecursivePrinter.toString).mkString
 
-        SimpleAPI.withProver(p => {
+        Try(SimpleAPI.withProver(p => {
           val (assertions, functions, constants, predicates) =
             p.extractSMTLIBAssertionsSymbols(
               new StringReader(formula),
@@ -463,7 +464,10 @@ object ExtractLogic {
               )
             case err => Left(Nel.one(s"SMT solver failed with error: $err"))
           }
-        })
+        }))
+          .toEither
+          .leftMap(ex => Nel.one(ex.getMessage()))
+          .flatten
 
       case _ => Left(Nel.one("Methods with no arguments are not supported"))
     }
