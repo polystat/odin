@@ -39,7 +39,31 @@ object Sandbox extends IOApp {
                  |      y > @
                  |    [self z] > h
                  |      self.g self z > @
-                 |""".stripMargin
+                 |""".stripMargin,
+    "fourth" -> """
+                  |1 > non-existent
+                  |[] > a
+                  |  non-existent > @
+                  |""".stripMargin,
+    "fifth" -> """
+                 |[] > b
+                 |[] > a
+                 |  ^.^.b > @
+                 |""".stripMargin,
+    "sixth" -> """
+                 |[] > a
+                 |  [self] > f
+                 |    self.non-existent self > @
+                 |""".stripMargin,
+    "seventh" -> """
+                   |[] > a
+                   |  [self a b] > f
+                   |    a.add b > @
+                   |  [self] > g
+                   |    self.f self 1 > @
+                   |  [self] > h
+                   |    self.f self 1 2 3 > @
+                   |""".stripMargin,
   )
 
   override def run(args: List[String]): IO[ExitCode] = for {
