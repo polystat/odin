@@ -12,6 +12,7 @@ import org.polystat.odin.analysis.inlining.Inliner
 import org.polystat.odin.analysis.logicalexprs.ExtractLogic
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer.analyzeAst
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
+import org.polystat.odin.analysis.stateaccess.DetectAccess
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser
@@ -90,6 +91,32 @@ object EOOdinAnalyzer {
             for {
               tree <- Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast)
               errors <- ExtractLogic.processObjectTree(tree)
+            } yield errors.map(OdinAnalysisError.apply)
+          }
+        }
+
+    }
+
+  def accessToBaseClassAnalyzer[F[_]: ApplicativeThrow]: ASTAnalyzer[F] =
+    new ASTAnalyzer[F] {
+
+      private[this] def toThrow[A](eitherNel: EitherNel[String, A]): F[A] = {
+        ApplicativeThrow[F].fromEither(
+          eitherNel
+            .leftMap(_.mkString_(util.Properties.lineSeparator))
+            .leftMap(new Exception(_))
+        )
+      }
+
+      override def analyze(
+                            ast: EOProg[EOExprOnly]
+                          ): Stream[F, OdinAnalysisError] =
+        Stream.evals {
+          toThrow {
+            for {
+              tmpTree <- Inliner.createObjectTree(ast)
+              tree <- Inliner.resolveParents(tmpTree)
+              errors <- DetectAccess.analyze(tree)
             } yield errors.map(OdinAnalysisError.apply)
           }
         }

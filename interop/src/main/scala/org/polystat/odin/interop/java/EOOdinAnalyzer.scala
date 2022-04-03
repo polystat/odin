@@ -8,6 +8,7 @@ import org.polystat.odin.analysis.ASTAnalyzer
 import org.polystat.odin.analysis.EOOdinAnalyzer.{
   advancedMutualRecursionAnalyzer,
   unjustifiedAssumptionAnalyzer,
+  accessToBaseClassAnalyzer,
   OdinAnalysisError
 }
 import org.polystat.odin.core.ast.EOProg
@@ -34,6 +35,7 @@ object EOOdinAnalyzer {
     List(
       ("[Mutual Recursion]", advancedMutualRecursionAnalyzer[IO]),
       ("[Unjustified Assumption]", unjustifiedAssumptionAnalyzer[IO]),
+      ("[Direct Access To Base Class State]", accessToBaseClassAnalyzer[IO])
     )
 
   private def runAnalyzers(
