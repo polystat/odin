@@ -64,6 +64,15 @@ object Sandbox extends IOApp {
                    |  [self] > h
                    |    self.f self 1 2 3 > @
                    |""".stripMargin,
+    "eight" -> """[] > a
+                 |  memory > state
+                 |  [self new_state] > update_state
+                 |    self.state.write new_state > @
+                 |[] > b
+                 |  a > @
+                 |  [self new_state] > change_state_plus_two
+                 |    self.state.write (new_state.add 2) > @
+                 |""".stripMargin,
   )
 
   override def run(args: List[String]): IO[ExitCode] = for {

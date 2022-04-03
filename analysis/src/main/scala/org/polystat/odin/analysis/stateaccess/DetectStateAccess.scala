@@ -1,11 +1,26 @@
 package org.polystat.odin.analysis.stateaccess
 
 import cats.data.EitherNel
-import org.polystat.odin.analysis.inlining.{Abstract, BndItself, Inliner, MethodInfo, ObjectInfo, ParentInfo}
-import org.polystat.odin.core.ast.{EOAnyNameBnd, EOBndExpr, EOCopy, EODot, EONamedBnd, EOSimpleAppWithLocator, LazyName}
+import org.polystat.odin.analysis.inlining.{
+  Abstract,
+  BndItself,
+  Inliner,
+  MethodInfo,
+  ObjectInfo,
+  ParentInfo
+}
+import org.polystat.odin.core.ast.{
+  EOAnyNameBnd,
+  EOBndExpr,
+  EOCopy,
+  EODot,
+  EONamedBnd,
+  EOSimpleAppWithLocator,
+  LazyName
+}
 import org.polystat.odin.parser.eo.Parser
 
-object DetectAccess {
+object DetectStateAccess {
 
   type ObjInfo = ObjectInfo[ParentInfo[MethodInfo, ObjectInfo], MethodInfo]
   case class State(container: EONamedBnd, states: Vector[EONamedBnd])
@@ -22,13 +37,17 @@ object DetectAccess {
           .info
           .bnds
           .collect {
-            case BndItself(EOBndExpr(bndName, EOSimpleAppWithLocator("memory", _)))
-                 if !existingState.contains(bndName) =>
+            case BndItself(
+                   EOBndExpr(bndName, EOSimpleAppWithLocator("memory", _))
+                 ) if !existingState.contains(bndName) =>
               bndName
           }
 
         List(State(container = parentObj.info.name, states = currentStates)) ++
-          accumulateParentState(tree)(parentObj.info.parentInfo, existingState ++ currentStates)
+          accumulateParentState(tree)(
+            parentObj.info.parentInfo,
+            existingState ++ currentStates
+          )
 
       case None => List()
     }
@@ -38,7 +57,10 @@ object DetectAccess {
     val binds = method._2.body.bndAttrs
 
     Abstract.foldAst[List[StateChange]](binds) {
-      case EOCopy(EODot(EODot(EOSimpleAppWithLocator("self", x), state), "write"), _) if x == 0 =>
+      case EOCopy(
+             EODot(EODot(EOSimpleAppWithLocator("self", x), state), "write"),
+             _
+           ) if x == 0 =>
         List(StateChange(method._1, EOAnyNameBnd(LazyName(state))))
     }
   }

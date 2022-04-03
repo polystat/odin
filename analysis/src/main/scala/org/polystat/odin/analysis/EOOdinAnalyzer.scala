@@ -1,7 +1,7 @@
 package org.polystat.odin.analysis
 
 import cats._
-import cats.data.EitherNel
+import cats.data.{EitherNel, NonEmptyList}
 import cats.effect.Sync
 import cats.syntax.all._
 import fs2.Stream
@@ -9,7 +9,7 @@ import org.polystat.odin.analysis.inlining.Inliner
 import org.polystat.odin.analysis.logicalexprs.ExtractLogic
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer.analyzeAst
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
-import org.polystat.odin.analysis.stateaccess.DetectAccess
+import org.polystat.odin.analysis.stateaccess.DetectStateAccess
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser
@@ -32,7 +32,7 @@ object EOOdinAnalyzer {
 
     final case class DefectDetected(
       override val ruleId: String,
-      message: String
+      messages: NonEmptyList[String],
     ) extends OdinAnalysisResult
 
     final case class AnalyzerFailure(
@@ -43,10 +43,10 @@ object EOOdinAnalyzer {
     def fromErrors(
       analyzer: String
     )(errors: List[String]): OdinAnalysisResult =
-      if (errors.isEmpty)
-        Ok(analyzer)
-      else
-        DefectDetected(analyzer, errors.mkString("\n"))
+      errors match {
+        case e :: es => DefectDetected(analyzer, NonEmptyList(e, es))
+        case Nil => Ok(analyzer)
+      }
 
     def fromThrow[F[_]: ApplicativeThrow](
       analyzer: String
@@ -56,6 +56,16 @@ object EOOdinAnalyzer {
         case Right(errors) => fromErrors(analyzer)(errors)
       }
 
+  }
+
+  private def toThrow[F[_], A](
+    eitherNel: EitherNel[String, A]
+  )(implicit mt: MonadThrow[F]): F[A] = {
+    MonadThrow[F].fromEither(
+      eitherNel
+        .leftMap(_.mkString_(util.Properties.lineSeparator))
+        .leftMap(new Exception(_))
+    )
   }
 
   def naiveMutualRecursionAnalyzer[F[_]: Sync]: ASTAnalyzer[F] =
@@ -90,7 +100,16 @@ object EOOdinAnalyzer {
           })
         } yield odinError
 
-        stream.compile.toList.map(OdinAnalysisResult.fromErrors(name))
+        stream
+          .compile
+          .toList
+          .map {
+            case Nil => OdinAnalysisResult.Ok(name)
+            case e :: es => OdinAnalysisResult.DefectDetected(
+                name,
+                NonEmptyList(e, es)
+              )
+          }
       }
 
     }
@@ -118,14 +137,6 @@ object EOOdinAnalyzer {
 
       override val name: String = "Unjustified Assumption"
 
-      private def toThrow[A](eitherNel: EitherNel[String, A]): F[A] = {
-        MonadThrow[F].fromEither(
-          eitherNel
-            .leftMap(_.mkString_(util.Properties.lineSeparator))
-            .leftMap(new Exception(_))
-        )
-      }
-
       override def analyze(
         ast: EOProg[EOExprOnly]
       ): F[OdinAnalysisResult] =
@@ -140,12 +151,33 @@ object EOOdinAnalyzer {
 
     }
 
-  def analyzeSourceCode[EORepr, F[_]: Monad](
+  def directStateAccessAnalyzer[F[_]: MonadThrow]: ASTAnalyzer[F] =
+    new ASTAnalyzer[F] {
+
+      override val name: String = "Direct Access to Superclass State"
+
+      override def analyze(
+        ast: EOProg[EOExprOnly]
+      ): F[OdinAnalysisResult] =
+        OdinAnalysisResult.fromThrow[F](name) {
+          for {
+            tmpTree <-
+              toThrow(Inliner.createObjectTree(ast))
+            tree <- toThrow(Inliner.resolveParents(tmpTree))
+            errors <-
+              toThrow(DetectStateAccess.analyze(tree))
+          } yield errors
+        }
+
+    }
+
+  def analyzeSourceCode[EORepr, F[_]](
     analyzer: ASTAnalyzer[F]
   )(
     eoRepr: EORepr
   )(implicit
-    parser: EoParser[EORepr, F, EOProg[EOExprOnly]]
+    m: Monad[F],
+    parser: EoParser[EORepr, F, EOProg[EOExprOnly]],
   ): F[OdinAnalysisResult] = for {
     programAst <- parser.parse(eoRepr)
     mutualRecursionErrors <-

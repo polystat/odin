@@ -2,6 +2,8 @@ package org.polystat.odin.interop.java
 
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisResult
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisResult._
+import cats.syntax.foldable._
+import scala.util.Properties
 
 class OdinAnalysisResultInterop(
   val ruleId: java.lang.String,
@@ -32,11 +34,11 @@ object OdinAnalysisResultInterop {
             java.util.Optional.empty,
           )
         )
-      case DefectDetected(rule, message) =>
+      case DefectDetected(rule, messages) =>
         List(
           new OdinAnalysisResultInterop(
             rule,
-            java.util.Optional.of(message),
+            java.util.Optional.of(messages.mkString_(Properties.lineSeparator)),
             java.util.Optional.empty,
           )
         )
