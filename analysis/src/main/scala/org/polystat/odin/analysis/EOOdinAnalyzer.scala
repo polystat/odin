@@ -100,11 +100,11 @@ object EOOdinAnalyzer {
 
     }
 
-  def accessToBaseClassAnalyzer[F[_]: ApplicativeThrow]: ASTAnalyzer[F] =
+  def accessToBaseClassAnalyzer[F[_]: MonadThrow]: ASTAnalyzer[F] =
     new ASTAnalyzer[F] {
 
       private[this] def toThrow[A](eitherNel: EitherNel[String, A]): F[A] = {
-        ApplicativeThrow[F].fromEither(
+        MonadThrow[F].fromEither(
           eitherNel
             .leftMap(_.mkString_(util.Properties.lineSeparator))
             .leftMap(new Exception(_))
