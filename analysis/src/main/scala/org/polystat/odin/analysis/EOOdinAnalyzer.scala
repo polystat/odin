@@ -1,10 +1,12 @@
 package org.polystat.odin.analysis
 
-import cats.ApplicativeThrow
+import cats.MonadThrow
 import cats.data.EitherNel
 import cats.effect.Sync
 import cats.syntax.either._
 import cats.syntax.foldable._
+import cats.syntax.flatMap._
+import cats.syntax.functor._
 import fs2.Stream
 import monix.newtypes.NewtypeWrapped
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisError
@@ -56,14 +58,14 @@ object EOOdinAnalyzer {
 
     }
 
-  def advancedMutualRecursionAnalyzer[F[_]: ApplicativeThrow]: ASTAnalyzer[F] =
+  def advancedMutualRecursionAnalyzer[F[_]: MonadThrow]: ASTAnalyzer[F] =
     new ASTAnalyzer[F] {
 
       override def analyze(
         ast: EOProg[EOExprOnly]
       ): Stream[F, OdinAnalysisError] = for {
         errors <- Stream.eval(
-          ApplicativeThrow[F].fromEither(
+          MonadThrow[F].fromEither(
             analyzeAst[Either[String, *]](ast).leftMap(new Exception(_))
           )
         )
@@ -72,11 +74,11 @@ object EOOdinAnalyzer {
 
     }
 
-  def unjustifiedAssumptionAnalyzer[F[_]: ApplicativeThrow]: ASTAnalyzer[F] =
+  def unjustifiedAssumptionAnalyzer[F[_]: MonadThrow]: ASTAnalyzer[F] =
     new ASTAnalyzer[F] {
 
       private[this] def toThrow[A](eitherNel: EitherNel[String, A]): F[A] = {
-        ApplicativeThrow[F].fromEither(
+        MonadThrow[F].fromEither(
           eitherNel
             .leftMap(_.mkString_(util.Properties.lineSeparator))
             .leftMap(new Exception(_))
@@ -87,12 +89,13 @@ object EOOdinAnalyzer {
         ast: EOProg[EOExprOnly]
       ): Stream[F, OdinAnalysisError] =
         Stream.evals {
-          toThrow {
-            for {
-              tree <- Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast)
-              errors <- ExtractLogic.processObjectTree(tree)
-            } yield errors.map(OdinAnalysisError.apply)
-          }
+          for {
+            tree <-
+              toThrow(Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast))
+            errors <- MonadThrow[F].handleError(
+              toThrow(ExtractLogic.processObjectTree(tree))
+            )(_ => List.empty[String])
+          } yield errors.map(OdinAnalysisError.apply)
         }
 
     }
