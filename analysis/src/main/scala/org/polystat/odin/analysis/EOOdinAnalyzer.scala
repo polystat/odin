@@ -9,6 +9,7 @@ import org.polystat.odin.analysis.inlining.Inliner
 import org.polystat.odin.analysis.logicalexprs.ExtractLogic
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer.analyzeAst
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
+import org.polystat.odin.analysis.stateaccess.DetectAccess
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser
