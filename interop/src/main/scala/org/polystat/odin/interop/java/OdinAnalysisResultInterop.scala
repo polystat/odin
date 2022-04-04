@@ -34,7 +34,7 @@ object OdinAnalysisResultInterop {
             java.util.Optional.empty,
           )
         )
-      case DefectDetected(rule, messages) =>
+      case DefectsDetected(rule, messages) =>
         List(
           new OdinAnalysisResultInterop(
             rule,

@@ -17,7 +17,7 @@ class DetectStateAccessTests extends AnyWordSpec {
     )
     .flatMap {
       case Ok(_) => IO.pure(List.empty)
-      case DefectDetected(_, errors) => IO.pure(errors.toList)
+      case DefectsDetected(_, errors) => IO.pure(errors.toList)
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 

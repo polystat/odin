@@ -1,23 +1,8 @@
 package org.polystat.odin.analysis.stateaccess
 
 import cats.data.EitherNel
-import org.polystat.odin.analysis.inlining.{
-  Abstract,
-  BndItself,
-  Inliner,
-  MethodInfo,
-  ObjectInfo,
-  ParentInfo
-}
-import org.polystat.odin.core.ast.{
-  EOAnyNameBnd,
-  EOBndExpr,
-  EOCopy,
-  EODot,
-  EONamedBnd,
-  EOSimpleAppWithLocator,
-  LazyName
-}
+import org.polystat.odin.analysis.inlining._
+import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.eo.Parser
 
 object DetectStateAccess {

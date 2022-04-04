@@ -30,7 +30,7 @@ object EOOdinAnalyzer {
 
     final case class Ok(override val ruleId: String) extends OdinAnalysisResult
 
-    final case class DefectDetected(
+    final case class DefectsDetected(
       override val ruleId: String,
       messages: NonEmptyList[String],
     ) extends OdinAnalysisResult
@@ -44,7 +44,7 @@ object EOOdinAnalyzer {
       analyzer: String
     )(errors: List[String]): OdinAnalysisResult =
       errors match {
-        case e :: es => DefectDetected(analyzer, NonEmptyList(e, es))
+        case e :: es => DefectsDetected(analyzer, NonEmptyList(e, es))
         case Nil => Ok(analyzer)
       }
 
@@ -103,13 +103,7 @@ object EOOdinAnalyzer {
         stream
           .compile
           .toList
-          .map {
-            case Nil => OdinAnalysisResult.Ok(name)
-            case e :: es => OdinAnalysisResult.DefectDetected(
-                name,
-                NonEmptyList(e, es)
-              )
-          }
+          .map(OdinAnalysisResult.fromErrors(name))
       }
 
     }
