@@ -12,6 +12,10 @@ Tool to inspect EO programs for potential defects. Additionally, it can be used 
 > Assumptions made in subclasses regarding method dependencies in superclasses.
 
 (refer to [this document](analysis/unjustified_assumption_analyzer.md) for more information)
+## 3. Direct access to base class state
+> Altering the state stored in the base class in undesirable ways. 
+
+(refer to [this document](analysis/direct_access_to_base_class_state.md) for more information)
 ## Assumptions and Limitations
 Some assumptions are made about EO programs and used EO constructs during analysis for all type of defects. Additionally, some constructs and syntax are not supported intentionally.
 
