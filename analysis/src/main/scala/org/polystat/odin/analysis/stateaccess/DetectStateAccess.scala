@@ -1,9 +1,11 @@
 package org.polystat.odin.analysis.stateaccess
 
 import cats.data.EitherNel
+import cats.syntax.either._
 import org.polystat.odin.analysis.inlining._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.parser.eo.Parser
+
 
 object DetectStateAccess {
 
@@ -23,7 +25,7 @@ object DetectStateAccess {
           .bnds
           .collect {
             case BndItself(
-                   EOBndExpr(bndName, EOSimpleAppWithLocator("memory", _))
+                   EOBndExpr(bndName, EOSimpleAppWithLocator("memory" | "cage", _))
                  ) if !existingState.contains(bndName) =>
               bndName
           }
@@ -42,10 +44,7 @@ object DetectStateAccess {
     val binds = method._2.body.bndAttrs
 
     Abstract.foldAst[List[StateChange]](binds) {
-      case EOCopy(
-             EODot(EODot(EOSimpleAppWithLocator("self", x), state), "write"),
-             _
-           ) if x == 0 =>
+      case EODot(EOSimpleAppWithLocator("self", x), state) if x == 0 =>
         List(StateChange(method._1, EOAnyNameBnd(LazyName(state))))
     }
   }
@@ -78,23 +77,37 @@ object DetectStateAccess {
   }
 
   def main(args: Array[String]): Unit = {
-    val code = """[] > a
+    val code = """
+                 |[] > super
+                 |  memory > explicit_state
+                 |  [] > super_state
+                 |    memory > hidden_state
+                 |
+                 |[] > a
+                 |  super > @
                  |  memory > state
                  |  [self new_state] > update_state
                  |    self.state.write new_state > @
                  |[] > b
                  |  a > @
+                 |  [self var] > alter_func
+                 |    var.write "bad" > @
+                 |  [self] > bad_func
+                 |    self.alter_func self self.state > @
                  |  [self new_state] > change_state_plus_two
-                 |    self.state.write (new_state.add 2) > @
+                 |    self.bad_func self self.super_state.hidden_state > tmp
+                 |    self.explicit_state.write (new_state.add 2) > @
                  |""".stripMargin
 
-    println(
+
+
       Parser
         .parse(code)
         .flatMap(Inliner.createObjectTree)
         .flatMap(Inliner.resolveParents)
         .flatMap(analyze)
-    )
+        .leftMap(println)
+        .foreach(_.foreach(println))
   }
 
 }
