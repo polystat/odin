@@ -175,37 +175,4 @@ object DetectStateAccess {
 
     Right(recurse(originalTree))
   }
-
-  def main(args: Array[String]): Unit = {
-    val code = """
-                 |[] > super
-                 |  memory > explicit_state
-                 |  [] > super_state
-                 |    memory > hidden_state
-                 |
-                 |[] > a
-                 |  super > @
-                 |  memory > state
-                 |  [self new_state] > update_state
-                 |    self.state.write new_state > @
-                 |[] > b
-                 |  a > @
-                 |  [self var] > alter_func
-                 |    var.write "bad" > @
-                 |  [self] > bad_func
-                 |    self.alter_func self self.state > @
-                 |  [self new_state] > change_state_plus_two
-                 |    self.bad_func self self.super_state.hidden_state > tmp
-                 |    self.explicit_state.write (new_state.add 2) > @
-                 |""".stripMargin
-
-    Parser
-      .parse(code)
-      .flatMap(Inliner.createObjectTree)
-      .flatMap(Inliner.resolveParents)
-      .flatMap(analyze)
-      .leftMap(println)
-      .foreach(_.foreach(println))
-  }
-
 }
