@@ -1,12 +1,11 @@
 package org.polystat.odin.analysis.stateaccess
 
 import cats.data.EitherNel
-import cats.syntax.either._
+
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.inlining._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.eo.Parser
 
 import scala.annotation.tailrec
 
@@ -175,4 +174,5 @@ object DetectStateAccess {
 
     Right(recurse(originalTree))
   }
+
 }
