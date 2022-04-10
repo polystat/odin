@@ -107,8 +107,8 @@ Examples can be found in functions `read_func` and `bad_func`.
 So, `self.state.write 10` is considered, while `state.write 10` is not considered, 
 since it can potentially be a local variable.
 2. The hierarchy where the defect takes place can be nested in objects.
-3. 
+3. Access to the state refers to actions that either read the state or call functions on it.
 
 
 ## Possible limitations
-1Variables can be accessed without using `self`. The current implementation does not consider such cases. 
+1. Variables can be accessed without using `self`. The current implementation does not consider such cases. 
