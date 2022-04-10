@@ -106,10 +106,9 @@ Examples can be found in functions `read_func` and `bad_func`.
 1. Only variables that are accessed using the `self` object are considered. 
 So, `self.state.write 10` is considered, while `state.write 10` is not considered, 
 since it can potentially be a local variable.
+2. The hierarchy where the defect takes place can be nested in objects.
+3. 
 
 
-
-## Current limitations
-1. Only top-level objects are considered during analysis.
-2. Some obscure ways to alter the state might not be accounted for ???
-3. Variables can be accessed without using `self`. The current implementation does not consider such cases. 
+## Possible limitations
+1Variables can be accessed without using `self`. The current implementation does not consider such cases. 
