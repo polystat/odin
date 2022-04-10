@@ -33,7 +33,9 @@ Thus, the best way to avoid such confusion is by only allowing changes to the va
 
 
 ## EO Equivalnet of the Statement
-In EO, base class state can be modelled with the use of the `memory` functionality.
+In EO, base class state can be modelled with the use of
+`memory` functionality for variables and `cage` functionality for objects.
+
 So, having object `a` with state `state`:
 ```
 [] > a
@@ -62,20 +64,52 @@ An **im**proper way to achieve the same functionality in subclass `bad`:
       self.state.write (new_state.add 2) 
       self.state
 ```
+Access to state of any superclass is considered a bad practice.
+Examples can be found in functions `read_func` and `bad_func`.
+
+> NOTE: access to local state, such as `local_state` is not considered harmful.
+```
+[] > super_puper
+  memory > omega_state
+
+[] > super
+  super_puper > @
+  memory > super_state
+  [self] > read_func
+    self.omega_state.add 2 > @
+
+[] > parent
+  super > @
+  memory > parent_state
+
+[] > child
+  parent > @
+  memory > local_state
+  [self] > bad_func
+    seq > @
+      self.omega_state.write 10
+      self.super_state.write 10
+      self.parent_state.write 10
+      self.local_state.write 10
+```
 
 ## Brief description of the Devised algorithm
 1. Build the `Tree` structure from the source code and resolve all parents.
 2. Collect all existing subclasses.
-3. Identify the state variables (ones that contain `memory`) accessible by each target subclass.
-4. If any method uses the `write` on one of the parent's state variable - a message similar to the following is generated:
+3. Identify the state variables (ones that contain `memory` or `cage`) accessible by each target subclass.
+4. If some method of the target subclass accesses a state variable present in its hierarchy - a message similar to the following is generated:
    `
    Method 'change_state_plus_two' of object 'b' directly accesses state 'state' of base class 'a'
    `
 
 ## Implementation Highlihts
-1. ???
+1. Only variables that are accessed using the `self` object are considered. 
+So, `self.state.write 10` is considered, while `state.write 10` is not considered, 
+since it can potentially be a local variable.
+
 
 
 ## Current limitations
 1. Only top-level objects are considered during analysis.
-2. Some obscure ways to alter the state might not be accounted for???
+2. Some obscure ways to alter the state might not be accounted for ???
+3. Variables can be accessed without using `self`. The current implementation does not consider such cases. 
