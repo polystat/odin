@@ -40,8 +40,8 @@ So, having object `a` with state `state`:
   memory > state
   [self new_state] > update_state
     seq > @
-      state.write new_state
-      state
+      self.state.write new_state
+      self.state
 ```
 The proper way to change the state in the subclass `b` would be:
 ```
@@ -51,7 +51,7 @@ The proper way to change the state in the subclass `b` would be:
     new_state.add 2 > tmp
     seq > @
       self.update_state self tmp
-      state
+      self.state
 ```
 An **im**proper way to achieve the same functionality in subclass `bad`:
 ```
@@ -59,8 +59,8 @@ An **im**proper way to achieve the same functionality in subclass `bad`:
   a > @
   [self new_state] > change_state_plus_two
     seq > @
-      state.write (new_state.add 2) 
-      state
+      self.state.write (new_state.add 2) 
+      self.state
 ```
 
 ## Brief description of the Devised algorithm
