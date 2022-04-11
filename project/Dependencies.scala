@@ -16,7 +16,7 @@ object Dependencies {
     val fs2 = "3.2.4"
     val fs2io = "3.2.4"
     val newTypes = "0.0.1"
-    val eoParser = "0.21.8"
+    val eoParser = "0.22.2"
     val catsEffectScalatest = "1.4.0"
     val smtlib = "0.2.1-42-gc68dbaa"
     val princess = "2021-11-15"
