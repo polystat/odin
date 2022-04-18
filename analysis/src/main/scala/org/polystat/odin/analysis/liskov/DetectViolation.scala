@@ -50,6 +50,7 @@ object DetectViolation {
   )
 
   def checkImplication(
+    containerName: String,
     methodName: String,
     before: Info,
     methodsBefore: Map[EONamedBnd, Info],
@@ -101,7 +102,7 @@ object DetectViolation {
             case ap.SimpleAPI.ProverStatus.Sat => Right(None)
             case ap.SimpleAPI.ProverStatus.Unsat => Right(
                 Some(
-                  s"Method $methodName violates the Liskov substitution principle"
+                  s"Method $methodName of object $containerName violates the Liskov substitution principle"
                 )
               )
             case err => Left(Nel.one(s"SMT solver failed with error: $err"))
@@ -151,6 +152,7 @@ object DetectViolation {
         childCtx.keySet
       )
       res <- checkImplication(
+        method.childName,
         methodName,
         parentMethod,
         parentCtx,
@@ -260,7 +262,7 @@ object DetectViolation {
         |    base > @
         |    [self x] > f
         |      seq > @
-        |        assert (0.less x)
+        |        assert (x.greater 0)
         |        x
         |
         |  [] > bebra
