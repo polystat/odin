@@ -22,7 +22,7 @@ class LiskovPrincipleTests extends AnyWordSpec {
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 
-  val testCasesWithErrors = List(
+  val testCasesWithErrors: List[TestCase] = List(
     TestCase(
       label = "Nested bad method",
       code =
@@ -42,7 +42,9 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |        y1
           |
           |""".stripMargin,
-      expected = List("Method g of object child violates the Liskov substitution principle")
+      expected = List(
+        "Method g of object child violates the Liskov substitution principle"
+      )
     ),
     TestCase(
       label = "Bad method",
@@ -60,7 +62,9 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |      assert (x.greater 9)
           |      x.sub 1
           |""".stripMargin,
-      expected = List("Method f of object derived violates the Liskov substitution principle")
+      expected = List(
+        "Method f of object derived violates the Liskov substitution principle"
+      )
     ),
     TestCase(
       label = "Bad nested method with division",
@@ -75,7 +79,9 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |    [self y] > f
           |      10.div y > @
           |""".stripMargin,
-      expected = List("Method f of object child violates the Liskov substitution principle")
+      expected = List(
+        "Method f of object child violates the Liskov substitution principle"
+      )
     ),
     TestCase(
       label = "Two bad nested methods",
@@ -106,7 +112,7 @@ class LiskovPrincipleTests extends AnyWordSpec {
     ),
   )
 
-  val testCasesWithoutErrors = List(
+  val testCasesWithoutErrors: List[TestCase] = List(
     TestCase(
       label = "No violation",
       code =

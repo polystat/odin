@@ -1,7 +1,10 @@
 package org.polystat.odin.analysis.liskov
 
 import cats.data.EitherNel
-import org.polystat.odin.analysis.inlining.Inliner.{AnalysisInfo, ObjectTreeForAnalysis}
+import org.polystat.odin.analysis.inlining.Inliner.{
+  AnalysisInfo,
+  ObjectTreeForAnalysis
+}
 import org.polystat.odin.analysis.inlining._
 import org.polystat.odin.analysis.logicalexprs.ExtractLogic.checkImplication2
 import org.polystat.odin.core.ast.EONamedBnd
@@ -10,7 +13,10 @@ import org.polystat.odin.parser.eo.Parser
 //import org.polystat.odin.backend.eolang.ToEO.instances.objToEO
 
 import cats.syntax.parallel._
-import org.polystat.odin.analysis.logicalexprs.ExtractLogic.{getMethodsInfo, processMethod2}
+import org.polystat.odin.analysis.logicalexprs.ExtractLogic.{
+  getMethodsInfo,
+  processMethod2
+}
 
 import scala.annotation.tailrec
 

@@ -560,8 +560,8 @@ object ExtractLogic {
     after: Info,
     methodsAfter: Map[EONamedBnd, Info],
     resultMsgGenerator: String => String,
-    beforeTag : String = "before",
-    afterTag : String = "after"
+    beforeTag: String = "before",
+    afterTag: String = "after"
   ): EitherNel[String, Option[String]] = {
     (before.forall, after.forall) match {
       case (x :: xs, y :: ys) =>

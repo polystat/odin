@@ -11,7 +11,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
 
   case class TestCase(label: String, code: String, expected: List[String])
 
-  def analyze(code: String): IO[List[String]] =EOOdinAnalyzer
+  def analyze(code: String): IO[List[String]] = EOOdinAnalyzer
     .analyzeSourceCode[String, IO](unjustifiedAssumptionAnalyzer)(code)(
       cats.Monad[IO],
       sourceCodeEoParser()
@@ -22,31 +22,31 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 
-  val testCasesWithErrors = List(
+  val testCasesWithErrors: List[TestCase] = List(
     TestCase(
-    label = "One not referentially transparent method",
-    code =
-      """
-        |[] > test
-        |  [] > parent
-        |    [self x] > f
-        |      x.sub 5 > y1
-        |      seq > @
-        |        assert (0.less y1)
-        |        x
-        |    [self y] > g
-        |      self.f self y > @
-        |    [self z] > h
-        |      z > @
-        |  [] > child
-        |    parent > @
-        |    [self y] > f
-        |      y > @
-        |    [self z] > h
-        |      self.g self z > @
-        |""".stripMargin,
-    expected = List("Method g is not referentially transparent")
-  ),
+      label = "One not referentially transparent method",
+      code =
+        """
+          |[] > test
+          |  [] > parent
+          |    [self x] > f
+          |      x.sub 5 > y1
+          |      seq > @
+          |        assert (0.less y1)
+          |        x
+          |    [self y] > g
+          |      self.f self y > @
+          |    [self z] > h
+          |      z > @
+          |  [] > child
+          |    parent > @
+          |    [self y] > f
+          |      y > @
+          |    [self z] > h
+          |      self.g self z > @
+          |""".stripMargin,
+      expected = List("Method g is not referentially transparent")
+    ),
     TestCase(
       label = "One not referentially transparent method 2",
       code =
@@ -70,7 +70,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       expected = List("Method g is not referentially transparent")
     ),
     TestCase(
-      label = "One not referentially transparent method 2 with shuffled method order",
+      label =
+        "One not referentially transparent method 2 with shuffled method order",
       code =
         """[] > base
           |  [self x] > g
@@ -152,7 +153,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       expected = List("Method g is not referentially transparent")
     ),
     TestCase(
-      label = "One not referentially transparent method in presence of mutual recursion",
+      label =
+        "One not referentially transparent method in presence of mutual recursion",
       code =
         """
           |[] > test
@@ -169,7 +171,6 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      self.m self v > @
           |""".stripMargin,
       expected = List("Method m is not referentially transparent")
-
     ),
     TestCase(
       label = "Two not referentially transparent method",
@@ -195,12 +196,14 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    [self z] > h
           |      self.g self z > @
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent", "Method g2 is not referentially transparent")
+      expected = List(
+        "Method g is not referentially transparent",
+        "Method g2 is not referentially transparent"
+      )
     ),
-
   )
 
-  val testCasesWithoutErrors = List(
+  val testCasesWithoutErrors: List[TestCase] = List(
     TestCase(
       label = "All methods are referentially transparent",
       code =
@@ -235,13 +238,12 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
     )
   )
 
-  def runTests(tests: List[TestCase]) : Unit =
-    tests.foreach {
-      case TestCase(label, code, expected) =>
-        registerTest(label) {
-          val obtained = analyze(code).unsafeRunSync()
-          assert(obtained == expected)
-        }
+  def runTests(tests: List[TestCase]): Unit =
+    tests.foreach { case TestCase(label, code, expected) =>
+      registerTest(label) {
+        val obtained = analyze(code).unsafeRunSync()
+        assert(obtained == expected)
+      }
 
     }
 

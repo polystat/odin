@@ -59,8 +59,8 @@ object EOOdinAnalyzer {
   }
 
   private def toThrow[F[_], A](
-                                eitherNel: EitherNel[String, A]
-                              )(implicit mt: MonadThrow[F]): F[A] = {
+    eitherNel: EitherNel[String, A]
+  )(implicit mt: MonadThrow[F]): F[A] = {
     MonadThrow[F].fromEither(
       eitherNel
         .leftMap(_.mkString_(util.Properties.lineSeparator))
@@ -156,8 +156,8 @@ object EOOdinAnalyzer {
       override val name: String = "Liskov Substitution principle violation"
 
       override def analyze(
-                            ast: EOProg[EOExprOnly]
-                          ): F[OdinAnalysisResult] =
+        ast: EOProg[EOExprOnly]
+      ): F[OdinAnalysisResult] =
         OdinAnalysisResult.fromThrow[F](name) {
           for {
             partialTree <-
