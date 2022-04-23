@@ -2,6 +2,8 @@ package org.polystat.odin.analysis.logicalexprs
 
 import ap.SimpleAPI
 import ap.SimpleAPI.FunctionalityMode
+
+import scala.annotation.tailrec
 // import ap.util.UnionMap
 
 // import scala.collection.immutable.{AbstractMap, SeqMap, SortedMap}
@@ -435,7 +437,13 @@ object ExtractLogic {
                     case (EOAnyNameBnd(LazyName(letName)), letTerm) =>
                       VarBinding(
                         nameToSSymbol(List(letName), depth),
-                        letTerm.value
+                        letTerm.value match {
+                          case QualifiedIdentifier(
+                                 SimpleIdentifier(SSymbol("no-value")),
+                                 _
+                               ) => True()
+                          case value => value
+                        }
                       )
                   }.toList
                 val resultValue = lets match {
@@ -483,23 +491,21 @@ object ExtractLogic {
     List(value, properties)
   }
 
-  def mkFunDecls(tag: String, name: EONamedBnd, info: Info): List[Command] = {
-    val valueDef = DefineFun(
+  def mkFunDefs(tag: String, name: EONamedBnd, info: Info): List[FunDef] = {
+    val valueDef =
       FunDef(
         mkValueFunSSymbol(name.name.name, List(tag)),
         info.forall,
         IntSort(),
         info.value
       )
-    )
-    val propertiesDef = DefineFun(
+    val propertiesDef =
       FunDef(
         mkPropertiesFunSSymbol(name.name.name, List(tag)),
         info.forall,
         BoolSort(),
         info.properties
       )
-    )
     //    println(RecursivePrinter.toString(valueDef))
     List(valueDef, propertiesDef)
   }
@@ -553,6 +559,53 @@ object ExtractLogic {
     List(value, properties).map(Assert)
   }
 
+  def extractMethodDependencies(term: Term): List[String] = {
+    val availableNames = List(
+      "true",
+      "and"
+    )
+
+    def recurse(t: Term): List[String] = {
+      t match {
+        case Let(_, _, term) => recurse(term)
+        case Forall(_, _, term) => recurse(term)
+        case Exists(_, _, term) => recurse(term)
+        case FunctionApplication(fun, terms) =>
+          val curr =
+            if (!availableNames.contains(fun.id.symbol.name))
+              List(fun.id.symbol.name)
+            else
+              List()
+          curr ++ terms.flatMap(recurse)
+        case _ => List()
+      }
+    }
+
+    recurse(term)
+  }
+
+  def tsort[A](edges: Iterable[(A, A)]): Iterable[A] = {
+    @tailrec
+    def tsort(toPreds: Map[A, Set[A]], done: Iterable[A]): Iterable[A] = {
+      val (noPreds, hasPreds) = toPreds.partition { _._2.isEmpty }
+      if (noPreds.isEmpty) {
+        if (hasPreds.isEmpty) done else {
+          println(hasPreds)
+          sys.error(hasPreds.toString)
+        }
+      } else {
+        val found = noPreds.keys
+        tsort(hasPreds.view.mapValues { _ -- found }.toMap, done ++ found)
+      }
+    }
+
+    val toPred = edges.foldLeft(Map[A, Set[A]]()) { (acc, e) =>
+      acc + (e._1 -> acc
+        .getOrElse(e._1, Set())) + (e._2 -> (acc.getOrElse(e._2, Set()) + e._1))
+    }
+    tsort(toPred, Seq())
+  }
+
   def checkImplication2(
     methodName: String,
     before: Info,
@@ -584,19 +637,19 @@ object ExtractLogic {
         )
 
         //////////////////////////// USING DefineFunsRec ///////////////////////
-        //        val decls = DefineFunsRec(
-        //          methodsBefore.toList.flatMap { case (name, info) =>
-        //            funDecls(beforeTag, name, info)
-        //          } ++ methodsAfter.toList.flatMap { case (name, info) =>
-        //            funDecls(afterTag, name, info)
-        //          },
-        //          methodsBefore.toList.flatMap { case (_, info) =>
-        //            List(info.value, info.properties)
-        //          } ++ methodsAfter.toList.flatMap { case (_, info) =>
-        //            List(info.value, info.properties)
-        //          }
-        //        )
-        //        val prog = List(decls, Assert(impl))
+//                val decls = DefineFunsRec(
+//                  methodsBefore.toList.flatMap { case (name, info) =>
+//                    funDecls(beforeTag, name, info)
+//                  } ++ methodsAfter.toList.flatMap { case (name, info) =>
+//                    funDecls(afterTag, name, info)
+//                  },
+//                  methodsBefore.toList.flatMap { case (_, info) =>
+//                    List(info.value, info.properties)
+//                  } ++ methodsAfter.toList.flatMap { case (_, info) =>
+//                    List(info.value, info.properties)
+//                  }
+//                )
+//                val prog = List(decls, Assert(impl))
 
         //////////////////////////// USING Asserts ///////////////////////
 //        val declsBefore = methodsBefore.toList.flatMap { case (name, info) =>
@@ -614,16 +667,24 @@ object ExtractLogic {
 //        val prog = declsBefore ++ declsAfter ++ bodiesBefore ++ bodiesAfter ++ List(Assert(impl))
 
         //////////////////////////// Initial version ///////////////////////
-        val declsBefore = methodsBefore.toList.flatMap { case (name, info) =>
-          mkFunDecls(beforeTag, name, info)
+        val defsBefore = methodsBefore.toList.flatMap { case (name, info) =>
+          mkFunDefs(beforeTag, name, info)
         }
-        val declsAfter = methodsAfter.toList.flatMap { case (name, info) =>
-          mkFunDecls(afterTag, name, info)
+        val defsAfter = methodsAfter.toList.flatMap { case (name, info) =>
+          mkFunDefs(afterTag, name, info)
         }
-        val prog = declsBefore ++ declsAfter ++ List(Assert(impl))
+        val allDefs = defsBefore ++ defsAfter
+        val callGraph = allDefs
+          .map(func => (func.name.name, extractMethodDependencies(func.body)))
+          .flatMap { case (name, vals) => vals.map((name, _))}
+        val orderedDefs = tsort(callGraph)
+          .map(name => allDefs.find(_.name.name == name))
+          .collect{case Some(value) => value}
+          .toList
+          .reverse
+        val prog = orderedDefs.map(DefineFun) ++ List(Assert(impl))
 
         val formula = prog.map(RecursivePrinter.toString).mkString
-
 //        println(formula)
 
         util
@@ -739,12 +800,13 @@ object ExtractLogic {
         |    [self v] > n
         |      2 > @
         |    [self v] > m
-        |      self.n self v > @
+        |      self.m self v > @
         |  [] > derived
         |    base > @
         |    [self v] > n
         |      self.m self v > @
         |""".stripMargin
+
     //          """
     //            |
     //            |[] > base
