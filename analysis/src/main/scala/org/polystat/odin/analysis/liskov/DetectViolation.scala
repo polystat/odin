@@ -18,19 +18,21 @@ import org.polystat.odin.analysis.logicalexprs.ExtractLogic.{
   processMethod2
 }
 
-import scala.annotation.tailrec
 
 object DetectViolation {
 
-  case class MethodAndContainer(method: MethodInfo, container: AnalysisInfo)
+  case class MethodAndContainer(
+    method: MethodInfoForAnalysis,
+    container: AnalysisInfo
+  )
 
   case class MethodAnalysisInfo(
     name: EONamedBnd,
     childName: String,
     parentCtx: Map[EONamedBnd, MethodInfoForAnalysis],
     childCtx: Map[EONamedBnd, MethodInfoForAnalysis],
-    parentVersion: MethodInfo,
-    childVersion: MethodInfo,
+    parentVersion: MethodInfoForAnalysis,
+    childVersion: MethodInfoForAnalysis,
   )
 
   def convertMethodInfo(info: MethodInfo): MethodInfoForAnalysis =
@@ -56,13 +58,13 @@ object DetectViolation {
 
       parentMethod <- processMethod2(
         parentTag,
-        convertMethodInfo(method.parentVersion),
+        method.parentVersion,
         methodName,
         parentCtx.keySet
       )
       childMethod <- processMethod2(
         childTag,
-        convertMethodInfo(method.childVersion),
+        method.childVersion,
         methodName,
         childCtx.keySet
       )
@@ -85,30 +87,17 @@ object DetectViolation {
     originalTree: Map[EONamedBnd, Inliner.ObjectTreeForAnalysis]
   ): EitherNel[String, List[String]] = {
 
-    @tailrec
-    def findOriginalMethod(
+    def findOriginalMethods(
       methodName: EONamedBnd,
       info: AnalysisInfo
-    ): Option[MethodAndContainer] =
-      info.parentInfo match {
-        case Some(parentLink) =>
-          parentLink.linkToParent.getOption(originalTree) match {
-            case Some(parent) =>
-              parent
-                .info
-                .methods
-                .get(methodName) match {
-                case Some(method) =>
-                  Some(
-                    MethodAndContainer(method = method, container = parent.info)
-                  )
-                case None =>
-                  findOriginalMethod(methodName, parent.info)
-              }
-            case None => None
-          }
-        case None => None
-      }
+    ): Option[List[MethodAndContainer]] = for {
+      parentInfo <- info.parentInfo
+      parent <- parentInfo.linkToParent.getOption(originalTree)
+      method <- parent.info.allMethods.get(methodName)
+      currentMethod =
+        MethodAndContainer(method = method, container = parent.info)
+      res = findOriginalMethods(methodName, parent.info)
+    } yield res.map(_.appended(currentMethod)).getOrElse(List(currentMethod))
 
     def extractAnalysisInfo(
       childName: EONamedBnd,
@@ -116,22 +105,25 @@ object DetectViolation {
     ): List[MethodAnalysisInfo] = {
       child
         .info
-        .methods
+        .allMethods
         .toList
         .flatMap(t => {
           val (methodName, method) = t
 
-          findOriginalMethod(methodName, child.info)
-            .map { parentInfo =>
-              MethodAnalysisInfo(
-                name = methodName,
-                childName = childName.name.name,
-                parentCtx = parentInfo.container.allMethods,
-                parentVersion = parentInfo.method,
-                childCtx = child.info.allMethods,
-                childVersion = method
-              )
-            }
+          findOriginalMethods(methodName, child.info) match {
+            case Some(infos) => infos.map { parentInfo =>
+                MethodAnalysisInfo(
+                  name = methodName,
+                  childName = childName.name.name,
+                  parentCtx = parentInfo.container.allMethods,
+                  parentVersion = parentInfo.method,
+                  childCtx = child.info.allMethods,
+                  childVersion = method
+                )
+              }
+            case None => List()
+          }
+
         })
 
     }
@@ -168,16 +160,17 @@ object DetectViolation {
   def main(args: Array[String]): Unit = {
     val code =
       """
-        |[] > test
-        |  [] > base
-        |    [self v] > n
-        |      2 > @
-        |    [self v] > m
-        |      self.n self v > @
-        |  [] > derived
-        |    base > @
-        |    [self v] > n
-        |      self.m self v > @
+        |[] > parent
+        |  [self x] > method
+        |    22 > @
+        |
+        |[] > obj
+        |  parent > @
+        |  [self x] > method
+        |    10.div x > tmp
+        |    seq > @
+        |      assert (x.less 10)
+        |      22
         |
         |""".stripMargin
 
