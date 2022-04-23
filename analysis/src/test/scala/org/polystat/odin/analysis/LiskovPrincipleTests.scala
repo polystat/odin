@@ -84,7 +84,8 @@ class LiskovPrincipleTests extends AnyWordSpec {
       )
     ),
     TestCase(
-      label = "Bad method and method indirectly affected by change in another method",
+      label =
+        "Bad method and method indirectly affected by change in another method",
       code =
         """
           |[] > test

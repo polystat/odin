@@ -18,7 +18,6 @@ import org.polystat.odin.analysis.logicalexprs.ExtractLogic.{
   processMethod2
 }
 
-
 object DetectViolation {
 
   case class MethodAndContainer(

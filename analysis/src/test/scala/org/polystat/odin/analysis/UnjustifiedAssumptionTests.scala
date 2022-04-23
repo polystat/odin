@@ -199,7 +199,10 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    [self z] > h
           |      self.ggg self z > @
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent", "Method ggg is not referentially transparent")
+      expected = List(
+        "Method g is not referentially transparent",
+        "Method ggg is not referentially transparent"
+      )
     ),
   )
 

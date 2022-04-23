@@ -589,7 +589,8 @@ object ExtractLogic {
     def tsort(toPreds: Map[A, Set[A]], done: Iterable[A]): Iterable[A] = {
       val (noPreds, hasPreds) = toPreds.partition { _._2.isEmpty }
       if (noPreds.isEmpty) {
-        if (hasPreds.isEmpty) done else {
+        if (hasPreds.isEmpty) done
+        else {
           println(hasPreds)
           sys.error(hasPreds.toString)
         }
@@ -676,10 +677,10 @@ object ExtractLogic {
         val allDefs = defsBefore ++ defsAfter
         val callGraph = allDefs
           .map(func => (func.name.name, extractMethodDependencies(func.body)))
-          .flatMap { case (name, vals) => vals.map((name, _))}
+          .flatMap { case (name, vals) => vals.map((name, _)) }
         val orderedDefs = tsort(callGraph)
           .map(name => allDefs.find(_.name.name == name))
-          .collect{case Some(value) => value}
+          .collect { case Some(value) => value }
           .toList
           .reverse
         val prog = orderedDefs.map(DefineFun) ++ List(Assert(impl))
