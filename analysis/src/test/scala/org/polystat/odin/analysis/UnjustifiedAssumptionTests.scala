@@ -18,7 +18,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
     )
     .flatMap {
       case Ok(_) => IO.pure(List.empty)
-      case DefectDetected(_, message) => IO.pure(List(message))
+      case DefectDetected(_, message) => IO.pure(message.split("\n").toList)
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 
@@ -88,39 +88,6 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    seq > @
           |      assert (5.less x)
           |      x.sub 1
-          |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
-    ),
-    TestCase(
-      label = "One not referentially transparent method 3",
-      code =
-        """
-          |[] > test
-          |  [] > parent
-          |
-          |    [self y1] > g
-          |      self.f self y1 > @
-          |
-          |    [self x] > f
-          |      x.sub 5 > t
-          |      seq > @
-          |        assert (0.less t)
-          |        x
-          |
-          |    [self y2] > gg
-          |      self.g self y2 > @
-          |
-          |    [self y3] > ggg
-          |      self.gg self y3 > @
-          |
-          |    [self z] > h
-          |      z > @
-          |  [] > child
-          |    test.parent > @
-          |    [self y] > f
-          |      y > @
-          |    [self z] > h
-          |      self.ggg self z > @
           |""".stripMargin,
       expected = List("Method g is not referentially transparent")
     ),
@@ -200,6 +167,39 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
         "Method g is not referentially transparent",
         "Method g2 is not referentially transparent"
       )
+    ),
+    TestCase(
+      label = "Two not referentially transparent methods 2",
+      code =
+        """
+          |[] > test
+          |  [] > parent
+          |
+          |    [self y1] > g
+          |      self.f self y1 > @
+          |
+          |    [self x] > f
+          |      x.sub 5 > t
+          |      seq > @
+          |        assert (0.less t)
+          |        x
+          |
+          |    [self y2] > gg
+          |      self.g self y2 > @
+          |
+          |    [self y3] > ggg
+          |      self.gg self y3 > @
+          |
+          |    [self z] > h
+          |      z > @
+          |  [] > child
+          |    test.parent > @
+          |    [self y] > f
+          |      y > @
+          |    [self z] > h
+          |      self.ggg self z > @
+          |""".stripMargin,
+      expected = List("Method g is not referentially transparent", "Method ggg is not referentially transparent")
     ),
   )
 
