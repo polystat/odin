@@ -84,6 +84,27 @@ class LiskovPrincipleTests extends AnyWordSpec {
       )
     ),
     TestCase(
+      label = "Bad method and method indirectly affected by change in another method",
+      code =
+        """
+          |[] > test
+          |  [] > parent
+          |    [self x] > f
+          |      x > @
+          |    [self x] > g
+          |      self.f self x > @
+          |
+          |  [] > child
+          |    test.parent > @
+          |    [self y] > f
+          |      10.div y > @
+          |""".stripMargin,
+      expected = List(
+        "Method f of object child violates the Liskov substitution principle",
+        "Method g of object child violates the Liskov substitution principle"
+      )
+    ),
+    TestCase(
       label = "Two bad nested methods",
       code =
         """
