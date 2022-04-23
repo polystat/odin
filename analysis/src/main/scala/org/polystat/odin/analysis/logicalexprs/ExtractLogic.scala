@@ -624,7 +624,7 @@ object ExtractLogic {
 
         val formula = prog.map(RecursivePrinter.toString).mkString
 
-        println(formula)
+//        println(formula)
 
         util
           .Try(SimpleAPI.withProver(p => {
