@@ -221,7 +221,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       expected = List()
     ),
     TestCase(
-      label = "All methods are referentially transparent with recursion",
+      label = "All methods are referentially transparent with mutual recursion",
       code =
         """[] > test
           |  [] > base
@@ -229,6 +229,22 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      2 > @
           |    [self v] > m
           |      self.n self v > @
+          |  [] > derived
+          |    base > @
+          |    [self v] > n
+          |      self.m self v > @
+          |""".stripMargin,
+      expected = List()
+    ),
+    TestCase(
+      label = "All methods are referentially transparent with recursion",
+      code =
+        """[] > test
+          |  [] > base
+          |    [self v] > n
+          |      2 > @
+          |    [self v] > m
+          |      self.m self v > @
           |  [] > derived
           |    base > @
           |    [self v] > n
