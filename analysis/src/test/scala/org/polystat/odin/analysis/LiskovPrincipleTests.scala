@@ -43,7 +43,7 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |
           |""".stripMargin,
       expected = List(
-        "Method g of object child violates the Liskov substitution principle"
+        "Method g of object child violates the Liskov substitution principle as compared to version in parent object parent"
       )
     ),
     TestCase(
@@ -63,7 +63,7 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |      x.sub 1
           |""".stripMargin,
       expected = List(
-        "Method f of object derived violates the Liskov substitution principle"
+        "Method f of object derived violates the Liskov substitution principle as compared to version in parent object base"
       )
     ),
     TestCase(
@@ -80,7 +80,7 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |      10.div y > @
           |""".stripMargin,
       expected = List(
-        "Method f of object child violates the Liskov substitution principle"
+        "Method f of object child violates the Liskov substitution principle as compared to version in parent object parent"
       )
     ),
     TestCase(
@@ -101,8 +101,41 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |      10.div y > @
           |""".stripMargin,
       expected = List(
-        "Method f of object child violates the Liskov substitution principle",
-        "Method g of object child violates the Liskov substitution principle"
+        "Method f of object child violates the Liskov substitution principle as compared to version in parent object parent",
+        "Method g of object child violates the Liskov substitution principle as compared to version in parent object parent"
+      )
+    ),
+    TestCase(
+      label =
+        "Method deeper in the hierarchy affecting method of the basest class",
+      code =
+        """
+          |[] > test
+          |  [] > grandparent
+          |    [self x] > a
+          |      10 > @
+          |    [self x] > b
+          |      self.a self x > @
+          |
+          |  [] > parent
+          |    test.grandparent > @
+          |    [self x] > f
+          |      x > @
+          |    [self x] > g
+          |      self.f self x > @
+          |
+          |  [] > child
+          |    test.parent > @
+          |    [self x] > a
+          |      seq > @
+          |        assert (x.less 100)
+          |        x
+          |""".stripMargin,
+      expected = List(
+        "Method a of object child violates the Liskov substitution principle as compared to version in parent object grandparent",
+        "Method a of object child violates the Liskov substitution principle as compared to version in parent object parent",
+        "Method b of object child violates the Liskov substitution principle as compared to version in parent object grandparent",
+        "Method b of object child violates the Liskov substitution principle as compared to version in parent object parent"
       )
     ),
     TestCase(
@@ -128,8 +161,8 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |      10.div z > @
           |""".stripMargin,
       expected = List(
-        "Method f of object child violates the Liskov substitution principle",
-        "Method h of object child violates the Liskov substitution principle"
+        "Method f of object child violates the Liskov substitution principle as compared to version in parent object parent",
+        "Method h of object child violates the Liskov substitution principle as compared to version in parent object parent"
       )
     ),
   )
