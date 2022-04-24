@@ -217,6 +217,7 @@ object Inliner {
         .mapN((methods, children) =>
           ObjectTree(
             ObjectInfoForAnalysis(
+              name = cur.info.name,
               methods = cur.info.methods,
               parentInfo = cur.info.parentInfo.map(_.asInstanceOf[ParentInfo[MethodInfo, ObjectInfoForAnalysis]]),
               indirectMethods = methods.map {

@@ -22,12 +22,14 @@ object DetectViolation {
 
   case class MethodAndContainer(
     method: MethodInfoForAnalysis,
-    container: AnalysisInfo
+    container: AnalysisInfo,
+    name: String
   )
 
   case class MethodAnalysisInfo(
     name: EONamedBnd,
     childName: String,
+    parentName: String,
     parentCtx: Map[EONamedBnd, MethodInfoForAnalysis],
     childCtx: Map[EONamedBnd, MethodInfoForAnalysis],
     parentVersion: MethodInfoForAnalysis,
@@ -74,7 +76,7 @@ object DetectViolation {
         childMethod,
         childCtx,
         (name: String) =>
-          s"Method $name of object ${method.childName} violates the Liskov substitution principle",
+          s"Method $name of object ${method.childName} violates the Liskov substitution principle as compared to version in parent object ${method.parentName}",
         parentTag,
         childTag
       )
@@ -94,7 +96,11 @@ object DetectViolation {
       parent <- parentInfo.linkToParent.getOption(originalTree)
       method <- parent.info.allMethods.get(methodName)
       currentMethod =
-        MethodAndContainer(method = method, container = parent.info)
+        MethodAndContainer(
+          method = method,
+          container = parent.info,
+          name = parent.info.name.name.name
+        )
       res = findOriginalMethods(methodName, parent.info)
     } yield res.map(_.appended(currentMethod)).getOrElse(List(currentMethod))
 
@@ -114,6 +120,7 @@ object DetectViolation {
                 MethodAnalysisInfo(
                   name = methodName,
                   childName = childName.name.name,
+                  parentName = parentInfo.name,
                   parentCtx = parentInfo.container.allMethods,
                   parentVersion = parentInfo.method,
                   childCtx = child.info.allMethods,
@@ -182,7 +189,6 @@ object DetectViolation {
         .map(analyze)
         .merge
     )
-
   }
 
 }

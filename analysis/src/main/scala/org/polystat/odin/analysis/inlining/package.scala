@@ -124,6 +124,7 @@ package inlining {
   ](
     override val methods: Map[EONamedBnd, M],
     override val parentInfo: Option[P],
+    name: EONamedBnd,
     indirectMethods: Map[EONamedBnd, MethodInfoForAnalysis],
     allMethods: Map[EONamedBnd, MethodInfoForAnalysis]
   ) extends GenericObjectInfo[P, M, ObjectInfoForAnalysis] {
