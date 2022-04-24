@@ -1,3 +1,5 @@
++alias stdout org.eolang.io.stdout
+
 [] > a
   b > @
   [self] > g
