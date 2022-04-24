@@ -22,7 +22,8 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 object Context {
 
   type Context = Map[String, BigInt]
-  val predefinedKeywords : Context =  Map(
+
+  val predefinedKeywords: Context = Map(
     "seq" -> 0,
     "assert" -> 0,
     "random" -> 0,
@@ -67,10 +68,15 @@ object Context {
   def setLocators(
     code: EOProg[EOExprOnly]
   ): EitherNel[String, EOProg[EOExprOnly]] = {
-    val metaSymbols: Context = code.metas.metas.collect {
-      case EOAliasMeta(Some(alias), _ ) => alias
-      case EOAliasMeta(None, src) => src.last
-    }.map((_, BigInt(0))).toMap
+    val metaSymbols: Context = code
+      .metas
+      .metas
+      .collect {
+        case EOAliasMeta(Some(alias), _) => alias
+        case EOAliasMeta(None, src) => src.last
+      }
+      .map((_, BigInt(0)))
+      .toMap
     val initialCtx =
       rebuildContext(
         predefinedKeywords ++ metaSymbols,

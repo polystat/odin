@@ -276,4 +276,5 @@ object SetLocatorsTestCases {
         |      22
         |""".stripMargin.asRight
   )
+
 }
