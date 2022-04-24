@@ -7,7 +7,11 @@ Odin (object dependency inspector) — a static analyzer for [EO programming lan
 > The project is still in active development stage and might not be usable or fully documented yet.
 
 # Documentation
-Documentation for the mutual recursion analyzer is available [here](docs/analysis/mutual_recursion_analyzer.md)
+General documentation is available [here](docs/general_information.md).
+
+Documentation for the mutual recursion analyzer is available [here](docs/analysis/mutual_recursion_analyzer.md).
+
+Documentation for the unjustified assumption analyzer is available [here](docs/analysis/unjustified_assumption_analyzer.md).
 
 # Running
 
