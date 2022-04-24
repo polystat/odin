@@ -560,23 +560,13 @@ object ExtractLogic {
   }
 
   def extractMethodDependencies(term: Term): List[String] = {
-    val availableNames = List(
-      "true",
-      "and"
-    )
-
     def recurse(t: Term): List[String] = {
       t match {
         case Let(_, _, term) => recurse(term)
         case Forall(_, _, term) => recurse(term)
         case Exists(_, _, term) => recurse(term)
         case FunctionApplication(fun, terms) =>
-          val curr =
-            if (!availableNames.contains(fun.id.symbol.name))
-              List(fun.id.symbol.name)
-            else
-              List()
-          curr ++ terms.flatMap(recurse)
+          List(fun.id.symbol.name) ++ terms.flatMap(recurse)
         case _ => List()
       }
     }
@@ -584,16 +574,45 @@ object ExtractLogic {
     recurse(term)
   }
 
-  def tsort[A](edges: Iterable[(A, A)]): Iterable[A] = {
+  def removeProblematicCalls(fun: FunDef, badFuns: Set[SSymbol]): FunDef = {
+    def recurse(t: Term): Term = {
+      t match {
+        case let @ Let(_, _, term) => let.copy(term = recurse(term))
+        case forAll @ Forall(_, _, term) => forAll.copy(term = recurse(term))
+        case exists @ Exists(_, _, term) => exists.copy(term = recurse(term))
+        case call @ FunctionApplication(fun, terms) =>
+          if (badFuns.contains(fun.id.symbol))
+            True()
+          else {
+            call.copy(terms = terms.map(recurse))
+          }
+        case other => other
+      }
+    }
+
+    val res = fun.copy(body = recurse(fun.body) match {
+      case QualifiedIdentifier(Identifier(SSymbol("true"), _), _) =>
+        SNumeral(8008)
+      case good => good
+    })
+
+    res
+  }
+
+  def tsort[A](edges: Iterable[(A, A)]): (Iterable[A], Map[A, Set[A]]) = {
     @tailrec
-    def tsort(toPreds: Map[A, Set[A]], done: Iterable[A]): Iterable[A] = {
+    def tsort(
+      toPreds: Map[A, Set[A]],
+      done: Iterable[A]
+    ): (Iterable[A], Map[A, Set[A]]) = {
       val (noPreds, hasPreds) = toPreds.partition { _._2.isEmpty }
       if (noPreds.isEmpty) {
-        if (hasPreds.isEmpty) done
-        else {
-          println(hasPreds)
-          sys.error(hasPreds.toString)
-        }
+        (done, hasPreds)
+//        if (hasPreds.isEmpty) done
+//        else {
+//          println(hasPreds)
+//          sys.error(hasPreds.toString)
+//        }
       } else {
         val found = noPreds.keys
         tsort(hasPreds.view.mapValues { _ -- found }.toMap, done ++ found)
@@ -604,6 +623,7 @@ object ExtractLogic {
       acc + (e._1 -> acc
         .getOrElse(e._1, Set())) + (e._2 -> (acc.getOrElse(e._2, Set()) + e._1))
     }
+
     tsort(toPred, Seq())
   }
 
@@ -676,17 +696,48 @@ object ExtractLogic {
         }
         val allDefs = defsBefore ++ defsAfter
         val callGraph = allDefs
-          .map(func => (func.name.name, extractMethodDependencies(func.body)))
-          .flatMap { case (name, vals) => vals.map((name, _)) }
-        val orderedDefs = tsort(callGraph)
-          .map(name => allDefs.find(_.name.name == name))
-          .collect { case Some(value) => value }
+          .map(func => (func, extractMethodDependencies(func.body)))
+          .flatMap { case (caller, vals) =>
+            vals.map(callee => (caller, allDefs.find(_.name.name == callee)))
+          }
+          .collect { case (name, Some(value)) => (name, value) }
+        val (properDefs, badDefs) = tsort(callGraph)
+
+        val cleansedDefs = badDefs
+          .map { case (func, bads) =>
+            removeProblematicCalls(func, bads.map(_.name))
+          }
+
+//        val processedDefs = properDefs ++ cleansedDefs
+//        val tmp = processedDefs
+//          .map(func => (func, extractMethodDependencies(func.body)))
+//          .flatMap { case (caller, vals) =>
+//            vals.map(callee => (caller, processedDefs.find(_.name.name == callee)))
+//          }
+//        val toSortDefs = tmp
+//          .collect { case (name, Some(value)) => (name, value) }
+//        val noDepensDefs = tmp
+//          .collect { case (definition, None) => definition }
+//        val (resDefs, veryBadDefs) = tsort(toSortDefs)
+//        println(resDefs.map(_.name.name))
+//        println(veryBadDefs.map { case (a, b) =>
+//          (a.name.name, b.map(_.name.name))
+//        })
+//        if (veryBadDefs.nonEmpty)
+//          Left(Nel.one(
+//            "Could not sort function definitions during generation of SMT"
+//          ))
+//        else {
+        val orderedDefs = properDefs
+          //          .map(name => allDefs.find(_.name.name == name))
+          //          .collect { case Some(value) => value }
           .toList
           .reverse
-        val prog = orderedDefs.map(DefineFun) ++ List(Assert(impl))
+        val prog =
+          (cleansedDefs ++ orderedDefs).map(DefineFun) ++ List(Assert(impl))
 
         val formula = prog.map(RecursivePrinter.toString).mkString
-//        println(formula)
+//          println(formula)
 
         util
           .Try(SimpleAPI.withProver(p => {
@@ -717,6 +768,7 @@ object ExtractLogic {
             )
           )
           .flatten
+//        }
 
       // Todo support other cases
       // case (Nil, y :: ys ) => Left(Nel.one("Methods with no arguments are not
@@ -727,7 +779,6 @@ object ExtractLogic {
       // supported"))
       case (_, _) =>
         Left(Nel.one("Methods with no arguments are not supported"))
-
     }
   }
 
@@ -799,9 +850,11 @@ object ExtractLogic {
         |[] > test
         |  [] > base
         |    [self v] > n
-        |      2 > @
+        |      seq > @
+        |        assert (v.less 10)
+        |        2
         |    [self v] > m
-        |      self.m self v > @
+        |      self.n self v > @
         |  [] > derived
         |    base > @
         |    [self v] > n
