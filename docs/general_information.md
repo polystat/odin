@@ -12,6 +12,13 @@ Tool to inspect EO programs for potential defects. Additionally, it can be used 
 > Assumptions made in subclasses regarding method dependencies in superclasses.
 
 (refer to [this document](analysis/unjustified_assumption_analyzer.md) for more information)
+
+### 4. Liskov Substitution Principle Violation
+> Possibility to use subclasses in place of superclasses.
+
+(refer to [this document](analysis/liskov_principle_analyzer.md) for more information)
+
+
 ## Assumptions and Limitations
 Some assumptions are made about EO programs and used EO constructs during analysis for all type of defects. Additionally, some constructs and syntax are not supported intentionally.
 
