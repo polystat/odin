@@ -9,7 +9,7 @@ and [polystat-cli](https://github.com/nikololiahim/polystat-cli).
 # Table of contents
 
 - [Analysis](#analysis)
-    - [Defect Descriptions](#defect-description)
+    - [Defect Descriptions](#defects)
         - [Mutual Recursion](#mutual-recursion-analyzer)
         - [Unjustified Assumptions](#unjustified-assumptions-in-subclasses-analyzer)
         - [State Access](#direct-access-to-the-base-class-state-analyzer)
@@ -22,8 +22,6 @@ and [polystat-cli](https://github.com/nikololiahim/polystat-cli).
 - [Development](#development)
 
 # Analysis
-
-[(Back to TOC)](#table-of-contents)
 
 As of now, ODIN supports the following defect types:
 
