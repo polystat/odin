@@ -7,8 +7,8 @@ and [polystat-cli](https://github.com/nikololiahim/polystat-cli).
 
 # Table of contents
 
-- [Analysis](analysis)
-    - [Defect Descriptions]()
+- [Analysis](#analysis)
+    - [Defect Descriptions](#defect-description)
         - [Mutual Recursion](#mutual-recursion-analyzer)
         - [Unjustified Assumptions](#unjustified-assumptions-in-subclasses-analyzer)
         - [State Access](#direct-access-to-the-base-class-state-analyzer)
@@ -701,6 +701,8 @@ Wrong number of arguments given for method f. Wrong number of arguments given fo
 > <span style="color:red"> `Exception in thread "main" java.lang.Exception: SMT failed to parse the generated program with error: ???` </span>.
 
 ### Direct Access to the Base Class State Analyzer
+
+[(Back to TOC)](#table-of-contents)
 
 The fourth defect type suported by odin.
 
