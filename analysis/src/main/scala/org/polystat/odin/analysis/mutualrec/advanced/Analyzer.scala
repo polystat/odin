@@ -10,9 +10,9 @@ import cats.syntax.functor._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.ObjectName
-import org.polystat.odin.analysis.inlining.Inliner
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
+import org.polystat.odin.analysis.utils.inlining.Inliner
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 

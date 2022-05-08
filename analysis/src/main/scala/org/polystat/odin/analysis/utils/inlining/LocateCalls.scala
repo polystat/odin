@@ -1,11 +1,12 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.utils.inlining
 
 import cats.Monoid
 import higherkindness.droste.data.Fix
 import monocle.Iso
-import org.polystat.odin.analysis.inlining.Abstract.foldAst
-import org.polystat.odin.analysis.inlining.Optics._
-import org.polystat.odin.analysis.inlining.types._
+import org.polystat.odin.analysis.utils.Abstract.foldAst
+import org.polystat.odin.analysis.utils.Optics._
+import org.polystat.odin.analysis.utils.inlining
+import types._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
@@ -55,7 +56,7 @@ object LocateCalls {
               }
             if (firstArgIsValid)
               Vector(
-                Call(
+                inlining.Call(
                   depth = depth,
                   methodName = name,
                   callSite = pathToCallSite,

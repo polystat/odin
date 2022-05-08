@@ -1,24 +1,15 @@
 package org.polystat.odin.analysis.liskov
 
 import cats.data.EitherNel
-import org.polystat.odin.analysis.inlining.Inliner.{
-  AnalysisInfo,
-  ObjectTreeForAnalysis
-}
-import org.polystat.odin.analysis.inlining._
-import org.polystat.odin.analysis.logicalexprs.ExtractLogic.checkImplication2
+import org.polystat.odin.analysis.utils.inlining.Inliner.{AnalysisInfo, ObjectTreeForAnalysis}
 import org.polystat.odin.core.ast.EONamedBnd
 import org.polystat.odin.parser.eo.Parser
-//import org.polystat.odin.backend.eolang.ToEO.ops._
-//import org.polystat.odin.backend.eolang.ToEO.instances.objToEO
-
 import cats.syntax.parallel._
-import org.polystat.odin.analysis.logicalexprs.ExtractLogic.{
-  getMethodsInfo,
-  processMethod2
-}
+import org.polystat.odin.analysis.unjustifiedassumptions.Analyzer.{getMethodsInfo, processMethod}
+import org.polystat.odin.analysis.utils.inlining.{Inliner, MethodInfo, MethodInfoForAnalysis}
+import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.checkImplication
 
-object DetectViolation {
+object Analyzer {
 
   case class MethodAndContainer(
     method: MethodInfoForAnalysis,
@@ -47,29 +38,23 @@ object DetectViolation {
     val parentTag = "parent"
     val childTag = "child"
 
-//     println("==================================================")
-//     println(method.parentVersion.body.toEOPretty)
-//     println("==================================================")
-//     println(method.childVersion.body.toEOPretty)
-//     println("==================================================")
-
     for {
       parentCtx <- getMethodsInfo(parentTag, method.parentCtx)
       childCtx <- getMethodsInfo(childTag, method.childCtx)
 
-      parentMethod <- processMethod2(
+      parentMethod <- processMethod(
         parentTag,
         method.parentVersion,
         methodName,
         parentCtx.keySet
       )
-      childMethod <- processMethod2(
+      childMethod <- processMethod(
         childTag,
         method.childVersion,
         methodName,
         childCtx.keySet
       )
-      res <- checkImplication2(
+      res <- checkImplication(
         methodName,
         parentMethod,
         parentCtx,
@@ -166,18 +151,18 @@ object DetectViolation {
   def main(args: Array[String]): Unit = {
     val code =
       """
-        |[] > parent
-        |  [self x] > method
-        |    22 > @
+        |[] > base
+        |  [self x] > util
+        |    x > @
+        |  [self] > n
+        |    self.util self 10 > @
         |
-        |[] > obj
-        |  parent > @
-        |  [self x] > method
-        |    10.div x > tmp
+        |[] > derived
+        |  base > @
+        |  [self x] > util
         |    seq > @
         |      assert (x.less 10)
-        |      22
-        |
+        |      x
         |""".stripMargin
 
     println(

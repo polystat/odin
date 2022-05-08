@@ -1,4 +1,4 @@
-package org.polystat.odin.analysis
+package org.polystat.odin.analysis.utils.inlining
 
 import cats.Applicative
 import cats.syntax.align._
@@ -6,15 +6,13 @@ import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.functor._
 import cats.syntax.traverse._
-import org.polystat.odin.analysis.inlining.types._
+import types._
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast.{EOBndExpr, EONamedBnd, EOObj}
-
-package inlining {
-
-  import monocle.Optional
+import monocle.Optional
+import org.polystat.odin.analysis.ObjectName
 
   sealed trait BndPlaceholder
   final case class MethodPlaceholder(name: EONamedBnd) extends BndPlaceholder
@@ -187,13 +185,13 @@ package inlining {
 
     override def toString: String =
       s"""MethodInfoAfterInlining(
-         |  body = 
+         |  body =
          |${body
           .toEO
           .map(_.map((" " * 4).concat(_)))
           .map(_.mkString(util.Properties.lineSeparator))
           .merge}
-         |  bodyAfterInlining = 
+         |  bodyAfterInlining =
          |${bodyAfterInlining
           .expr
           .toEO
@@ -212,5 +210,3 @@ package inlining {
     callLocation: PathToCall,
     args: CopyArgs
   )
-
-}

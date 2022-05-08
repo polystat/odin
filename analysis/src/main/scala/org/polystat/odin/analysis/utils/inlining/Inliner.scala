@@ -1,5 +1,4 @@
-package org.polystat.odin.analysis.inlining
-
+package org.polystat.odin.analysis.utils.inlining
 
 import cats.data.{EitherNel, NonEmptyList => Nel}
 import cats.syntax.align._
@@ -10,10 +9,10 @@ import cats.syntax.parallel._
 import higherkindness.droste.data.Fix
 import monocle.macros.GenLens
 import monocle.{Iso, Lens, Optional}
-import org.polystat.odin.analysis.inlining.Abstract.modifyExpr
-import org.polystat.odin.analysis.inlining.Context.setLocators
-import org.polystat.odin.analysis.inlining.LocateMethods._
-import org.polystat.odin.analysis.inlining.Optics._
+import org.polystat.odin.analysis.utils.Abstract.modifyExpr
+import LocatorContext.setLocators
+import LocateMethods._
+import org.polystat.odin.analysis.utils.Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 

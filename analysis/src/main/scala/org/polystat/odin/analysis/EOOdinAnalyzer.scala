@@ -5,15 +5,14 @@ import cats.data.EitherNel
 import cats.effect.Sync
 import cats.syntax.all._
 import fs2.Stream
-import org.polystat.odin.analysis.inlining.Inliner
-import org.polystat.odin.analysis.logicalexprs.ExtractLogic
+import org.polystat.odin.analysis.EOOdinAnalyzer._
+import org.polystat.odin.analysis.liskov.Analyzer
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer.analyzeAst
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
+import org.polystat.odin.analysis.utils.inlining.Inliner
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser
-import EOOdinAnalyzer._
-import org.polystat.odin.analysis.liskov.DetectViolation
 
 trait ASTAnalyzer[F[_]] {
   val name: String
@@ -144,7 +143,7 @@ object EOOdinAnalyzer {
             tree <-
               toThrow(Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast))
             errors <-
-              toThrow(ExtractLogic.processObjectTree(tree))
+              toThrow(unjustifiedassumptions.Analyzer.analyzeObjectTree(tree))
           } yield errors
         }
 
@@ -165,7 +164,7 @@ object EOOdinAnalyzer {
             parentedTree <- toThrow(Inliner.resolveParents(partialTree))
             tree <- toThrow(Inliner.resolveIndirectMethods(parentedTree))
             errors <-
-              toThrow(DetectViolation.analyze(tree))
+              toThrow(Analyzer.analyze(tree))
           } yield errors
         }
 

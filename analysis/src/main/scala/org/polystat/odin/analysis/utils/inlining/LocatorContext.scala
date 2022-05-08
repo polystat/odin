@@ -1,9 +1,9 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.utils.inlining
 
 import cats.data.{EitherNel, NonEmptyList => Nel}
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.inlining.Optics._
-import Abstract.modifyExprWithState
+import org.polystat.odin.analysis.utils.Optics._
+import org.polystat.odin.analysis.utils.Abstract.modifyExprWithState
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
@@ -19,7 +19,7 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 // 2.2 Upon meeting a EOObj() -> use its contents to update the context and pass
 // it in the next recursive call
 
-object Context {
+object LocatorContext {
 
   type Context = Map[String, BigInt]
 
