@@ -2,26 +2,20 @@
 
 Odin (object dependency inspector) — a static analyzer for [EO programming language](https://github.com/cqfn/eo).
 
-# ⚠️🚧 Work in progress 🚧⚠️
-
-> The project is still in active development stage and might not be usable or fully documented yet.
-
-# Documentation
-General documentation is available [here](docs/general_information.md).
-
-Documentation for the mutual recursion analyzer is available [here](docs/analysis/mutual_recursion_analyzer.md).
-
-Documentation for the unjustified assumption analyzer is available [here](docs/analysis/unjustified_assumption_analyzer.md).
+It is a part of [polystat](https://github.com/polystat/polystat) and [polystat-cli](https://github.com/nikololiahim/polystat-cli).  
 
 # Running
 
-To run the project you will need [sbt](https://www.scala-sbt.org/1.x/docs/Setup.html) and JDK 8+.
+To run the project one will need 
+[sbt](https://www.scala-sbt.org/1.x/docs/Setup.html)
+and JDK 8+.
 
 ## Sandbox
 
-As of now there is no app to run and interact with, but one can play with the source code of the analyzer in the sandbox project.
+One can play with the analyzer in the sandbox project 
+by modifying the present code snippets or adding new ones.  
 
-The entrypoint is in `sandbox/src/main/scala/eo/sandbox/Sandbox.scala`.
+File containing the entrypoint can be found [here](sandbox/src/main/scala/org/polystat/odin/sandbox/Sandbox.scala).
 
 The sandbox can be run via:
 
@@ -31,7 +25,7 @@ sbt sandbox/run
 
 ## Scala REPL
 
-The source code can be ran in scala REPL via:
+The source code can be run in scala REPL via:
 
 ```shell
 sbt console
@@ -43,37 +37,63 @@ This might be helpful for development.
 
 ## `core` project
 
-Defines EO AST. All other projects should depend on this one.
+Contains the EO AST. 
+
+All other projects should depend on this one.
+
+## `analysis` project
+
+Contains the implementations of the analyzers
+odin can use.
+
 
 ## `backends` project
 
-Defines backends for the static analyzer. A backend is something that produces an output from AST.
+Contains backends for the static analyzer. 
+Backend is something that produces representations the EO AST.
 
-### `eolang` subproject
+### `eolang` backend
 
-Backend that is able to generate EO program (now, roughly, represented as a list of strings) from EO AST.
+Backend that can generate EO programs from an AST.
 
 ## `utils` project
 
-Convenient tools that are used by other parts of the analyzer. This project must not depend on any other project.
+Convenient tools that are used by other parts of the analyzer. 
+
+This project must not depend on any other project.
 
 ## `sandbox` project
 
-Enables to interactively run and test source code of the analyzer. Facilitates the development and debug of the source code and enables to see intermediate results of the development. Any other project must not depend on it. 
+Allows one to interactively run and manually test the analyzer. 
+Facilitates the development and debug of the source code 
+and allows one to see intermediate results of the development. 
+
+Any other project must not depend on it. 
 
 For more details on the project organization see:
 
-- `build.sbt` - main build configuration file
-- `project/Dependendencies.scala` - lists dependencies and versions for the projects
-- `project/Compiler.scala` - lists compiler flags used to compile the project and compiler plugins
+- [build.sbt](build.sbt) - main build configuration file
+- [project/plugins.sbt](project/plugins.sbt) -
+lists sbt plugins
+- [project/Dependendencies.scala](project/Dependendencies.scala) -
+lists dependencies and versions for the projects
+- [project/Compiler.scala](project/Compiler.scala) -
+lists compiler flags and compiler plugins
 
 # Development
 
-`master` branch has the latest changes and must always be buildable. All the code changes are done through sending pull requests to the repositories. After [CI](#ci) has successfully finished and a reviewer has approved changes, the code can be merged to the `master` branch. 
+`master` branch has the latest changes and must 
+always be buildable. 
+All the changes are to be done by creating a pull request.
+Once the [CI](#ci) run has successfully 
+finished and a reviewer has approved changes, 
+the code can be manually merged to the `master` branch. 
 
 ## CI
 
-When a pull request is sent to `master` or a branch with a pull request to `master` is pushed, the following checks will run via GitHub Actions:
+When a pull request is sent to `master` or a branch
+with a pull request to `master` is pushed, 
+the following checks will run via GitHub Actions:
 
 - Build — all projects in the repository are built to check that the code compiles
 - Test — all tests are ran to check that new changes have not broken the existing functionality
