@@ -13,8 +13,6 @@ Documentation for the mutual recursion analyzer is available [here](docs/analysi
 
 Documentation for the unjustified assumption analyzer is available [here](docs/analysis/unjustified_assumption_analyzer.md).
 
-Documentation for the direct access to base class state analyzer is available [here](docs/analysis/direct_access_to_base_class_state.md).
-
 # Running
 
 To run the project you will need [sbt](https://www.scala-sbt.org/1.x/docs/Setup.html) and JDK 8+.
