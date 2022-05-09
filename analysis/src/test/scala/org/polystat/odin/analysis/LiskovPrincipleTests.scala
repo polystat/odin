@@ -185,6 +185,20 @@ class LiskovPrincipleTests extends AnyWordSpec {
       expected = List()
     ),
     TestCase(
+      label = "Method with no arguments",
+      code =
+        """[] > test
+          |  [] > base
+          |    [self] > n
+          |      2 > @
+          |  [] > derived
+          |    base > @
+          |    [self] > n
+          |      33 > @
+          |""".stripMargin,
+      expected = List()
+    ),
+    TestCase(
       label = "No children :-(",
       code =
         """
