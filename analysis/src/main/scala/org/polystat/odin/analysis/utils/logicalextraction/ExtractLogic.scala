@@ -17,7 +17,6 @@ import smtlib.trees.Terms._
 
 import java.io.StringReader
 
-
 object ExtractLogic {
 
   @annotation.tailrec
@@ -53,7 +52,9 @@ object ExtractLogic {
       case _ =>
         Equals(
           QualifiedIdentifier(
-            SimpleIdentifier(SMTUtils.nameToSSymbol(List(name.name.name), depth))
+            SimpleIdentifier(
+              SMTUtils.nameToSSymbol(List(name.name.name), depth)
+            )
           ),
           value
         )
@@ -109,7 +110,10 @@ object ExtractLogic {
           case EOSimpleApp(name) =>
             Left(Nel.one(s"Encountered unqualified attribute $name"))
           case EOSimpleAppWithLocator(name, locator) =>
-            Right(SMTUtils.simpleAppToInfo(List(name), depth.drop(locator.toInt + 1)))
+            Right(
+              SMTUtils
+                .simpleAppToInfo(List(name), depth.drop(locator.toInt + 1))
+            )
           case EODot(src, name) =>
             dotToSimpleAppsWithLocator(src, List(name)).map {
               case (locator, names) =>
@@ -136,9 +140,6 @@ object ExtractLogic {
                       availableMethods
                         .contains(EOAnyNameBnd(LazyName(methodName)))
                     ) {
-
-                      // Todo handle empty infos
-                      //                    if (infos.nonEmpty)
                       Right(
                         Info(
                           List.empty,
@@ -159,21 +160,7 @@ object ExtractLogic {
                           )
                         )
                       )
-                      //                    else
-                      //                      Right(
-                      //                        Info(
-                      //                          List.empty,
-                      //                          List.empty,
-                      //                          mkValueFunIdent(
-                      //                            methodName,
-                      //                            depth.drop(locator.toInt + 1)
-                      //                          ),
-                      //                          mkPropertiesFunIdent(
-                      //                            methodName,
-                      //                            depth.drop(locator.toInt + 1)
-                      //                          )
-                      //                        )
-                      //                      )
+
                     } else
                       Left(Nel.one(s"Unknown method $methodName"))
                   )
@@ -317,6 +304,45 @@ object ExtractLogic {
     }
   }
 
+  // TODO: check that behaviour is intended even when before and after different
+  def addVarCorrespondenceToTerm(
+    before: List[SortedVar],
+    after: List[SortedVar],
+    term: Term
+  ): Term = {
+    val innerTerm = before.zip(after) match {
+      case Nil => term
+      case terms => And(
+          And(True() :: terms.map { case (x, y) =>
+            Equals(
+              QualifiedIdentifier(SimpleIdentifier(SSymbol(x.name.name))),
+              QualifiedIdentifier(SimpleIdentifier(SSymbol(y.name.name)))
+            )
+          }),
+          term
+        )
+    }
+
+    val afterOuter = after match {
+      case x :: xs => Exists(
+          x,
+          xs,
+          innerTerm
+        )
+      case Nil => innerTerm
+    }
+
+    before match {
+      case x :: xs => Forall(
+          x,
+          xs,
+          afterOuter
+        )
+      case Nil => afterOuter
+    }
+
+  }
+
   def checkImplication(
     methodName: String,
     before: Info,
@@ -327,93 +353,72 @@ object ExtractLogic {
     beforeTag: String = "before",
     afterTag: String = "after"
   ): EitherNel[String, Option[String]] = {
-    (before.forall, after.forall) match {
-      case (x :: xs, y :: ys) =>
-        val impl = Forall(
-          x,
-          xs,
-          Exists(
-            y,
-            ys,
-            And(
-              And(True() :: before.forall.zip(after.forall).map { case (x, y) =>
-                Equals(
-                  QualifiedIdentifier(SimpleIdentifier(SSymbol(x.name.name))),
-                  QualifiedIdentifier(SimpleIdentifier(SSymbol(y.name.name)))
-                )
-              }),
-              Implies(before.properties, after.properties)
-            )
-          )
-        )
-        val defsBefore = methodsBefore.toList.flatMap { case (name, info) =>
-          SMTUtils.mkFunDefs(beforeTag, name, info)
-        }
-        val defsAfter = methodsAfter.toList.flatMap { case (name, info) =>
-          SMTUtils.mkFunDefs(afterTag, name, info)
-        }
-        val allDefs = defsBefore ++ defsAfter
-        val callGraph = allDefs
-          .map(func => (func, SMTUtils.extractMethodDependencies(func.body)))
-          .flatMap { case (caller, vals) =>
-            vals.map(callee => (caller, allDefs.find(_.name.name == callee)))
-          }
-          .collect { case (name, Some(value)) => (name, value) }
-        val (properDefs, badDefs) = SMTUtils.tsort(callGraph)
+    val impl = addVarCorrespondenceToTerm(
+      before.forall,
+      after.forall,
+      Implies(before.properties, after.properties)
+    )
 
-        val cleansedDefs = badDefs
-          .map { case (func, bads) =>
-            SMTUtils.removeProblematicCalls(func, bads.map(_.name))
-          }
-        val orderedDefs = properDefs
-          .toList
-          .reverse
-        val prog =
-          (cleansedDefs ++ orderedDefs).map(DefineFun) ++ List(Assert(impl))
-
-        val formula = prog.map(RecursivePrinter.toString).mkString
-
-        util
-          .Try(SimpleAPI.withProver(p => {
-            val (assertions, functions, constants, predicates) =
-              p.extractSMTLIBAssertionsSymbols(
-                new StringReader(formula),
-                fullyInline = true
-              )
-            assertions.foreach(p.addAssertion)
-            functions
-              .keySet
-              .foreach(f => p.addFunction(f, FunctionalityMode.NoUnification))
-            constants.keySet.foreach(p.addConstantRaw)
-            predicates.keySet.foreach(p.addRelation)
-            p.checkSat(true)
-            p.getStatus(true) match {
-              case ap.SimpleAPI.ProverStatus.Sat => Right(None)
-              case ap.SimpleAPI.ProverStatus.Unsat => Right(
-                  Some(resultMsgGenerator(methodName))
-                )
-              case err => Left(Nel.one(s"SMT solver failed with error: $err"))
-            }
-          }))
-          .toEither
-          .leftMap(t =>
-            Nel.one(
-              s"SMT failed to parse the generated program with error: ${t.getMessage}"
-            )
-          )
-          .flatten
-//        }
-
-      // Todo support other cases
-      // case (Nil, y :: ys ) => Left(Nel.one("Methods with no arguments are not
-      // supported"))
-      // case (x :: xs, Nil) => Left(Nel.one("Methods with no arguments are not
-      // supported"))
-      // case (Nil, Nil) => Left(Nel.one("Methods with no arguments are not
-      // supported"))
-      case (_, _) =>
-        Left(Nel.one("Methods with no arguments are not supported"))
+    val defsBefore = methodsBefore.toList.flatMap { case (name, info) =>
+      SMTUtils.mkFunDefs(beforeTag, name, info)
     }
+    val defsAfter = methodsAfter.toList.flatMap { case (name, info) =>
+      SMTUtils.mkFunDefs(afterTag, name, info)
+    }
+    val allDefs = defsBefore ++ defsAfter
+    val callGraph = allDefs
+      .map(func => (func, SMTUtils.extractMethodDependencies(func.body)))
+      .flatMap { case (caller, vals) =>
+        vals.map(callee => (caller, allDefs.find(_.name.name == callee)))
+      }
+      .collect { case (name, Some(value)) => (name, value) }
+    val (properDefs, badDefs) = SMTUtils.tsort(callGraph)
+
+    val cleansedDefs = badDefs
+      .map { case (func, bads) =>
+        SMTUtils.removeProblematicCalls(func, bads.map(_.name))
+      }
+    val orderedDefs = properDefs
+      .toList
+      .reverse
+    val prog =
+      (cleansedDefs ++ orderedDefs).map(DefineFun) ++ List(Assert(impl))
+
+    val formula = prog.map(RecursivePrinter.toString).mkString
+//    print(formula)
+
+    util
+      .Try(SimpleAPI.withProver(p => {
+        val (assertions, functions, constants, predicates) =
+          p.extractSMTLIBAssertionsSymbols(
+            new StringReader(formula),
+            fullyInline = true
+          )
+        assertions.foreach(p.addAssertion)
+        functions
+          .keySet
+          .foreach(f => {
+            p.addFunction(f, FunctionalityMode.NoUnification)
+          })
+        constants.keySet.foreach(p.addConstantRaw)
+        predicates.keySet.foreach(p.addRelation)
+        p.checkSat(true)
+        p.getStatus(true) match {
+          case ap.SimpleAPI.ProverStatus.Sat => Right(None)
+          case ap.SimpleAPI.ProverStatus.Unsat => Right(
+              Some(resultMsgGenerator(methodName))
+            )
+          case err => Left(Nel.one(s"SMT solver failed with error: $err"))
+        }
+      }))
+      .toEither
+      .leftMap(t =>
+        Nel.one(
+          s"SMT failed to parse the generated program with error: ${t.getMessage}"
+        )
+      )
+      .flatten
+
   }
 
 }
