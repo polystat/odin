@@ -1,12 +1,22 @@
 package org.polystat.odin.analysis.liskov
 
 import cats.data.EitherNel
-import org.polystat.odin.analysis.utils.inlining.Inliner.{AnalysisInfo, ObjectTreeForAnalysis}
+import org.polystat.odin.analysis.utils.inlining.Inliner.{
+  AnalysisInfo,
+  ObjectTreeForAnalysis
+}
 import org.polystat.odin.core.ast.EONamedBnd
 import org.polystat.odin.parser.eo.Parser
 import cats.syntax.parallel._
-import org.polystat.odin.analysis.unjustifiedassumptions.Analyzer.{getMethodsInfo, processMethod}
-import org.polystat.odin.analysis.utils.inlining.{Inliner, MethodInfo, MethodInfoForAnalysis}
+import org.polystat.odin.analysis.unjustifiedassumptions.Analyzer.{
+  getMethodsInfo,
+  processMethod
+}
+import org.polystat.odin.analysis.utils.inlining.{
+  Inliner,
+  MethodInfo,
+  MethodInfoForAnalysis
+}
 import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.checkImplication
 
 object Analyzer {

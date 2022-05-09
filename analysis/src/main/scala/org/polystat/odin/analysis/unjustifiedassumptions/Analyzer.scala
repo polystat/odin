@@ -5,8 +5,15 @@ import cats.data.{EitherNel, NonEmptyList => Nel}
 import cats.syntax.align._
 import cats.syntax.traverse._
 import org.polystat.odin.analysis.utils.inlining.Inliner.AnalysisInfo
-import org.polystat.odin.analysis.utils.inlining.{MethodInfoForAnalysis, ObjectTree}
-import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.{checkImplication, extractInfo, mkEqualsBndAttr}
+import org.polystat.odin.analysis.utils.inlining.{
+  MethodInfoForAnalysis,
+  ObjectTree
+}
+import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.{
+  checkImplication,
+  extractInfo,
+  mkEqualsBndAttr
+}
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils
 import org.polystat.odin.core.ast._
 import smtlib.theories.Core.{And, True}
@@ -173,4 +180,5 @@ object Analyzer {
     }
 
   }
+
 }

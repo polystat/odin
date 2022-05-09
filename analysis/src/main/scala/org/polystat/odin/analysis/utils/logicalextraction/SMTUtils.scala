@@ -4,18 +4,30 @@ import org.polystat.odin.core.ast.EONamedBnd
 import smtlib.theories.Core.{BoolSort, True}
 import smtlib.theories.Ints.IntSort
 import smtlib.trees.Commands.FunDef
-import smtlib.trees.Terms.{Exists, Forall, FunctionApplication, Identifier, Let, QualifiedIdentifier, SNumeral, SSymbol, SimpleIdentifier, SortedVar, Term}
+import smtlib.trees.Terms.{
+  Exists,
+  Forall,
+  FunctionApplication,
+  Identifier,
+  Let,
+  QualifiedIdentifier,
+  SNumeral,
+  SSymbol,
+  SimpleIdentifier,
+  SortedVar,
+  Term
+}
 
 import scala.annotation.tailrec
 
-
 object SMTUtils {
+
   final case class Info(
-                         forall: List[SortedVar],
-                         exists: List[SortedVar],
-                         value: Term,
-                         properties: Term
-                       )
+    forall: List[SortedVar],
+    exists: List[SortedVar],
+    value: Term,
+    properties: Term
+  )
 
   def simpleAppToInfo(names: List[String], depth: List[String]): Info = {
     Info(
@@ -40,7 +52,9 @@ object SMTUtils {
     name: String,
     depth: List[String]
   ): QualifiedIdentifier = {
-    QualifiedIdentifier(SimpleIdentifier(SMTUtils.mkValueFunSSymbol(name, depth)))
+    QualifiedIdentifier(
+      SimpleIdentifier(SMTUtils.mkValueFunSSymbol(name, depth))
+    )
   }
 
   def mkPropertiesFunSSymbol(name: String, depth: List[String]): SSymbol = {
@@ -52,7 +66,9 @@ object SMTUtils {
     name: String,
     depth: List[String]
   ): QualifiedIdentifier = {
-    QualifiedIdentifier(SimpleIdentifier(SMTUtils.mkPropertiesFunSSymbol(name, depth)))
+    QualifiedIdentifier(
+      SimpleIdentifier(SMTUtils.mkPropertiesFunSSymbol(name, depth))
+    )
   }
 
   def mkIntVar(name: String, depth: List[String]): SortedVar = {
@@ -139,4 +155,5 @@ object SMTUtils {
 
     res
   }
+
 }
