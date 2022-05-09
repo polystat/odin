@@ -265,10 +265,6 @@ class LiskovPrincipleTests extends AnyWordSpec {
     "not find errors" should {
       runTests(testCasesWithoutErrors)
     }
-
-    //    "fail" should {
-    //      assert(true)
-    //    }
   }
 
 }
