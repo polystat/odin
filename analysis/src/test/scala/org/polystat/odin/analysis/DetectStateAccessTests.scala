@@ -53,6 +53,98 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
+      label = "calculation chain",
+      code = """[] > test
+               |  [] > a
+               |    memory > state
+               |  [] > b
+               |    a > @
+               |    [self x] > n
+               |      add. > @
+               |        x
+               |        mul.
+               |          100
+               |          add.
+               |            100
+               |            sub.
+               |              100
+               |              self.state
+               |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'a'"
+      )
+    ),
+    TestCase(
+      label = "read-in-calculation-chain",
+      code = """[] > test
+               |  [] > a
+               |    memory > state
+               |  [] > b
+               |    a > @
+               |    [self x] > n
+               |      add. > @
+               |        self.state
+               |        mul.
+               |          100
+               |          add.
+               |            100
+               |            sub.
+               |              100
+               |              x
+               |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'a'"
+      )
+    ),
+    TestCase(
+      label = "read-in-inheritance-chain",
+      code = """[] > test
+               |  [] > a
+               |    memory > state
+               |  [] > b
+               |    a > @
+               |  [] > c
+               |    b > @
+               |    [self x] > n
+               |      self.state.add x > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'test.c' directly accesses state 'state' of base class 'a'"
+      )
+    ),
+    TestCase(
+      label = "access-read-nested-class-2",
+      code = """[] > test
+               |  [] > very_outer
+               |    [] > outer
+               |      [] > a
+               |        memory > state
+               |      [] > b
+               |        a > @
+               |        [self x] > n
+               |          self.state.add x > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'test.very_outer.outer.b' directly accesses state 'state' of base class 'a'"
+      )
+    ),
+    TestCase(
+      label = "write-through-another-method",
+      code = """[] > test
+               |  [] > a
+               |    memory > state
+               |  [] > b
+               |    a > @
+               |    [self x y] > m
+               |      x.write y > @
+               |    [self y] > n
+               |      self.m self (self.state) y > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'a'"
+      )
+    ),
+    TestCase(
       label = "Access to cage",
       code = """[] > a
                |  cage > state
@@ -159,6 +251,40 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
+      label =
+        "Access to state that is high in the hierarchy | shadowing, attaching attributes during application",
+      code = """
+               |[] > super_puper
+               |  memory > omega_state
+               |  memory > additional_state
+               |
+               |[] > super
+               |  super_puper > @
+               |  super_puper.additional_state > omega_state
+               |  [self] > super_bad_func
+               |    seq > @
+               |      self.omega_state.write 10
+               |
+               |[] > parent
+               |  ((super)) > @
+               |  memory > parent_state
+               |
+               |[] > child
+               |  parent > @
+               |  memory > local_state
+               |  [self] > bad_func
+               |    seq > @
+               |      self.omega_state.write 10
+               |      self.parent_state.write 10
+               |      self.local_state.write 10
+               |""".stripMargin,
+      expected = List(
+        "Method 'super_bad_func' of object 'super' directly accesses state 'omega_state' of base class 'super_puper'",
+        "Method 'bad_func' of object 'child' directly accesses state 'omega_state' of base class 'super_puper'",
+        "Method 'bad_func' of object 'child' directly accesses state 'parent_state' of base class 'parent'"
+      )
+    ),
+    TestCase(
       label = "Access to state with further method call",
       code = """
                |[] > parent
@@ -167,6 +293,20 @@ class DetectStateAccessTests extends AnyWordSpec {
                |  parent > @
                |  [self] > method
                |    self.state.add 10 > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+    TestCase(
+      label = "Access to state with further method call | indirect",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  parent > @
+               |  [self] > method
+               |    (self.state.add 10).write 4 > @
                |""".stripMargin,
       expected = List(
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
@@ -200,6 +340,19 @@ class DetectStateAccessTests extends AnyWordSpec {
                |  [self new_state] > change_state_plus_two
                |    new_state.add 2 > tmp
                |    self.update_state self tmp > @
+               |""".stripMargin,
+      expected = List()
+    ),
+    TestCase(
+      label = "Read on not inherited object",
+      code = """[] > test
+               |  [] > a_factory
+               |    [] > get_a
+               |      memory > state
+               |  [] > b
+               |    a_factory.get_a > @
+               |    [self x] > n
+               |      a_factory.get_a.state.add x > @
                |""".stripMargin,
       expected = List()
     ),
