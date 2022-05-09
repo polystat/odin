@@ -556,17 +556,13 @@ Resulting SMT-code:
 1. Method pairs for inspection are formed by considering only direct descendants. For example, in case of an inheritance
    chain A -> B -> C only combinations (A,B) and (B,C) are examined. It would be ideal to examine all possible
    combinations. So, in the given example an additional pair (A,C) is to be examined.
-
-<!-- 2. Only NOT redefined methods are examined for the presence unjustified assumptions. This might not be the ideal approach? -->
-
-2. Presence of methods with mutual recursion causes the program to be unable to detect defects of related to unjustified
-   assumptions.
+2. Presence of methods with mutual or regular recursion causes the recursive calls to be interpreted only partially.
 3. Current implementation makes it impossible to store boolean values in object fields. Only integer values are
    supported as of now.
 4. No checks are performed on the contents of asserts in EO. As such, it is possible to assert an integer value, which
    would cause unanticipated behavior. For example, `assert (3.add 5)`.
 5. Imported functions are not supported by the analyzer.
-6. Methods without arguments are not yet supported.
+6. Methods without arguments sometimes cause the analyzer to crash.
 
 #### Possible Errors
 
