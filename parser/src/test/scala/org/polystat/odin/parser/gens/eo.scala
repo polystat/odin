@@ -1,6 +1,7 @@
 package org.polystat.odin.parser.gens
 
 import org.scalacheck.Gen
+import cats.data.NonEmptyList
 
 object eo {
 
@@ -121,6 +122,13 @@ object eo {
 
   val packageName: Gen[String] =
     betweenStr(1, 3, identifier, sep = ".")
+
+  val packageNameSplit: Gen[NonEmptyList[String]] =
+    identifier
+      .flatMap(head =>
+        between(0, 2, identifier)
+          .map(tail => NonEmptyList(head, tail))
+      )
 
   val packageMeta: Gen[String] = for {
     name <- packageName
