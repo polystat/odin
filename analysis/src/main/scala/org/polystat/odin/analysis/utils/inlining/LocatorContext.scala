@@ -1,9 +1,9 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.utils.inlining
 
 import cats.data.{EitherNel, NonEmptyList => Nel}
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.inlining.Optics._
-import Abstract.modifyExprWithState
+import org.polystat.odin.analysis.utils.Optics._
+import org.polystat.odin.analysis.utils.Abstract.modifyExprWithState
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
@@ -19,9 +19,21 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 // 2.2 Upon meeting a EOObj() -> use its contents to update the context and pass
 // it in the next recursive call
 
-object Context {
+object LocatorContext {
 
   type Context = Map[String, BigInt]
+
+  val predefinedKeywords: Context = Map(
+    "seq" -> 0,
+    "assert" -> 0,
+    "random" -> 0,
+    "memory" -> 0,
+    "cage" -> 0,
+    "goto" -> 0,
+    "heap" -> 0,
+    "ram" -> 0,
+    "try" -> 0,
+  )
 
   def resolveLocator(
     ctx: Context,
@@ -56,21 +68,18 @@ object Context {
   def setLocators(
     code: EOProg[EOExprOnly]
   ): EitherNel[String, EOProg[EOExprOnly]] = {
+    val metaSymbols: Context = code
+      .metas
+      .metas
+      .collect {
+        case EOAliasMeta(Some(alias), _) => alias
+        case EOAliasMeta(None, src) => src.last
+      }
+      .map((_, BigInt(0)))
+      .toMap
     val initialCtx =
       rebuildContext(
-        Map(
-          "seq" -> 0,
-          "assert" -> 0,
-          "random" -> 0,
-          "memory" -> 0,
-          "cage" -> 0,
-          "stdout" -> 0,
-          "sprintf" -> 0,
-          "goto" -> 0,
-          "heap" -> 0,
-          "ram" -> 0,
-          "try" -> 0,
-        ),
+        predefinedKeywords ++ metaSymbols,
         0,
         code.bnds,
         Vector()

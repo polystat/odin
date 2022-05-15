@@ -8,13 +8,16 @@ import org.polystat.odin.analysis.ASTAnalyzer
 import org.polystat.odin.analysis.EOOdinAnalyzer.{
   advancedMutualRecursionAnalyzer,
   directStateAccessAnalyzer,
+  liskovPrincipleViolationAnalyzer,
   unjustifiedAssumptionAnalyzer
 }
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
+import org.polystat.odin.interop.java.OdinAnalysisResultInterop
 
+import scala.jdk.CollectionConverters._
 import java.util
 import scala.jdk.CollectionConverters._
 
@@ -34,6 +37,7 @@ object EOOdinAnalyzer {
       advancedMutualRecursionAnalyzer[IO],
       unjustifiedAssumptionAnalyzer[IO],
       directStateAccessAnalyzer[IO],
+      liskovPrincipleViolationAnalyzer[IO]
     )
 
   private def runAnalyzers(

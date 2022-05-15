@@ -1,14 +1,12 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.utils
 
-import cats.syntax.foldable._
-import cats.syntax.functor._
-import cats.syntax.semigroup._
 import cats.{Applicative, Eval, Foldable, Id, Monoid}
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.inlining.Optics.{lenses, traversals}
-import org.polystat.odin.core.ast._
+import Optics.{lenses, traversals}
+import cats.implicits.{catsSyntaxSemigroup, toFoldableOps, toFunctorOps}
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.core.ast._
 
 object Abstract {
 
