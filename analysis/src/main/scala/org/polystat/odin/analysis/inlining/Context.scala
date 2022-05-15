@@ -23,6 +23,18 @@ object Context {
 
   type Context = Map[String, BigInt]
 
+  val predefinedKeywords: Context = Map(
+    "seq" -> 0,
+    "assert" -> 0,
+    "random" -> 0,
+    "memory" -> 0,
+    "cage" -> 0,
+    "goto" -> 0,
+    "heap" -> 0,
+    "ram" -> 0,
+    "try" -> 0,
+  )
+
   def resolveLocator(
     ctx: Context,
     name: String,
@@ -56,21 +68,18 @@ object Context {
   def setLocators(
     code: EOProg[EOExprOnly]
   ): EitherNel[String, EOProg[EOExprOnly]] = {
+    val metaSymbols: Context = code
+      .metas
+      .metas
+      .collect {
+        case EOAliasMeta(Some(alias), _) => alias
+        case EOAliasMeta(None, src) => src.last
+      }
+      .map((_, BigInt(0)))
+      .toMap
     val initialCtx =
       rebuildContext(
-        Map(
-          "seq" -> 0,
-          "assert" -> 0,
-          "random" -> 0,
-          "memory" -> 0,
-          "cage" -> 0,
-          "stdout" -> 0,
-          "sprintf" -> 0,
-          "goto" -> 0,
-          "heap" -> 0,
-          "ram" -> 0,
-          "try" -> 0,
-        ),
+        predefinedKeywords ++ metaSymbols,
         0,
         code.bnds,
         Vector()

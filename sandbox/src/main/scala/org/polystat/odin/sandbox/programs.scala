@@ -1,5 +1,6 @@
 package org.polystat.odin.sandbox
 
+import cats.data.NonEmptyList
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -10,8 +11,8 @@ object programs {
     EOMetas(
       pack = Some("sandbox"),
       metas = Vector(
-        EOAliasMeta("stdout", "org.eolang.io.stdout"),
-        EOAliasMeta("sprintf", "org.eolang.txt.sprintf"),
+        EOAliasMeta(Some("stdout"), NonEmptyList("org", List("eolang", "io", "stdout"))),
+        EOAliasMeta(Some("sprintf"), NonEmptyList("org", List("eolang", "txt", "sprintf"))),
       )
     ),
     Vector(

@@ -54,8 +54,8 @@ object ast {
     } yield EORTMeta(alias, artifact)
 
   val aliasMeta: Gen[EOAliasMeta] = for {
-    alias <- eo.identifier
-    artifact <- eo.packageName
+    alias <- Gen.option(eo.identifier)
+    artifact <- eo.packageNameSplit
   } yield EOAliasMeta(alias, artifact)
 
   val metas: Gen[EOMetas] =
