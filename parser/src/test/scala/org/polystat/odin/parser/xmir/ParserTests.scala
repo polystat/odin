@@ -125,6 +125,15 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
       |    aboba > @
       |""".stripMargin
 
+  val arrays: String =
+    """[] > main
+      |  * 0 1 2 3 4 5 6 7 > nums
+      |  * > times-table
+      |    * 1 2 3
+      |    * 2 4 6
+      |    * 3 6 9
+      |""".stripMargin
+
   val verySimple: String =
     """"hello" > world
       |""".stripMargin
@@ -135,13 +144,15 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
       "very simple" -> verySimple,
       "simple" -> simple,
       "division by zero" -> divByZero,
+      "some arrays" -> arrays,
     ).appendedAll(
       FullProgramExamples
         .correct
         // "dir walk" test is not run
-        // because it is not yet supported by EO parser
-        // https://github.com/cqfn/eo/issues/584
-        // TODO: remove .init when it is supported
+        // because the single-line abstraction syntax
+        // is supported incorrectly by the XMIR parser
+        // https://github.com/cqfn/eo/issues/612
+        // TODO: remove .init when it is supported correctly
         .init
         .map(tc => (tc.label, tc.code))
     )
