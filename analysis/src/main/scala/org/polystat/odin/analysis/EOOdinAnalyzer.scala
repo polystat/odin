@@ -5,14 +5,14 @@ import cats.data.EitherNel
 import cats.effect.Sync
 import cats.syntax.all._
 import fs2.Stream
-import org.polystat.odin.analysis.inlining.Inliner
-import org.polystat.odin.analysis.logicalexprs.ExtractLogic
+import org.polystat.odin.analysis.EOOdinAnalyzer._
+import org.polystat.odin.analysis.liskov.Analyzer
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer.analyzeAst
 import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
+import org.polystat.odin.analysis.utils.inlining.Inliner
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser
-import EOOdinAnalyzer._
 
 trait ASTAnalyzer[F[_]] {
   val name: String
@@ -55,6 +55,16 @@ object EOOdinAnalyzer {
         case Right(errors) => fromErrors(analyzer)(errors)
       }
 
+  }
+
+  private def toThrow[F[_], A](
+    eitherNel: EitherNel[String, A]
+  )(implicit mt: MonadThrow[F]): F[A] = {
+    MonadThrow[F].fromEither(
+      eitherNel
+        .leftMap(_.mkString_(util.Properties.lineSeparator))
+        .leftMap(new Exception(_))
+    )
   }
 
   def naiveMutualRecursionAnalyzer[F[_]: Sync]: ASTAnalyzer[F] =
@@ -133,7 +143,28 @@ object EOOdinAnalyzer {
             tree <-
               toThrow(Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast))
             errors <-
-              toThrow(ExtractLogic.processObjectTree(tree))
+              toThrow(unjustifiedassumptions.Analyzer.analyzeObjectTree(tree))
+          } yield errors
+        }
+
+    }
+
+  def liskovPrincipleViolationAnalyzer[F[_]: MonadThrow]: ASTAnalyzer[F] =
+    new ASTAnalyzer[F] {
+
+      override val name: String = "Liskov Substitution principle violation"
+
+      override def analyze(
+        ast: EOProg[EOExprOnly]
+      ): F[OdinAnalysisResult] =
+        OdinAnalysisResult.fromThrow[F](name) {
+          for {
+            partialTree <-
+              toThrow(Inliner.createObjectTree(ast))
+            parentedTree <- toThrow(Inliner.resolveParents(partialTree))
+            tree <- toThrow(Inliner.resolveIndirectMethods(parentedTree))
+            errors <-
+              toThrow(Analyzer.analyze(tree))
           } yield errors
         }
 

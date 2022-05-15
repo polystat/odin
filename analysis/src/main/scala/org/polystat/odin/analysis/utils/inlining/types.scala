@@ -1,4 +1,4 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.utils.inlining
 
 import com.github.tarao.nonempty.collection.NonEmpty
 import monocle.Optional

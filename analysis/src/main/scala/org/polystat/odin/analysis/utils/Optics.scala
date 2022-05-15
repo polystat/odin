@@ -1,16 +1,14 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.utils
 
 import cats.Applicative
-import cats.syntax.apply._
-import cats.syntax.functor._
-import cats.syntax.traverse._
+import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps, toTraverseOps}
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import monocle.macros.GenLens
 import monocle.{Lens, Optional, Prism, Traversal}
-import org.polystat.odin.analysis.inlining.types.CopyArgs
-import org.polystat.odin.core.ast._
+import org.polystat.odin.analysis.utils.inlining.types.CopyArgs
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.core.ast._
 
 object Optics {
 
