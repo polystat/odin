@@ -18,7 +18,7 @@ class LiskovPrincipleTests extends AnyWordSpec {
     )
     .flatMap {
       case Ok(_) => IO.pure(List.empty)
-      case DefectDetected(_, message) => IO.pure(message.split("\n").toList)
+      case DefectsDetected(_, message) => IO.pure(message.toList)
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 

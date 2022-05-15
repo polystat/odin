@@ -1,9 +1,9 @@
 package org.polystat.odin.analysis.stateaccess
 
 import cats.data.EitherNel
-
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.inlining._
+import org.polystat.odin.analysis.utils.Abstract
+import org.polystat.odin.analysis.utils.inlining._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
