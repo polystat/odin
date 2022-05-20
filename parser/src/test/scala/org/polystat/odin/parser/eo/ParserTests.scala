@@ -1,8 +1,9 @@
 package org.polystat.odin.parser.eo
 
-import cats.parse.{Parser => P, Parser0 => P0}
-import org.polystat.odin.backend.eolang.ToEO.ops._
+import cats.parse.{Parser => P}
+import cats.parse.{Parser0 => P0}
 import org.polystat.odin.backend.eolang.ToEO.instances._
+import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EOParserTestSuite

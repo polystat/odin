@@ -1,9 +1,11 @@
 package org.polystat.odin.analysis
 
 import cats.data.NonEmptyList
+import cats.effect.IO
+import cats.effect.Sync
 import cats.effect.unsafe.implicits.global
-import cats.effect.{IO, Sync}
-import cats.parse.{Parser => P, Parser0 => P0}
+import cats.parse.{Parser => P}
+import cats.parse.{Parser0 => P0}
 import cats.syntax.functor._
 import fs2.io.file.Files
 import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
@@ -12,7 +14,9 @@ import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.polystat.odin.parser.eo.Parser
 import org.polystat.odin.utils.files
-import org.scalacheck.{Gen, Prop, Test}
+import org.scalacheck.Gen
+import org.scalacheck.Prop
+import org.scalacheck.Test
 import org.scalatest.Assertion
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.Checkers

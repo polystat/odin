@@ -5,12 +5,13 @@ import cats.effect.kernel.Sync
 import cats.effect.unsafe.implicits.global
 import cats.syntax.flatMap._
 import fs2.Stream
-import fs2.io.file.{Files, Path}
+import fs2.io.file.Files
+import fs2.io.file.Path
 import fs2.text.utf8
+import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.scalacheck.Gen
-import org.polystat.odin.analysis.ObjectName
 
 import scala.util.Try
 

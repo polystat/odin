@@ -1,7 +1,8 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
 import cats.MonadError
-import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.data.EitherNel
+import cats.data.{NonEmptyList => Nel}
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.flatMap._

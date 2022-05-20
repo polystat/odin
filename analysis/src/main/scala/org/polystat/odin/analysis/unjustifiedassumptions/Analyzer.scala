@@ -1,22 +1,20 @@
 package org.polystat.odin.analysis.unjustifiedassumptions
 
-import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.Info
-import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.data.EitherNel
+import cats.data.{NonEmptyList => Nel}
 import cats.syntax.align._
 import cats.syntax.traverse._
 import org.polystat.odin.analysis.utils.inlining.Inliner.AnalysisInfo
-import org.polystat.odin.analysis.utils.inlining.{
-  MethodInfoForAnalysis,
-  ObjectTree
-}
-import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.{
-  checkImplication,
-  extractInfo,
-  mkEqualsBndAttr
-}
+import org.polystat.odin.analysis.utils.inlining.MethodInfoForAnalysis
+import org.polystat.odin.analysis.utils.inlining.ObjectTree
+import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.checkImplication
+import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.extractInfo
+import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.mkEqualsBndAttr
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.Info
 import org.polystat.odin.core.ast._
-import smtlib.theories.Core.{And, True}
+import smtlib.theories.Core.And
+import smtlib.theories.Core.True
 import smtlib.theories.Ints.IntSort
 import smtlib.trees.Terms._
 

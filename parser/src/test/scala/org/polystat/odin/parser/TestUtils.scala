@@ -3,7 +3,8 @@ package org.polystat.odin.parser
 import com.github.tarao.nonempty.collection.NonEmpty
 import pprint.PPrinter
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
+import java.nio.file.Paths
 import scala.jdk.CollectionConverters._
 
 object TestUtils {

@@ -1,10 +1,11 @@
 package org.polystat.odin.analysis
 
 import cats.effect._
-import org.scalatest.wordspec.AnyWordSpec
-import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 import cats.effect.unsafe.implicits.global
 import org.polystat.odin.analysis.EOOdinAnalyzer.directStateAccessAnalyzer
+import org.polystat.odin.parser.EoParser.sourceCodeEoParser
+import org.scalatest.wordspec.AnyWordSpec
+
 import EOOdinAnalyzer.OdinAnalysisResult._
 
 class DetectStateAccessTests extends AnyWordSpec {

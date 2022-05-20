@@ -1,11 +1,12 @@
 package org.polystat.odin.analysis
 
 import cats.effect._
-import org.scalatest.wordspec.AnyWordSpec
-import EOOdinAnalyzer.unjustifiedAssumptionAnalyzer
-import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 import cats.effect.unsafe.implicits.global
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisResult._
+import org.polystat.odin.parser.EoParser.sourceCodeEoParser
+import org.scalatest.wordspec.AnyWordSpec
+
+import EOOdinAnalyzer.unjustifiedAssumptionAnalyzer
 
 class UnjustifiedAssumptionTests extends AnyWordSpec {
 
@@ -274,10 +275,6 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
     "not find errors" should {
       runTests(testCasesWithoutErrors)
     }
-
-//    "fail" should {
-//      assert(true)
-//    }
   }
 
 }

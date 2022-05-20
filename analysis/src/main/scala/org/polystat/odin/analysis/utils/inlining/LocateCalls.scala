@@ -6,9 +6,10 @@ import monocle.Iso
 import org.polystat.odin.analysis.utils.Abstract.foldAst
 import org.polystat.odin.analysis.utils.Optics._
 import org.polystat.odin.analysis.utils.inlining
-import types._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
+
+import types._
 
 object LocateCalls {
 

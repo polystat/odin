@@ -1,17 +1,20 @@
 package org.polystat.odin.backend.eolang
 
+import cats.syntax.foldable._
 import higherkindness.droste.data.Fix
+import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.utils.text.escape
+import org.polystat.odin.utils.text.indent
+
+import scala.util.Properties
+
 import EOBndRepr.instances._
 import ToEO.ops.ToEOOps
 import ToEOBnd.instances._
 import ToEOBnd.ops._
 import inlineorlines._
 import inlineorlines.ops._
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast._
-import org.polystat.odin.utils.text.{escape, indent}
-import scala.util.Properties
-import cats.syntax.foldable._
 
 trait ToEO[T, R] {
   def toEO(node: T): R

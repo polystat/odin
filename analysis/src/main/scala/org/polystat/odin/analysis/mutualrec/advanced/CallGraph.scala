@@ -1,7 +1,8 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
-import scala.annotation.tailrec
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
+
+import scala.annotation.tailrec
 
 object CallGraph {
 

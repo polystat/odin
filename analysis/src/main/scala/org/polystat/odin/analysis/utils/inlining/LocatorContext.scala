@@ -1,9 +1,10 @@
 package org.polystat.odin.analysis.utils.inlining
 
-import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.data.EitherNel
+import cats.data.{NonEmptyList => Nel}
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.utils.Optics._
 import org.polystat.odin.analysis.utils.Abstract.modifyExprWithState
+import org.polystat.odin.analysis.utils.Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 

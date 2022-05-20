@@ -1,16 +1,17 @@
 package org.polystat.odin.parser
 
-import org.scalatest.Assertion
-import org.scalatest.wordspec.AnyWordSpec
-import TestUtils._
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.ast_tests.{
-  FullProgramExamples,
-  SingleLineExamples
-}
-import org.scalacheck.{Gen, Prop, Test}
+import org.polystat.odin.parser.ast_tests.FullProgramExamples
+import org.polystat.odin.parser.ast_tests.SingleLineExamples
+import org.scalacheck.Gen
+import org.scalacheck.Prop
+import org.scalacheck.Test
+import org.scalatest.Assertion
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.Checkers
+
+import TestUtils._
 
 trait EOParserTestSuite extends AnyWordSpec with Checkers {
 

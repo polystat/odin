@@ -1,6 +1,7 @@
 package org.polystat.odin.parser.eo
 
-import cats.parse.Rfc5234.{crlf, lf}
+import cats.parse.Rfc5234.crlf
+import cats.parse.Rfc5234.lf
 import cats.parse.{Parser => P, _}
 
 object Tokens {

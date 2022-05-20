@@ -1,22 +1,21 @@
 package org.polystat.odin.analysis.utils.logicalextraction
 
 import org.polystat.odin.core.ast.EONamedBnd
-import smtlib.theories.Core.{BoolSort, True}
+import smtlib.theories.Core.BoolSort
+import smtlib.theories.Core.True
 import smtlib.theories.Ints.IntSort
 import smtlib.trees.Commands.FunDef
-import smtlib.trees.Terms.{
-  Exists,
-  Forall,
-  FunctionApplication,
-  Identifier,
-  Let,
-  QualifiedIdentifier,
-  SNumeral,
-  SSymbol,
-  SimpleIdentifier,
-  SortedVar,
-  Term
-}
+import smtlib.trees.Terms.Exists
+import smtlib.trees.Terms.Forall
+import smtlib.trees.Terms.FunctionApplication
+import smtlib.trees.Terms.Identifier
+import smtlib.trees.Terms.Let
+import smtlib.trees.Terms.QualifiedIdentifier
+import smtlib.trees.Terms.SNumeral
+import smtlib.trees.Terms.SSymbol
+import smtlib.trees.Terms.SimpleIdentifier
+import smtlib.trees.Terms.SortedVar
+import smtlib.trees.Terms.Term
 
 import scala.annotation.tailrec
 

@@ -6,13 +6,16 @@ import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.functor._
 import cats.syntax.traverse._
-import types._
-import org.polystat.odin.backend.eolang.ToEO.instances._
-import org.polystat.odin.backend.eolang.ToEO.ops._
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast.{EOBndExpr, EONamedBnd, EOObj}
 import monocle.Optional
 import org.polystat.odin.analysis.ObjectName
+import org.polystat.odin.backend.eolang.ToEO.instances._
+import org.polystat.odin.backend.eolang.ToEO.ops._
+import org.polystat.odin.core.ast.EOBndExpr
+import org.polystat.odin.core.ast.EONamedBnd
+import org.polystat.odin.core.ast.EOObj
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+
+import types._
 
 sealed trait BndPlaceholder
 final case class MethodPlaceholder(name: EONamedBnd) extends BndPlaceholder
