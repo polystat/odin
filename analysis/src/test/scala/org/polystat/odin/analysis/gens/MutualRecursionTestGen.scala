@@ -276,4 +276,5 @@ object MutualRecursionTestGen {
        |""".stripMargin
 
   }
+
 }
