@@ -1,9 +1,11 @@
 package org.polystat.odin.parser.eo
 
-import org.polystat.odin.core.ast.{EOBnd, EOProg}
-import org.polystat.odin.parser.eo.Tokens._
+import cats.parse.{Parser => P}
+import cats.parse.{Parser0 => P0}
+import org.polystat.odin.core.ast.EOBnd
+import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import cats.parse.{Parser => P, Parser0 => P0}
+import org.polystat.odin.parser.eo.Tokens._
 
 object Parser {
 

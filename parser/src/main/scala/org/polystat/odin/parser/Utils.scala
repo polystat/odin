@@ -2,8 +2,8 @@ package org.polystat.odin.parser
 
 import cats.data.NonEmptyVector
 import higherkindness.droste.data.Fix
-import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
 
 private[parser] object Utils {
 

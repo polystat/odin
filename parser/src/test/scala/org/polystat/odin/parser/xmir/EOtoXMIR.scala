@@ -1,10 +1,14 @@
 package org.polystat.odin.parser.xmir
 
-import cats.effect.{Resource, Sync}
+import cats.effect.Resource
+import cats.effect.Sync
 import cats.implicits._
 import com.jcabi.xml.XMLDocument
-import org.cactoos.io.{InputOf, OutputTo}
-import org.eolang.parser.{Spy, Syntax, Xsline}
+import org.cactoos.io.InputOf
+import org.cactoos.io.OutputTo
+import org.eolang.parser.Spy
+import org.eolang.parser.Syntax
+import org.eolang.parser.Xsline
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files

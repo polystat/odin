@@ -1,8 +1,9 @@
 package org.polystat.odin.parser.eo
 
-import cats.parse.{Parser => P}
 import cats.data.NonEmptyVector
-import org.polystat.odin.core.ast.{EOBnd, EOBndExpr}
+import cats.parse.{Parser => P}
+import org.polystat.odin.core.ast.EOBnd
+import org.polystat.odin.core.ast.EOBndExpr
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Tokens._
 

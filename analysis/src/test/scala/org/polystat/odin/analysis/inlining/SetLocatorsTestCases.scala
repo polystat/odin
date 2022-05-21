@@ -1,6 +1,7 @@
 package org.polystat.odin.analysis.inlining
 
-import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.data.EitherNel
+import cats.data.{NonEmptyList => Nel}
 import cats.syntax.either._
 
 object SetLocatorsTestCases {

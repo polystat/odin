@@ -1,12 +1,19 @@
 package org.polystat.odin.analysis.utils
 
-import cats.{Applicative, Eval, Foldable, Id, Monoid}
+import cats.Applicative
+import cats.Eval
+import cats.Foldable
+import cats.Id
+import cats.Monoid
+import cats.implicits.catsSyntaxSemigroup
+import cats.implicits.toFoldableOps
+import cats.implicits.toFunctorOps
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
-import Optics.{lenses, traversals}
-import cats.implicits.{catsSyntaxSemigroup, toFoldableOps, toFunctorOps}
-import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+
+import Optics.{lenses, traversals}
 
 object Abstract {
 

@@ -53,16 +53,20 @@ object Program {
 
       def helper(obj: Object, depth: Int): String = {
         val spaces = "  " * (depth + 1)
+        val locators = List.fill(depth + 1)('^').mkString(".")
+        val parent = obj
+          .parent
+          .fold("")(parent => s"$spaces$locators.${parent.name.show} > @\n")
+
+        val methods = obj
+          .callGraph
+          .filter { case (method, _) =>
+            method.whereDefined == obj.name
+          }
+          .map(renderMethod(depth + 1))
+          .mkString("\n")
         s"""[] > ${obj.name.name}
-           |${obj
-            .parent
-            .fold("")(parent => s"$spaces${parent.name.show} > @\n")}${obj
-            .callGraph
-            .filter { case (method, _) =>
-              method.whereDefined == obj.name
-            }
-            .map(renderMethod(depth + 1))
-            .mkString("\n")}
+           |$parent$methods
            |$spaces${obj
             .nestedObjs
             .map(helper(_, depth + 1))

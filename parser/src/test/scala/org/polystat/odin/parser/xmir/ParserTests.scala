@@ -1,7 +1,8 @@
 package org.polystat.odin.parser.xmir
 
+import cats.effect.IO
+import cats.effect.Sync
 import cats.effect.testing.scalatest.AsyncIOSpec
-import cats.effect.{IO, Sync}
 import cats.implicits._
 import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.core.ast.astparams.EOExprOnly

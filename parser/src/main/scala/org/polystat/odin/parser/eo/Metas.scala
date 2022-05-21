@@ -1,9 +1,12 @@
 package org.polystat.odin.parser.eo
 
 import cats.data.NonEmptyList
+import cats.parse.Parser0
 import cats.parse.SemVer.semverString
-import cats.parse.{Parser => P, Parser0}
-import org.polystat.odin.core.ast.{EOAliasMeta, EOMetas, EORTMeta}
+import cats.parse.{Parser => P}
+import org.polystat.odin.core.ast.EOAliasMeta
+import org.polystat.odin.core.ast.EOMetas
+import org.polystat.odin.core.ast.EORTMeta
 import org.polystat.odin.parser.eo.Tokens._
 
 object Metas {

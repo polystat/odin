@@ -4,23 +4,19 @@ import cats._
 import cats.data.Chain
 import cats.effect._
 import cats.implicits._
-import org.polystat.odin.analysis.mutualrec.naive.services.MethodAttribute.MethodInfo
-import org.polystat.odin.analysis.mutualrec.naive.services.TopLevelObjects.createTopLevelObjectsWithRefs
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.mutualrec.naive.services.{
-  MethodAttribute,
-  TopLevelObjects
-}
+import org.polystat.odin.analysis.mutualrec.naive.services.MethodAttribute
+import org.polystat.odin.analysis.mutualrec.naive.services.MethodAttribute.MethodInfo
+import org.polystat.odin.analysis.mutualrec.naive.services.TopLevelObjects
+import org.polystat.odin.analysis.mutualrec.naive.services.TopLevelObjects.createTopLevelObjectsWithRefs
+import org.polystat.odin.core.ast.EOArray
+import org.polystat.odin.core.ast.EOBndExpr
+import org.polystat.odin.core.ast.EOCopy
+import org.polystat.odin.core.ast.EODot
+import org.polystat.odin.core.ast.EOObj
+import org.polystat.odin.core.ast.EOProg
+import org.polystat.odin.core.ast.EOSimpleApp
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast.{
-  EOArray,
-  EOBndExpr,
-  EOCopy,
-  EODot,
-  EOObj,
-  EOProg,
-  EOSimpleApp
-}
 
 package object naive {
 

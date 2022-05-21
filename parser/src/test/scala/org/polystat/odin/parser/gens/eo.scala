@@ -1,7 +1,7 @@
 package org.polystat.odin.parser.gens
 
-import org.scalacheck.Gen
 import cats.data.NonEmptyList
+import org.scalacheck.Gen
 
 object eo {
 
