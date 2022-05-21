@@ -4,7 +4,6 @@ object Dependencies {
 
   object V {
     val cats = "2.7.0"
-    val catsMtl = "1.2.1"
     val catsEffect = "3.3.0"
     val catsParse = "0.3.6"
     val scalaTest = "3.2.9"
@@ -14,7 +13,6 @@ object Dependencies {
     val pprint = "0.7.1"
     val fs2 = "3.2.4"
     val fs2io = "3.2.4"
-    val newTypes = "0.0.1"
     val eoParser = "0.22.2"
     val catsEffectScalatest = "1.4.0"
     val smtlib = "0.2.1-42-gc68dbaa"
@@ -24,7 +22,6 @@ object Dependencies {
 
   val cats = Seq(
     "org.typelevel" %% "cats-core" % V.cats,
-    "org.typelevel" %% "cats-mtl" % V.catsMtl,
   )
 
   val catsEffect = Seq(
@@ -59,10 +56,6 @@ object Dependencies {
     "co.fs2" %% "fs2-io" % V.fs2io,
   )
 
-  val newTypes = Seq(
-    "io.monix" %% "newtypes-core" % V.newTypes,
-  )
-
   val pprint = Seq(
     "com.lihaoyi" %% "pprint" % V.pprint % Test,
   )
@@ -82,8 +75,7 @@ object Dependencies {
 
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
-  val common: Seq[ModuleID] = allCats ++ scalaTest ++ monocle ++
-    newTypes
+  val common: Seq[ModuleID] = allCats ++ scalaTest ++ monocle
 
   val analysis: Seq[ModuleID] = common ++ smtlib ++ pprint
 
