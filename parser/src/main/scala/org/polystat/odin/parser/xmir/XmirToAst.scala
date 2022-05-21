@@ -219,7 +219,8 @@ object XmirToAst {
 
             for {
               eitherOf <- parsedOf
-              (_, trg) <- eitherOf
+              of <- eitherOf
+              (_, trg) = of
               eitherWith <- parsedWith
               combineWith = combineErrors(eitherWith.toSeq)
               wth <- combineWith
@@ -258,7 +259,8 @@ object XmirToAst {
             for {
               name <- name
               of <- parsedOf
-              (_, expr) <- of
+              tmp <- of
+              (_, expr) = tmp
             } yield (None, transformEoDot(EODot(expr, name)))
           case Elem(_, "abstraction", attrs, _, children @ _*) =>
             val name = extractName(attrs.asAttrMap)

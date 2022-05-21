@@ -27,22 +27,11 @@ final case class ParentPlaceholder(name: EOExprOnly) extends BndPlaceholder
 
 final case class ObjectNameWithLocator(locator: BigInt, name: ObjectName)
 
-sealed trait GenericObjectInfo[
-  P <: GenericParentInfo,
-  M <: GenericMethodInfo,
-  O[
-    _ <: GenericParentInfo,
-    _ <: GenericMethodInfo
-  ] <: GenericObjectInfo[_, _, O]
-] {
+sealed trait TraverseMethods[O[_, _]] {
 
-  val parentInfo: Option[P]
-  val methods: Map[EONamedBnd, M]
-
-  def traverseMethodInfo[
-    F[_]: Applicative,
-    MM <: GenericMethodInfo,
-  ](f: (EONamedBnd, M, O[P, M]) => F[MM]): F[O[P, MM]]
+  def traverseMethodInfo[F[_], P, M, MM](opm: O[P, M])(
+    f: (EONamedBnd, M, O[P, M]) => F[MM]
+  )(implicit F: Applicative[F]): F[O[P, MM]]
 
 }
 
@@ -51,11 +40,7 @@ final case class ObjectTree[A](
   children: Map[EONamedBnd, ObjectTree[A]]
 ) {
 
-  def zip[
-    B,
-    P <: GenericParentInfo,
-    M <: GenericMethodInfo,
-  ](other: ObjectTree[B])(implicit
+  def zip[B, P, M](other: ObjectTree[B])(implicit
     ev: A <:< ObjectInfoForAnalysis[P, M]
   ): ObjectTree[(A, B)] = {
     ObjectTree(
@@ -66,22 +51,15 @@ final case class ObjectTree[A](
     )
   }
 
-  def traverseMethods[
-    P <: GenericParentInfo,
-    M <: GenericMethodInfo,
-    F[_]: Applicative,
-    MM <: GenericMethodInfo,
-    O[
-      _ <: GenericParentInfo,
-      _ <: GenericMethodInfo
-    ] <: GenericObjectInfo[_, _, O]
-  ](
+  def traverseMethods[P, M, F[_], MM, O[_, _]](
     f: (EONamedBnd, M, O[P, M]) => F[MM]
   )(implicit
-    ev: A <:< GenericObjectInfo[P, M, O],
+    T: TraverseMethods[O],
+    F: Applicative[F],
+    ev: A =:= O[P, M]
   ): F[ObjectTree[O[P, MM]]] =
     (
-      ev(info).traverseMethodInfo(f),
+      T.traverseMethodInfo(info)(f),
       children
         .toList
         .traverse { case (k, o) =>
@@ -92,27 +70,35 @@ final case class ObjectTree[A](
 
 }
 
-final case class ObjectInfo[
-  P <: GenericParentInfo,
-  M <: GenericMethodInfo,
-](
+final case class ObjectInfo[P, M](
   name: EONamedBnd,
   fqn: ObjectName,
   bnds: Vector[BndPlaceholder],
   depth: BigInt,
-  override val parentInfo: Option[P],
-  override val methods: Map[EONamedBnd, M],
-) extends GenericObjectInfo[P, M, ObjectInfo] {
+  parentInfo: Option[P],
+  methods: Map[EONamedBnd, M],
+)
 
-  override def traverseMethodInfo[F[_]: Applicative, MM <: GenericMethodInfo](
-    f: (EONamedBnd, M, ObjectInfo[P, M]) => F[MM]
-  ): F[ObjectInfo[P, MM]] =
-    methods
-      .toList
-      .traverse { case (name, m) =>
-        f(name, m, this).map(newM => (name, newM))
+object ObjectInfo {
+
+  implicit val traverseMethodsObjectInfo: TraverseMethods[ObjectInfo] =
+    new TraverseMethods[ObjectInfo] {
+
+      override def traverseMethodInfo[F[_], P, M, MM](
+        opm: ObjectInfo[P, M]
+      )(
+        f: (EONamedBnd, M, ObjectInfo[P, M]) => F[MM]
+      )(implicit F: Applicative[F]): F[ObjectInfo[P, MM]] = {
+        opm
+          .methods
+          .toList
+          .traverse { case (name, m) =>
+            f(name, m, opm).map(newM => (name, newM))
+          }
+          .map(m => opm.copy(methods = m.toMap))
       }
-      .map(m => copy(methods = m.toMap))
+
+    }
 
 }
 
@@ -121,25 +107,32 @@ final case class MethodInfoForAnalysis(
   depth: BigInt
 )
 
-final case class ObjectInfoForAnalysis[
-  P <: GenericParentInfo,
-  M <: GenericMethodInfo,
-](
-  override val methods: Map[EONamedBnd, M],
-  override val parentInfo: Option[P],
+final case class ObjectInfoForAnalysis[P, M](
+  methods: Map[EONamedBnd, M],
+  parentInfo: Option[P],
   name: EONamedBnd,
   indirectMethods: Map[EONamedBnd, MethodInfoForAnalysis],
   allMethods: Map[EONamedBnd, MethodInfoForAnalysis]
-) extends GenericObjectInfo[P, M, ObjectInfoForAnalysis] {
+)
 
-  override def traverseMethodInfo[F[_]: Applicative, MM <: GenericMethodInfo](
-    f: (EONamedBnd, M, ObjectInfoForAnalysis[P, M]) => F[MM]
-  ): F[ObjectInfoForAnalysis[P, MM]] = methods
-    .toList
-    .traverse { case (name, m) =>
-      f(name, m, this).map(newM => (name, newM))
+object ObjectInfoForAnalysis {
+
+  implicit val traverseMethodsForAnalysis: TraverseMethods[ObjectInfoForAnalysis] =
+    new TraverseMethods[ObjectInfoForAnalysis] {
+
+      override def traverseMethodInfo[F[_], P, M, MM](
+        opm: ObjectInfoForAnalysis[P, M]
+      )(
+        f: (EONamedBnd, M, ObjectInfoForAnalysis[P, M]) => F[MM]
+      )(implicit F: Applicative[F]): F[ObjectInfoForAnalysis[P, MM]] = opm
+        .methods
+        .toList
+        .traverse { case (name, m) =>
+          f(name, m, opm).map(newM => (name, newM))
+        }
+        .map(m => opm.copy(methods = m.toMap))
+
     }
-    .map(m => copy(methods = m.toMap))
 
 }
 
@@ -158,20 +151,14 @@ final case class ParentName(name: ObjectNameWithLocator)
 
 }
 
-final case class ParentInfo[
-  M <: GenericMethodInfo,
-  O[
-    _ <: GenericParentInfo,
-    _ <: GenericMethodInfo
-  ] <: GenericObjectInfo[_, _, O],
-](
+final case class ParentInfo[M, O[_, _]](
   linkToParent: Optional[
     Map[EONamedBnd, ObjectTree[O[ParentInfo[M, O], M]]],
     ObjectTree[O[ParentInfo[M, O], M]]
   ]
 ) extends GenericParentInfo
 
-final case class ParentInfoForInlining[M <: GenericMethodInfo](
+final case class ParentInfoForInlining[M](
   parentMethods: Map[EONamedBnd, M]
 ) extends GenericParentInfo
 
@@ -191,18 +178,11 @@ final case class MethodInfoAfterInlining(
   override def toString: String =
     s"""MethodInfoAfterInlining(
        |  body =
-       |${body
-        .toEO
-        .map(_.map((" " * 4).concat(_)))
-        .map(_.mkString(util.Properties.lineSeparator))
-        .merge}
+       |${body.toEOPretty}
        |  bodyAfterInlining =
        |${bodyAfterInlining
         .expr
-        .toEO
-        .map(_.map((" " * 4).concat(_)))
-        .map(_.mkString(util.Properties.lineSeparator))
-        .merge}
+        .toEOPretty}
        |)
        |""".stripMargin
 

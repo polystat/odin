@@ -1,6 +1,12 @@
 import ReleaseTransformations._
+import sbt.addCompilerPlugin
 
 ThisBuild / scalaVersion := "2.13.6"
+
+ThisBuild / crossScalaVersions ++= Seq(
+  "2.13.6",
+  "3.1.2",
+)
 
 ThisBuild / name := "odin-project"
 ThisBuild / organization := "org.polystat.odin"

@@ -57,7 +57,7 @@ object EOBndRepr {
       new EOBndRepr[InlineOrLines, String] {
 
         def linesStringVectorIso: Iso[Lines, Vector[String]] =
-          Iso[Lines, Vector[String]](_.value.toVector)(v => Lines(v.toIterable))
+          Iso[Lines, Vector[String]](_.lines)(v => Lines(v))
 
         val firstLineOpt: Optional[Vector[String], String] = index(0)
 

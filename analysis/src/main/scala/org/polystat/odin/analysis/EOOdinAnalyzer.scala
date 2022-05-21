@@ -3,13 +3,10 @@ package org.polystat.odin.analysis
 import cats._
 import cats.data.EitherNel
 import cats.data.NonEmptyList
-import cats.effect.Sync
 import cats.syntax.all._
-import fs2.Stream
 import org.polystat.odin.analysis.EOOdinAnalyzer._
 import org.polystat.odin.analysis.liskov.Analyzer
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer.analyzeAst
-import org.polystat.odin.analysis.mutualrec.naive.findMutualRecursionFromAst
 import org.polystat.odin.analysis.stateaccess.DetectStateAccess
 import org.polystat.odin.analysis.utils.inlining.Inliner
 import org.polystat.odin.core.ast.EOProg
@@ -68,46 +65,6 @@ object EOOdinAnalyzer {
         .leftMap(new Exception(_))
     )
   }
-
-  def naiveMutualRecursionAnalyzer[F[_]: Sync]: ASTAnalyzer[F] =
-    new ASTAnalyzer[F] {
-
-      override val name: String = "Mutual Recursion (naive)"
-
-      override def analyze(
-        ast: EOProg[EOExprOnly]
-      ): F[OdinAnalysisResult] = {
-        val stream = for {
-          recursiveDependency <- Stream.evals(findMutualRecursionFromAst(ast))
-          (method, depChains) <- Stream.emits(recursiveDependency.toVector)
-          depChain <- Stream.emits(depChains.toVector)
-          odinError <- Stream.fromOption(for {
-            mutualRecMeth <- depChain.lastOption
-          } yield {
-            val mutualRecString =
-              s"Method `${method.parentObject.objName}.${method.name}` " ++
-                s"is mutually recursive with method " ++
-                s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
-
-            val dependencyChainString = depChain
-              .append(method)
-              .map(m => s"${m.parentObject.objName}.${m.name}")
-              .mkString_(" -> ")
-
-            val errorMessage =
-              mutualRecString ++ " through the following possible code path:\n" ++
-                dependencyChainString
-            errorMessage
-          })
-        } yield odinError
-
-        stream
-          .compile
-          .toList
-          .map(OdinAnalysisResult.fromErrors(name))
-      }
-
-    }
 
   def advancedMutualRecursionAnalyzer[
     F[_]: MonadThrow,

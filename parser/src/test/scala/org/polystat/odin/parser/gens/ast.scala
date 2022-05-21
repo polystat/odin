@@ -152,8 +152,8 @@ object ast {
 
   def eoObj(maxDepth: Int, depth: Int = 0): Gen[EOObj[EOExprOnly]] = {
     for {
-      params <- between(0, 4, eo.paramName).map(_.map(LazyName).toVector)
-      vararg <- Gen.option(eo.paramName.map(LazyName))
+      params <- between(0, 4, eo.paramName).map(_.map(LazyName(_)).toVector)
+      vararg <- Gen.option(eo.paramName.map(LazyName(_)))
       bnds <- between(0, 4, bndExpr(maxDepth, depth + 1)).map(_.toVector)
     } yield EOObj(params, vararg, bnds)
   }

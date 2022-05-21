@@ -9,7 +9,7 @@ object Dependencies {
     val scalaTest = "3.2.9"
     val scalaCheck = "3.2.9.0"
     val monocle = "3.1.0"
-    val droste = "0.8.0"
+    val droste = "0.9.0-M3"
     val pprint = "0.7.1"
     val fs2 = "3.2.4"
     val fs2io = "3.2.4"
@@ -71,7 +71,7 @@ object Dependencies {
   val smtlib = Seq(
     "com.regblanc" %% "scala-smtlib" % V.smtlib,
     "io.github.uuverifiers" %% "princess" % V.princess
-  )
+  ).map(_.cross(CrossVersion.for3Use2_13))
 
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 

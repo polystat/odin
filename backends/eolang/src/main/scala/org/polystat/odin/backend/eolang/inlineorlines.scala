@@ -3,33 +3,12 @@ package org.polystat.odin.backend.eolang
 import cats.Show
 
 object inlineorlines {
-  type InlineOrLines = Either[String, Iterable[String]]
-
-  type Inline = Left[String, Iterable[String]]
+  sealed trait InlineOrLines
+  case class Inline(line: String) extends InlineOrLines
+  case class Lines(lines: Vector[String]) extends InlineOrLines
 
   implicit val inlineShow: Show[Inline] = new Show[Inline] {
-
-    override def show(t: Inline): String = {
-      val Left(s) = t
-      s
-    }
-
-  }
-
-  val Inline: String => Left[String, Iterable[String]] =
-    Left[String, Iterable[String]]
-
-  type Lines = Right[String, Iterable[String]]
-
-  val Lines: Iterable[String] => Right[String, Iterable[String]] =
-    Right[String, Iterable[String]]
-
-  object conversions {
-
-    implicit val inlineOrLinesToIterable: InlineOrLines => Iterable[String] = {
-      case Left(s) => Vector(s)
-      case Right(lines) => lines
-    }
+    override def show(t: Inline): String = t.line
 
   }
 
@@ -37,13 +16,15 @@ object inlineorlines {
 
     implicit class InlineOrLinesOps(private val iol: InlineOrLines)
       extends AnyVal {
-      import conversions._
 
-      def toIterable: Iterable[String] = iol
+      def toVector: Vector[String] = iol match {
+        case Inline(line) => Vector(line)
+        case Lines(lines) => lines
+      }
 
-      def toLines: Lines = Lines(iol)
+      def toLines: Lines = Lines(iol.toVector)
 
-      def allLinesToString: String = iol.mkString("\n")
+      def allLinesToString: String = iol.toVector.mkString("\n")
     }
 
   }

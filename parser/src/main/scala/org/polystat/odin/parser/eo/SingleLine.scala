@@ -10,7 +10,7 @@ object SingleLine {
 
   val parameterName: P[LazyName] = (
     Tokens.identifier | P.string("@").string
-  ).map(LazyName)
+  ).map(LazyName(_))
 
   val params: P[(Vector[LazyName], Option[LazyName])] = (
     P.charIn('[') *>

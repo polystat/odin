@@ -32,12 +32,10 @@ object ToEO {
       def toEO(implicit toEO: ToEO[T, R]): R = ToEO[T, R].toEO(node)
 
       def toEOPretty(implicit toEO: ToEO[T, InlineOrLines]): String =
-        ToEO[T, InlineOrLines]
-          .toEO(node)
-          .fold[String](
-            identity,
-            _.mkString(Properties.lineSeparator)
-          )
+        ToEO[T, InlineOrLines].toEO(node) match {
+          case Lines(lines) => lines.mkString(Properties.lineSeparator)
+          case Inline(line) => line
+        }
 
     }
 
@@ -56,8 +54,8 @@ object ToEO {
       new ToEO[EOProg[EOExprOnly], InlineOrLines] {
 
         override def toEO(node: EOProg[EOExprOnly]): InlineOrLines = {
-          val metas = node.metas.toEO.toIterable
-          val program = node.bnds.flatMap(_.toEO.toIterable)
+          val metas = node.metas.toEO.toVector
+          val program = node.bnds.flatMap(_.toEO.toVector)
           val newlineAfterMetas =
             if (metas.nonEmpty) Vector("") else Vector()
           val newlineAfterPrograms =
@@ -78,8 +76,11 @@ object ToEO {
       new ToEO[EOMetas, Lines] {
 
         override def toEO(node: EOMetas): Lines = Lines(
-          node.pack.map(p => s"${Constants.SYMBS.META_PREFIX}package $p") ++
-            node.metas.map(_.toEO.value)
+          node
+            .pack
+            .map(p => s"${Constants.SYMBS.META_PREFIX}package $p")
+            .toVector ++
+            node.metas.map(_.toEO.line)
         )
 
       }
@@ -197,7 +198,7 @@ object ToEO {
               Constants.SYMBS.FREE_ATTR_DECL_ED
           )
 
-          val objBody = node.bndAttrs.flatMap(_.toEO.toIterable).map(indent)
+          val objBody = node.bndAttrs.flatMap(_.toEO.toVector).map(indent)
 
           Lines(freeAttrsEO ++ objBody)
         }
@@ -273,7 +274,7 @@ object ToEO {
           " " +
             obj
               .bndAttrs
-              .map(bnd => s"(${renderEOBndSingleLine(bnd).value})")
+              .map(bnd => s"(${renderEOBndSingleLine(bnd).line})")
               .mkString(" ")
         }
 
@@ -314,7 +315,7 @@ object ToEO {
         case EOBndExpr(bndName, expr) =>
           Inline(
             List[String](
-              renderEOExprSingleLine(expr).value,
+              renderEOExprSingleLine(expr).line,
               Constants.SYMBS.BINDING,
               renderNamedBndSingleLine(bndName)
             ).mkString(" ")
@@ -343,14 +344,14 @@ object ToEO {
     def renderArgSingleLine(arg: EOBnd[EOExprOnly]): String =
       arg match {
         case bnd: EOBndExpr[EOExprOnly] =>
-          "(" + renderEOBndSingleLine(bnd).value + ")"
+          "(" + renderEOBndSingleLine(bnd).line + ")"
         case eoCopy @ EOAnonExpr(_ @Fix(EOCopy(_, _))) =>
-          "(" + renderEOBndSingleLine(eoCopy).value + ")"
+          "(" + renderEOBndSingleLine(eoCopy).line + ")"
         case array @ EOAnonExpr(_ @Fix(EOArray(_))) =>
-          "(" + renderEOBndSingleLine(array).value + ")"
+          "(" + renderEOBndSingleLine(array).line + ")"
         case array @ EOAnonExpr(_ @Fix(EOObj(_, _, _))) =>
-          "(" + renderEOBndSingleLine(array).value + ")"
-        case other => renderEOBndSingleLine(other).value
+          "(" + renderEOBndSingleLine(array).line + ")"
+        case other => renderEOBndSingleLine(other).line
       }
 
     def renderCopySingleLine(copy: EOCopy[EOExprOnly]): Inline = {
@@ -365,7 +366,7 @@ object ToEO {
 
         override def toEO(node: EOCopy[EOExprOnly]): InlineOrLines = {
           val outerArgsString =
-            node.args.toVector.flatMap(_.toEO.toIterable).map(indent)
+            node.args.toVector.flatMap(_.toEO.toVector).map(indent)
 
           Fix.un(node.trg) match {
             case EOObj(_, _, _) => renderCopySingleLine(node)
@@ -400,7 +401,7 @@ object ToEO {
       new ToEO[EOSingleByte, Inline] {
 
         override def toEO(node: EOSingleByte): Inline =
-          Inline(node.byte.formatted("%X"))
+          Inline("%X".format(node.byte))
 
       }
 
@@ -474,7 +475,7 @@ object ToEO {
           else
             Lines(
               Vector(Constants.SYMBS.ARRAY_START) ++
-                node.elems.flatMap(_.toEO.toIterable).map(indent)
+                node.elems.flatMap(_.toEO.toVector).map(indent)
             )
 
       }
