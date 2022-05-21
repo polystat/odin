@@ -7,12 +7,19 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
 
 object programs {
+
   val mutualRecursionExample: EOProg[EOExprOnly] = EOProg(
     EOMetas(
       pack = Some("sandbox"),
       metas = Vector(
-        EOAliasMeta(Some("stdout"), NonEmptyList("org", List("eolang", "io", "stdout"))),
-        EOAliasMeta(Some("sprintf"), NonEmptyList("org", List("eolang", "txt", "sprintf"))),
+        EOAliasMeta(
+          Some("stdout"),
+          NonEmptyList("org", List("eolang", "io", "stdout"))
+        ),
+        EOAliasMeta(
+          Some("sprintf"),
+          NonEmptyList("org", List("eolang", "txt", "sprintf"))
+        ),
       )
     ),
     Vector(
@@ -38,7 +45,9 @@ object programs {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("x")), "write")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("x")), "write")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )
@@ -60,7 +69,9 @@ object programs {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "f")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("self")), "f")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
@@ -76,8 +87,6 @@ object programs {
           )
         )
       ),
-
-
       EOBndExpr(
         EOAnyNameBnd(LazyName("derived")),
         Fix[EOExpr](
@@ -97,7 +106,9 @@ object programs {
                         EODecoration,
                         Fix[EOExpr](
                           EOCopy(
-                            Fix[EOExpr](EODot(Fix[EOExpr](EOSimpleApp("self")), "g")),
+                            Fix[EOExpr](
+                              EODot(Fix[EOExpr](EOSimpleApp("self")), "g")
+                            ),
                             NonEmpty[Vector[EOBnd[EOExprOnly]]](
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
@@ -115,4 +126,5 @@ object programs {
       ),
     )
   )
+
 }

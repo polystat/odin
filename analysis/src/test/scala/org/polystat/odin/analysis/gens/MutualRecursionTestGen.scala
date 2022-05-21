@@ -1,18 +1,15 @@
 package org.polystat.odin.analysis.gens
 
-import cats.effect.IO
 import cats.effect.kernel.Sync
-import cats.effect.unsafe.implicits.global
 import cats.syntax.flatMap._
 import fs2.Stream
-import fs2.io.file.{Files, Path}
+import fs2.io.file.Files
+import fs2.io.file.Path
 import fs2.text.utf8
+import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.scalacheck.Gen
-import org.polystat.odin.analysis.ObjectName
-
-import scala.util.Try
 
 object MutualRecursionTestGen {
 
@@ -38,58 +35,51 @@ object MutualRecursionTestGen {
       lst <- Gen.listOfN(n, g)
     } yield lst
 
-  def mapRandom[T](lst: List[T])(f: T => Gen[T]): Gen[List[T]] = {
-    lst match {
-      case Nil => Gen.const(List.empty)
-      case last :: Nil => f(last).map(_ :: Nil)
-      case head :: tail => Gen
-          .oneOf(true, false)
-          .flatMap(stop =>
-            if (stop) f(head).map(_ :: tail)
-            else mapRandom(tail)(f).map(tail => head :: tail)
-          )
-    }
+  def applyToRandom[T](lst: List[T])(f: T => Gen[T]): Gen[List[T]] = {
+    if (lst.isEmpty)
+      Gen.const(List.empty)
+    else
+      for {
+        index <- Gen.choose(0, lst.length - 1)
+        newElem <- f(lst(index))
+      } yield lst.updated(index, newElem)
   }
 
-  def pickOneOrZero[T](lst: List[T]): Gen[Set[T]] =
+  def pickOneOrZero[T](lst: List[T]): Gen[Option[T]] =
     for {
       n <- Gen.oneOf(0, 1)
-      lst <- Try(Gen.pick(n, lst)).fold(
-        _ => Gen.const(Set.empty[T]),
-        gen => gen.map(_.toSet)
-      )
+      lst <-
+        if (n == 0 || lst.isEmpty) Gen.const(None)
+        else Gen.pick(n, lst).map(_.headOption)
     } yield lst
 
   def randomlySplit[T](list: List[T]): Gen[(List[T], List[T])] = {
-    if (list.isEmpty)
-      Gen.const((List(), List()))
-    else
-      for {
-        part1 <- Gen
-          .atLeastOne(list)
-          .map(_.toList)
-        part2 = list.filter(!part1.contains(_))
-      } yield (part1, part2)
+    list
+      .foldLeft[Gen[(List[T], List[T])]](Gen.const((List.empty, List.empty))) {
+        case (acc, next) =>
+          for {
+            (left, right) <- acc
+            isLeft <- Gen.oneOf(true, false)
+          } yield if (isLeft) (left :+ next, right) else (left, right :+ next)
+      }
   }
 
-  def genMethodName: Gen[String] =
+  def genMethodName(scope: List[String]): Gen[String] =
     Gen
       .listOfN(1, Gen.alphaLowerChar)
       .map(_.mkString)
+      .retryUntil(s => !scope.contains(s))
 
   def genCallGraph(
     methodNamesToDefine: List[MethodName],
     methodNamesToCall: List[MethodName]
   ): Gen[CallGraph] = {
-    for {
-      calls <- Gen.sequence[CallGraph, CallGraphEntry](
-        methodNamesToDefine.map(method =>
-          pickOneOrZero(methodNamesToCall.filter(_ != method))
-            .map(calls => (method, calls))
-        )
+    Gen.sequence[CallGraph, CallGraphEntry](
+      methodNamesToDefine.map(method =>
+        pickOneOrZero(methodNamesToCall.filter(_ != method))
+          .map(calls => (method, calls.toSet))
       )
-
-    } yield calls
+    )
   }
 
   def genExtendedObject(
@@ -102,7 +92,7 @@ object MutualRecursionTestGen {
 
     // new method definitions
     newMethodNames <-
-      between(0, 2, genMethodName)
+      between(0, 2, genMethodName(List(objName.name)))
         .retryUntil(names =>
           names.forall(n => !obj.callGraph.containsMethodWithName(n))
         )
@@ -138,8 +128,8 @@ object MutualRecursionTestGen {
           for {
             acc <- accGen
             obj <- genObject(acc, Some(containerObj))
-              .retryUntil(!_.callGraph.containsSingleObjectCycles)
-          } yield acc ++ List(obj)
+              .retryUntil(o => !o.callGraph.containsSingleObjectCycles)
+          } yield acc :+ obj
         )
       } yield a)
     )
@@ -152,7 +142,7 @@ object MutualRecursionTestGen {
       objectName <- genObjectName(scope, containerObj)
       nestedObjects <- genNestedObjs(objectName)
       methods <-
-        between(0, 4, genMethodName)
+        between(0, 4, genMethodName(List(objectName.name)))
           .map(_.map(MethodName(objectName, _)))
       cg <- genCallGraph(methods, methods)
     } yield Object(
@@ -185,7 +175,7 @@ object MutualRecursionTestGen {
           else
             genObject(scope, container)
         )
-          .retryUntil(!_.callGraph.containsSingleObjectCycles)
+          .retryUntil(p => !p.callGraph.containsSingleObjectCycles)
     } yield scope ++ List(newObj)
 
     // Type 1 -> add to topLevel
@@ -201,7 +191,7 @@ object MutualRecursionTestGen {
           currentLevel = container.nestedObjs
           next <-
             if (deeper) {
-              mapRandom(currentLevel)(randomObj =>
+              applyToRandom(currentLevel)(randomObj =>
                 addObjRec(randomObj, Some(randomObj.name))
                   .map(nextLevel => randomObj.copy(nestedObjs = nextLevel))
               ).map(objs => objs)
@@ -285,23 +275,6 @@ object MutualRecursionTestGen {
        |$progText
        |""".stripMargin
 
-  }
-
-  def main(args: Array[String]): Unit = {
-    generateProgramFiles[IO](
-      n = 20,
-      dir = Path("analysis/src/test/resources/mutualrec/generated"),
-      programGen = genProgram(3).retryUntil(p =>
-        p.exists(_.callGraph.containsMultiObjectCycles)
-      ),
-      converters = List(
-        (p => textFromProgram(p, "# ", _.toEO), "eo"),
-//        (p => textFromProgram(p, "// ", _.toCPP), "cpp"),
-      )
-    )
-      .compile
-      .drain
-      .unsafeRunSync()
   }
 
 }
