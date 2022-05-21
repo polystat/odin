@@ -1,7 +1,8 @@
 package org.polystat.odin.analysis
 
 import cats._
-import cats.data.{EitherNel, NonEmptyList}
+import cats.data.EitherNel
+import cats.data.NonEmptyList
 import cats.effect.Sync
 import cats.syntax.all._
 import fs2.Stream

@@ -9,10 +9,13 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
+import java.nio.file.Path
 import javax.xml.transform.TransformerFactory
-import javax.xml.transform.stream.{StreamResult, StreamSource}
-import scala.xml.{Elem, XML}
+import javax.xml.transform.stream.StreamResult
+import javax.xml.transform.stream.StreamSource
+import scala.xml.Elem
+import scala.xml.XML
 
 trait XmirToAst[F[_], T] {
   /**

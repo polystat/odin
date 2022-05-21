@@ -1,9 +1,13 @@
 package org.polystat.odin.parser
 
-import cats.{ApplicativeError, Functor, MonadError}
-import cats.syntax.functor._
+import cats.ApplicativeError
+import cats.Functor
+import cats.MonadError
 import cats.syntax.either._
-import org.polystat.odin.core.ast.{EOBnd, EOMetas, EOProg}
+import cats.syntax.functor._
+import org.polystat.odin.core.ast.EOBnd
+import org.polystat.odin.core.ast.EOMetas
+import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.xmir.XmirToAst
 import org.polystat.odin.parser.xmir.XmirToAst.parseXMIR

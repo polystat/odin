@@ -1,7 +1,8 @@
 package org.polystat.odin.core.ast
 
-import com.github.tarao.nonempty.collection.NonEmpty
 import cats.data.NonEmptyList
+import com.github.tarao.nonempty.collection.NonEmpty
+
 import scala.util.matching.Regex
 
 // Program ///////////////////////////////////////////////////////////////////

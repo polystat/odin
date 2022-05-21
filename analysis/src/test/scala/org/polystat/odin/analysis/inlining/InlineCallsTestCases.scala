@@ -1,8 +1,8 @@
 package org.polystat.odin.analysis.inlining
 
 import cats.data.EitherNel
-import cats.syntax.either._
 import cats.data.{NonEmptyList => Nel}
+import cats.syntax.either._
 
 object InlineCallsTestCases {
 

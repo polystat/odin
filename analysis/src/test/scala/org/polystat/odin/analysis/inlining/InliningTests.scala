@@ -1,15 +1,17 @@
 package org.polystat.odin.analysis.inlining
 
+import cats.data.EitherNel
+import cats.data.{NonEmptyList => Nel}
+import cats.syntax.either._
+import org.polystat.odin.analysis.utils.inlining.Inliner
+import org.polystat.odin.analysis.utils.inlining.LocatorContext
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.parser.eo.Parser
 import org.scalatest.wordspec.AnyWordSpec
+
 import SetLocatorsTestCases._
 import InlineCallsTestCases._
-import cats.syntax.either._
-import cats.syntax.traverse._
-import cats.data.{EitherNel, NonEmptyList => Nel}
-import org.polystat.odin.analysis.utils.inlining.{Inliner, LocatorContext}
 // import org.polystat.odin.core.ast._
 
 class InliningTests extends AnyWordSpec {
@@ -61,17 +63,6 @@ class InliningTests extends AnyWordSpec {
           .leftMap(Nel.one)
           .flatMap(Inliner.inlineAllCalls)
           .map(_.toEOPretty)
-
-        println(
-          Parser
-            .parse(before)
-            .leftMap(Nel.one)
-            .flatMap(Inliner.createObjectTree)
-            .flatMap(
-              _.toList.traverse(kv => Inliner.zipWithInlinedMethod(kv._2))
-            )
-        )
-
         assert(obtained == expected)
       }
 

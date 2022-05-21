@@ -3,11 +3,11 @@ package org.polystat.odin.analysis.inlining
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.utils.inlining.LocateCalls.parseMethod
 import org.polystat.odin.analysis.utils.inlining.MethodInfo
+import org.polystat.odin.backend.eolang.ToEO.instances._
+import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Parser
-import org.polystat.odin.backend.eolang.ToEO.ops._
-import org.polystat.odin.backend.eolang.ToEO.instances._
 
 object LocateCallsTests {
 

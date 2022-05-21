@@ -1,10 +1,14 @@
 package org.polystat.odin.backend.eolang
 
-import inlineorlines._
+import monocle.Iso
 import monocle.Monocle.index
-import monocle.macros.{GenIso, GenPrism}
-import monocle.{Iso, Optional, Setter}
+import monocle.Optional
+import monocle.Setter
+import monocle.macros.GenIso
+import monocle.macros.GenPrism
 import org.polystat.odin.core.ast.Constants
+
+import inlineorlines._
 
 /**
   * Type class for bindable EO representation, i. e. types that can represent EO

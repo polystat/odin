@@ -1,22 +1,26 @@
 package org.polystat.odin.analysis.utils.inlining
 
-import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.data.EitherNel
+import cats.data.{NonEmptyList => Nel}
 import cats.syntax.align._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.functor._
 import cats.syntax.parallel._
 import higherkindness.droste.data.Fix
+import monocle.Iso
+import monocle.Lens
+import monocle.Optional
 import monocle.macros.GenLens
-import monocle.{Iso, Lens, Optional}
 import org.polystat.odin.analysis.utils.Abstract.modifyExpr
-import LocatorContext.setLocators
-import LocateMethods._
 import org.polystat.odin.analysis.utils.Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
 import scala.annotation.tailrec
+
+import LocatorContext.setLocators
+import LocateMethods._
 
 object Inliner {
 

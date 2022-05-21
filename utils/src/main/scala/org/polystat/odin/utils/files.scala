@@ -1,9 +1,10 @@
 package org.polystat.odin.utils
 
 import cats.effect.Sync
-import fs2.text
 import fs2.Stream
-import fs2.io.file.{Files, Path}
+import fs2.io.file.Files
+import fs2.io.file.Path
+import fs2.text
 
 import java.io.FileNotFoundException
 import java.nio.file.Paths

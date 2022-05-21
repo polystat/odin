@@ -2,7 +2,8 @@ package org.polystat.odin.analysis.utils.logicalextraction
 
 import ap.SimpleAPI
 import ap.SimpleAPI.FunctionalityMode
-import cats.data.{EitherNel, NonEmptyList => Nel}
+import cats.data.EitherNel
+import cats.data.{NonEmptyList => Nel}
 import cats.syntax.either._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix

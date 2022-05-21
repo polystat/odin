@@ -1,8 +1,9 @@
 package org.polystat.odin.interop.java
 
+import cats.syntax.foldable._
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisResult
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisResult._
-import cats.syntax.foldable._
+
 import scala.util.Properties
 
 class OdinAnalysisResultInterop(
