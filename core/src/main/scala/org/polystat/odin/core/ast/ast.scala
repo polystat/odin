@@ -1,6 +1,6 @@
 package org.polystat.odin.core.ast
 
-import com.github.tarao.nonempty.collection.NonEmpty
+import cats.data.NonEmptyVector
 import cats.data.NonEmptyList
 import scala.util.matching.Regex
 
@@ -92,7 +92,7 @@ sealed case class EODot[+A](src: A, name: String) extends EOApp[A]
 
 sealed case class EOCopy[+A](
   trg: A,
-  args: NonEmpty[EOBnd[A], Vector[EOBnd[A]]]
+  args: NonEmptyVector[EOBnd[A]]
 ) extends EOApp[A]
 
 // / Data ////////////////////////////////////////////////////////////////////
@@ -101,7 +101,7 @@ sealed trait EOData[+A] extends EOExpr[A]
 sealed case class EOSingleByte(byte: Byte)
 
 sealed case class EOBytesData[+A](
-  bytes: NonEmpty[EOSingleByte, Vector[EOSingleByte]]
+  bytes: NonEmptyVector[EOSingleByte]
 ) extends EOData[A]
 
 sealed case class EOStrData[+A](str: String) extends EOData[A]

@@ -1,7 +1,6 @@
 package org.polystat.odin.parser.eo
 
 import cats.parse.{Parser => P}
-import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -105,10 +104,7 @@ object SingleLine {
           (applicationTarget.backtrack.map(EOAnonExpr(_)) | singleLineBndExpr)
             .repSep(1, wsp)
       ).map { case (trg, args) =>
-        NonEmpty
-          .from(args.toList)
-          .map(args => Fix[EOExpr](EOCopy(trg, args.toVector)))
-          .getOrElse(trg)
+        Fix(EOCopy(trg, args.toNev))
       }
 
       val singleLineArray: P[EOExprOnly] = (

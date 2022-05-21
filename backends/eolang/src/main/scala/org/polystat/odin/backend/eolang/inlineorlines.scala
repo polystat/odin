@@ -1,9 +1,19 @@
 package org.polystat.odin.backend.eolang
 
+import cats.Show
+
 object inlineorlines {
   type InlineOrLines = Either[String, Iterable[String]]
 
   type Inline = Left[String, Iterable[String]]
+
+  implicit val inlineShow: Show[Inline] = new Show[Inline] {
+    override def show(t: Inline): String = {
+      val Left(s) = t
+      s
+    }
+
+  }
 
   val Inline: String => Left[String, Iterable[String]] =
     Left[String, Iterable[String]]

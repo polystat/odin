@@ -9,7 +9,6 @@ object Dependencies {
     val catsParse = "0.3.6"
     val scalaTest = "3.2.9"
     val scalaCheck = "3.2.9.0"
-    val nonEmpty = "0.2.0"
     val monocle = "3.1.0"
     val droste = "0.8.0"
     val pprint = "0.7.1"
@@ -20,6 +19,7 @@ object Dependencies {
     val catsEffectScalatest = "1.4.0"
     val smtlib = "0.2.1-42-gc68dbaa"
     val princess = "2021-11-15"
+    val xml = "2.1.0"
   }
 
   val cats = Seq(
@@ -38,8 +38,8 @@ object Dependencies {
     "org.scalatestplus" %% "scalacheck-1-15" % V.scalaCheck % Test,
   )
 
-  val nonEmpty = Seq(
-    "com.github.tarao" %% "nonempty" % V.nonEmpty,
+  val xml = Seq(
+    "org.scala-lang.modules" %% "scala-xml" % "2.1.0"
   )
 
   val monocle = Seq(
@@ -82,7 +82,7 @@ object Dependencies {
 
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
-  val common: Seq[ModuleID] = allCats ++ scalaTest ++ nonEmpty ++ monocle ++
+  val common: Seq[ModuleID] = allCats ++ scalaTest ++ monocle ++
     newTypes
 
   val analysis: Seq[ModuleID] = common ++ smtlib ++ pprint
@@ -92,6 +92,7 @@ object Dependencies {
   val core: Seq[ModuleID] = common ++ droste ++ fs2
 
   val parser: Seq[ModuleID] = common ++
+    xml ++
     pprint ++
     catsParse ++
     eoParser
