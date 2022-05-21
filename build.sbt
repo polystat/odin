@@ -67,7 +67,6 @@ lazy val commonSettings = Compiler.settings ++ Seq(
   resolvers += Opts.resolver.sonatypeSnapshots
 )
 
-
 val checkoutSetupJava = List(WorkflowStep.Checkout) ++
   WorkflowStep.SetupJava(List(JavaSpec.temurin("11")))
 
@@ -95,6 +94,7 @@ ThisBuild / githubWorkflowAddedJobs ++= Seq(
 )
 
 releaseCrossBuild := true
+
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
@@ -212,6 +212,9 @@ lazy val sandbox = project
   // Remove strict checks, so that it is easy to modify sandbox when developing
   .settings(scalacOptions ~= (_.filterNot(Compiler.consoleOptionsToRemove)))
   .settings(noPublishSettings)
+  .settings(
+    githubWorkflowArtifactUpload := false
+  )
   .dependsOn(`odin`)
   .settings(
     name := "sandbox",
