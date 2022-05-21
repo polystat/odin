@@ -77,7 +77,7 @@ ThisBuild / githubWorkflowAddedJobs ++= Seq(
   WorkflowJob(
     id = "scalafmt",
     name = "Format code with scalafmt",
-    scalas = List(scalaVersion.value),
+    scalas = List("2.13.6"),
     steps = checkoutSetupJava ++
       githubWorkflowGeneratedCacheSteps.value ++
       List(
@@ -87,7 +87,7 @@ ThisBuild / githubWorkflowAddedJobs ++= Seq(
   WorkflowJob(
     id = "scalafix",
     name = "Check code with scalafix",
-    scalas = List(scalaVersion.value),
+    scalas = List("2.13.6"),
     steps = checkoutSetupJava ++
       githubWorkflowGeneratedCacheSteps.value ++
       List(WorkflowStep.Sbt(List("scalafixAll --check"))),
