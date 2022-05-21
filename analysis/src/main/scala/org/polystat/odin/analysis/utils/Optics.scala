@@ -1,17 +1,15 @@
 package org.polystat.odin.analysis.utils
 
 import cats.Applicative
-import cats.implicits.catsSyntaxTuple2Semigroupal
-import cats.implicits.toFunctorOps
-import cats.implicits.toTraverseOps
-import com.github.tarao.nonempty.collection.NonEmpty
+import cats.data.NonEmptyVector
+import cats.syntax.apply._
+import cats.syntax.functor._
 import higherkindness.droste.data.Fix
 import monocle.Lens
 import monocle.Optional
 import monocle.Prism
 import monocle.Traversal
 import monocle.macros.GenLens
-import org.polystat.odin.analysis.utils.inlining.types.CopyArgs
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 
@@ -87,7 +85,7 @@ object Optics {
     val focusDotSrc: Lens[EODot[EOExprOnly], EOExprOnly] =
       GenLens[EODot[EOExprOnly]](_.src)
 
-    val focusCopyArgs: Lens[EOCopy[EOExprOnly], CopyArgs] =
+    val focusCopyArgs: Lens[EOCopy[EOExprOnly], NonEmptyVector[EOBnd[EOExprOnly]]] =
       GenLens[EOCopy[EOExprOnly]](_.args)
 
     val focusArrayElems: Lens[EOArray[EOExprOnly], Vector[EOBnd[EOExprOnly]]] =
@@ -117,9 +115,9 @@ object Optics {
 
     def nonEmptyVectorIndexOptional[A](
       i: Int
-    ): Optional[NonEmpty[A, Vector[A]], A] =
-      Optional[NonEmpty[A, Vector[A]], A](_.lift(i))(item =>
-        seq => if (seq.isDefinedAt(i)) seq.updated(i, item) else seq
+    ): Optional[NonEmptyVector[A], A] =
+      Optional[NonEmptyVector[A], A](_.toVector.lift(i))(item =>
+        nev => nev.updated(i, item).getOrElse(nev)
       )
 
     def focusBndAttrWithName(
@@ -143,7 +141,7 @@ object Optics {
       i: Int
     ): Optional[EOCopy[EOExprOnly], EOExprOnly] =
       Optional[EOCopy[EOExprOnly], EOExprOnly](copy =>
-        copy.args.lift(i).map(_.expr)
+        copy.args.toVector.lift(i).map(_.expr)
       )(expr =>
         copy => {
           lenses
@@ -183,19 +181,8 @@ object Optics {
 
   object traversals {
 
-    def nonEmptyVectorTraversal[A]: Traversal[NonEmpty[A, Vector[A]], A] =
-      new Traversal[NonEmpty[A, Vector[A]], A] {
-
-        override def modifyA[F[_]: Applicative](f: A => F[A])(
-          s: NonEmpty[A, Vector[A]]
-        ): F[NonEmpty[A, Vector[A]]] = {
-          (
-            f(s.head),
-            s.tail.traverse(f)
-          ).mapN((head, tail) => NonEmpty[Vector[A]](head, tail: _*))
-        }
-
-      }
+    def nonEmptyVectorTraversal[A]: Traversal[NonEmptyVector[A], A] =
+      Traversal.fromTraverse
 
     val eoProg: Traversal[EOProg[EOExprOnly], EOExprOnly] =
       new Traversal[EOProg[EOExprOnly], EOExprOnly] {

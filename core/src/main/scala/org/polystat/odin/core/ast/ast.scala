@@ -1,7 +1,8 @@
 package org.polystat.odin.core.ast
 
-import cats.data.NonEmptyVector
 import cats.data.NonEmptyList
+import cats.data.NonEmptyVector
+
 import scala.util.matching.Regex
 
 // Program ///////////////////////////////////////////////////////////////////

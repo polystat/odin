@@ -1,6 +1,6 @@
 package org.polystat.odin.parser.gens
 
-import com.github.tarao.nonempty.collection.NonEmpty
+import cats.data.NonEmptyVector
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams._
@@ -141,12 +141,10 @@ object ast {
         )
       )
         .flatMap(lst =>
-          NonEmpty.from(lst.toVector) match {
+          NonEmptyVector.fromVector(lst.toVector) match {
             case Some(value) => Gen.const(value)
             case None =>
-              anonExpr(maxDepth, depth + 1).map(it =>
-                NonEmpty[Vector[EOBnd[EOExprOnly]]](it)
-              )
+              anonExpr(maxDepth, depth + 1).map(it => NonEmptyVector.one(it))
           }
         )
     } yield EOCopy(trg, args)

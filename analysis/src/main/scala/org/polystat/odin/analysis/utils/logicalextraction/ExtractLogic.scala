@@ -3,6 +3,7 @@ package org.polystat.odin.analysis.utils.logicalextraction
 import ap.SimpleAPI
 import ap.SimpleAPI.FunctionalityMode
 import cats.data.EitherNel
+import cats.data.NonEmptyVector
 import cats.data.{NonEmptyList => Nel}
 import cats.syntax.either._
 import cats.syntax.traverse._
@@ -129,9 +130,11 @@ object ExtractLogic {
                  ),
                  args
                ) =>
-            args.value.toList.map(x => Fix.un(x.expr)) match {
-              case EOSimpleAppWithLocator("self", locator2) :: moreArgs
-                   if locator == locator2 =>
+            args.map(x => Fix.un(x.expr)) match {
+              case NonEmptyVector(
+                     EOSimpleAppWithLocator("self", locator2),
+                     moreArgs
+                   ) if locator == locator2 =>
                 moreArgs
                   .traverse(expr =>
                     extractInfo(depth, Fix(expr), availableMethods)
@@ -169,13 +172,11 @@ object ExtractLogic {
             }
           case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for { /*
                * FIXME: check locators */
-              infoArgs <- args
-                .value
-                .traverse(arg => extractInfo(depth, arg.expr, availableMethods))
-              result <- (name, infoArgs.toList) match {
-                case ("seq", Nil) =>
-                  Left(Nel.one("seq is expecting at least one term"))
-                case ("seq", arg :: Nil) =>
+              infoArgs <- args.traverse(arg =>
+                extractInfo(depth, arg.expr, availableMethods)
+              )
+              result <- (name, infoArgs) match {
+                case ("seq", NonEmptyVector(arg, Vector())) =>
                   Right(
                     Info(
                       List.empty,
@@ -190,12 +191,12 @@ object ExtractLogic {
                       List.empty,
                       args.last.exists,
                       args.last.value,
-                      And(args.map(x => x.properties))
+                      And(args.toVector.map(x => x.properties))
                     )
                   )
                 // Todo if possible check that assert content is a boolean
                 // assert (3.div 2) causes problems with type correspondance
-                case ("assert", arg :: Nil) =>
+                case ("assert", NonEmptyVector(arg, Vector())) =>
                   Right(
                     Info(
                       List.empty,
@@ -213,10 +214,10 @@ object ExtractLogic {
             } yield result
           case EOCopy(Fix(EODot(src, attr)), args) => for {
               infoSrc <- extractInfo(depth, src, availableMethods)
-              infoArgs <- args
-                .value
-                .traverse(arg => extractInfo(depth, arg.expr, availableMethods))
-              result <- (attr, infoArgs.toList) match {
+              infoArgs <- args.traverse(arg =>
+                extractInfo(depth, arg.expr, availableMethods)
+              )
+              result <- (attr, infoArgs.toVector.toList) match {
                 case ("add", infoArg :: Nil) =>
                   Right(
                     Info(

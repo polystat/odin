@@ -1,7 +1,7 @@
 package org.polystat.odin.parser.ast_tests
 
 import cats.data.NonEmptyList
-import com.github.tarao.nonempty.collection.NonEmpty
+import cats.data.NonEmptyVector
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -33,7 +33,7 @@ object FullProgramExamples {
                     src = Fix(
                       EOCopy(
                         trg = Fix(EOSimpleApp[EOExprOnly]("dir")),
-                        NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                        NonEmptyVector.of(
                           EOAnonExpr(Fix(EOStrData[EOExprOnly]("/tmp")))
                         )
                       )
@@ -41,7 +41,7 @@ object FullProgramExamples {
                     name = "walk"
                   )
                 ),
-                args = NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                args = NonEmptyVector.of(
                   EOAnonExpr(
                     Fix(
                       EOArray(
@@ -180,7 +180,7 @@ object FullProgramExamples {
                                       "write"
                                     )
                                   ),
-                                  NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                                  NonEmptyVector.of(
                                     EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                                   )
                                 )
@@ -204,7 +204,7 @@ object FullProgramExamples {
                                   Fix[EOExpr](
                                     EODot(Fix[EOExpr](EOSimpleApp("self")), "f")
                                   ),
-                                  NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                                  NonEmptyVector.of(
                                     EOAnonExpr(
                                       Fix[EOExpr](EOSimpleApp("self"))
                                     ),
@@ -243,7 +243,7 @@ object FullProgramExamples {
                                   Fix[EOExpr](
                                     EODot(Fix[EOExpr](EOSimpleApp("self")), "g")
                                   ),
-                                  NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                                  NonEmptyVector.of(
                                     EOAnonExpr(
                                       Fix[EOExpr](EOSimpleApp("self"))
                                     ),

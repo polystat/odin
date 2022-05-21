@@ -1,14 +1,11 @@
 package org.polystat.odin.analysis.utils
 
 import cats.Applicative
-import cats.Eval
-import cats.Foldable
 import cats.Id
 import cats.Monoid
-import cats.implicits.catsSyntaxSemigroup
-import cats.implicits.toFoldableOps
-import cats.implicits.toFunctorOps
-import com.github.tarao.nonempty.collection.NonEmpty
+import cats.syntax.foldable._
+import cats.syntax.functor._
+import cats.syntax.semigroup._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -16,23 +13,6 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 import Optics.{lenses, traversals}
 
 object Abstract {
-
-  private type NonEmptyVector[A] = NonEmpty[A, Vector[A]]
-
-  implicit private val nonEmptyFoldable: Foldable[NonEmptyVector] =
-    new Foldable[NonEmptyVector] {
-
-      override def foldLeft[A, B](fa: NonEmptyVector[A], b: B)(
-        f: (B, A) => B
-      ): B =
-        fa.value.foldLeft(b)(f)
-
-      override def foldRight[A, B](fa: NonEmptyVector[A], lb: Eval[B])(
-        f: (A, Eval[B]) => Eval[B]
-      ): Eval[B] =
-        f(fa.head, fa.tail.foldRightDefer(lb)(f))
-
-    }
 
   def modifyExprWithState[F[_]: Applicative, S](
     initialState: S,
@@ -89,7 +69,7 @@ object Abstract {
             case EOObj(_, _, bndAttrs) => bndAttrs.foldMap(recurse)
             case EOCopy(trg, args) =>
               recurse(EOAnonExpr(trg)).combine(
-                Foldable[NonEmptyVector].foldMap(args)(recurse)
+                args.foldMap(recurse)
               )
             case EODot(trg, _) => recurse(EOAnonExpr(trg))
             case EOArray(elems) => elems.foldMap(recurse)

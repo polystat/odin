@@ -1,8 +1,8 @@
 package org.polystat.odin.parser.xmir
 
+import cats.data.NonEmptyVector
 import cats.effect.Sync
 import cats.syntax.all._
-import cats.data.NonEmptyVector
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly

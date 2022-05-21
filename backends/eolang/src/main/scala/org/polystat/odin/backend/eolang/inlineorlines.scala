@@ -8,6 +8,7 @@ object inlineorlines {
   type Inline = Left[String, Iterable[String]]
 
   implicit val inlineShow: Show[Inline] = new Show[Inline] {
+
     override def show(t: Inline): String = {
       val Left(s) = t
       s

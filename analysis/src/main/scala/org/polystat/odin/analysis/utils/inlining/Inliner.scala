@@ -383,7 +383,8 @@ object Inliner {
     methodInfo: MethodInfo,
     call: Call,
   ): EOObj[EOExprOnly] = {
-    val argMap = methodInfo.body.freeAttrs.map(_.name).zip(call.args).toMap
+    val argMap =
+      methodInfo.body.freeAttrs.map(_.name).zip(call.args.toVector).toMap
     val localNames = methodInfo
       .body
       .bndAttrs

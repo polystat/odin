@@ -1,6 +1,6 @@
 package org.polystat.odin.parser.ast_tests
 
-import com.github.tarao.nonempty.collection.NonEmpty
+import cats.data.NonEmptyVector
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -37,7 +37,7 @@ object SingleLineExamples {
                         name = "add"
                       )
                     ),
-                    args = NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                    args = NonEmptyVector.of(
                       EOAnonExpr(Fix(EOIntData[EOExprOnly](1)))
                     )
                   )
@@ -53,7 +53,7 @@ object SingleLineExamples {
                         name = "sub"
                       )
                     ),
-                    args = NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                    args = NonEmptyVector.of(
                       EOAnonExpr(Fix(EOIntData[EOExprOnly](1)))
                     )
                   )
@@ -78,7 +78,7 @@ object SingleLineExamples {
       Fix[EOExpr](
         EOCopy(
           Fix[EOExpr](EOSimpleApp("a")),
-          NonEmpty[Vector[EOBnd[EOExprOnly]]](
+          NonEmptyVector.of(
             EOAnonExpr(Fix[EOExpr](EOSimpleApp("b"))),
             EOAnonExpr(Fix[EOExpr](EOSimpleApp("c"))),
             EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
@@ -95,17 +95,17 @@ object SingleLineExamples {
       Fix[EOExpr](
         EOCopy(
           Fix[EOExpr](EOSimpleApp("a")),
-          NonEmpty[Vector[EOBnd[EOExprOnly]]](
+          NonEmptyVector.of(
             EOAnonExpr(
               Fix[EOExpr](
                 EOCopy(
                   Fix[EOExpr](EOSimpleApp("b")),
-                  NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                  NonEmptyVector.of(
                     EOAnonExpr(
                       Fix[EOExpr](
                         EOCopy(
                           Fix[EOExpr](EOSimpleApp("c")),
-                          NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                          NonEmptyVector.of(
                             EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
                           )
                         )
@@ -132,17 +132,17 @@ object SingleLineExamples {
               Fix[EOExpr](
                 EOCopy(
                   Fix[EOExpr](EOSimpleApp("a")),
-                  NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                  NonEmptyVector.of(
                     EOAnonExpr(Fix[EOExpr](EOSimpleApp("b")))
                   )
                 )
               ),
-              NonEmpty[Vector[EOBnd[EOExprOnly]]](
+              NonEmptyVector.of(
                 EOAnonExpr(Fix[EOExpr](EOSimpleApp("c")))
               )
             )
           ),
-          NonEmpty[Vector[EOBnd[EOExprOnly]]](
+          NonEmptyVector.of(
             EOAnonExpr(Fix[EOExpr](EOSimpleApp("d")))
           )
         )
