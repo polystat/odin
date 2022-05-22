@@ -1,14 +1,12 @@
 package org.polystat.odin.analysis
 
 import cats.effect._
-import cats.effect.unsafe.implicits.global
 import org.polystat.odin.analysis.EOOdinAnalyzer.OdinAnalysisResult._
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
-import org.scalatest.wordspec.AnyWordSpec
 
 import EOOdinAnalyzer.unjustifiedAssumptionAnalyzer
 
-class UnjustifiedAssumptionTests extends AnyWordSpec {
+class UnjustifiedAssumptionTests extends munit.CatsEffectSuite {
 
   case class TestCase(label: String, code: String, expected: List[String])
 
@@ -258,23 +256,17 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
     )
   )
 
-  def runTests(tests: List[TestCase]): Unit =
+  def runTests(prefix: String)(tests: List[TestCase]): Unit =
     tests.foreach { case TestCase(label, code, expected) =>
-      registerTest(label) {
-        val obtained = analyze(code).unsafeRunSync()
-        assert(obtained == expected)
+      test(prefix + label) {
+        val obtained = analyze(code)
+        assertIO(obtained, expected)
       }
 
     }
 
-  "analyzer" should {
-    "find errors" should {
-      runTests(testCasesWithErrors)
-    }
+  runTests("find errors - ")(testCasesWithErrors)
 
-    "not find errors" should {
-      runTests(testCasesWithoutErrors)
-    }
-  }
+  runTests("not find errors - ")(testCasesWithoutErrors)
 
 }

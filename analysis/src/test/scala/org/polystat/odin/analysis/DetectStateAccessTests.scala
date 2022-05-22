@@ -1,14 +1,12 @@
 package org.polystat.odin.analysis
 
 import cats.effect._
-import cats.effect.unsafe.implicits.global
 import org.polystat.odin.analysis.EOOdinAnalyzer.directStateAccessAnalyzer
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
-import org.scalatest.wordspec.AnyWordSpec
 
 import EOOdinAnalyzer.OdinAnalysisResult._
 
-class DetectStateAccessTests extends AnyWordSpec {
+class DetectStateAccessTests extends munit.CatsEffectSuite {
   case class TestCase(label: String, code: String, expected: List[String])
 
   def analyze(code: String): IO[List[String]] = EOOdinAnalyzer
@@ -382,23 +380,16 @@ class DetectStateAccessTests extends AnyWordSpec {
     )
   )
 
-  def runTests(tests: List[TestCase]): Unit =
+  def runTests(prefix: String)(tests: List[TestCase]): Unit =
     tests.foreach { case TestCase(label, code, expected) =>
-      registerTest(label) {
-        val obtained = analyze(code).unsafeRunSync()
-        assert(obtained == expected)
+      test(prefix + label) {
+        val obtained = analyze(code)
+        assertIO(obtained, expected)
       }
     }
 
-  "analyzer" should {
-    "find errors" should {
-      runTests(testsWithDefect)
-    }
+  runTests("find errors")(testsWithDefect)
 
-    "not find errors" should {
-      runTests(testsWithoutDefect)
-    }
-
-  }
+  runTests("not find errors")(testsWithoutDefect)
 
 }

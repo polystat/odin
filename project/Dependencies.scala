@@ -5,9 +5,8 @@ object Dependencies {
   object V {
     val cats = "2.7.0"
     val catsMtl = "1.2.1"
-    val catsEffect = "3.3.0"
+    val catsEffect = "3.3.4"
     val catsParse = "0.3.6"
-    val scalaTest = "3.2.9"
     val scalaCheck = "3.2.9.0"
     val nonEmpty = "0.2.0"
     val monocle = "3.1.0"
@@ -16,8 +15,11 @@ object Dependencies {
     val fs2 = "3.2.4"
     val fs2io = "3.2.4"
     val newTypes = "0.0.1"
+    val munit = "0.7.29"
+    val munitScalacheck = "0.7.29"
+    val munitScalacheckEffect = "1.0.4"
+    val munitCatsEffect = "1.0.7"
     val eoParser = "0.22.2"
-    val catsEffectScalatest = "1.4.0"
     val smtlib = "0.2.1-42-gc68dbaa"
     val princess = "2021-11-15"
   }
@@ -29,13 +31,13 @@ object Dependencies {
 
   val catsEffect = Seq(
     "org.typelevel" %% "cats-effect" % V.catsEffect,
-    "org.typelevel" %% "cats-effect-testing-scalatest" % V.catsEffectScalatest % Test,
   )
 
-  val scalaTest = Seq(
-    "org.scalactic" %% "scalactic" % V.scalaTest % Test,
-    "org.scalatest" %% "scalatest" % V.scalaTest % Test,
-    "org.scalatestplus" %% "scalacheck-1-15" % V.scalaCheck % Test,
+  val munit = Seq(
+    "org.scalameta" %% "munit" % V.munit % Test,
+    "org.scalameta" %% "munit-scalacheck" % V.munitScalacheck % Test,
+    "org.typelevel" %% "scalacheck-effect-munit" % V.munitScalacheckEffect % Test,
+    "org.typelevel" %% "munit-cats-effect-3" % V.munitCatsEffect % Test
   )
 
   val nonEmpty = Seq(
@@ -82,8 +84,9 @@ object Dependencies {
 
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
-  val common: Seq[ModuleID] = allCats ++ scalaTest ++ nonEmpty ++ monocle ++
-    newTypes
+  val common: Seq[ModuleID] =
+    allCats ++ munit ++ nonEmpty ++ monocle ++
+      newTypes
 
   val analysis: Seq[ModuleID] = common ++ smtlib ++ pprint
 

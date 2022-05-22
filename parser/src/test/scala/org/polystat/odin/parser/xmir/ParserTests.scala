@@ -1,21 +1,21 @@
 package org.polystat.odin.parser.xmir
 
+import cats.ApplicativeError
 import cats.effect.IO
 import cats.effect.Sync
-import cats.effect.testing.scalatest.AsyncIOSpec
 import cats.implicits._
 import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 import org.polystat.odin.parser.ast_tests.FullProgramExamples
-import org.scalatest.Assertion
-import org.scalatest.wordspec.AsyncWordSpec
 
 import scala.xml.Elem
 
-class ParserTests extends AsyncWordSpec with AsyncIOSpec {
+class ParserTests extends munit.CatsEffectSuite {
 
-  def parseEO[F[_]: Sync](code: String): F[Vector[EOBnd[EOExprOnly]]] = {
+  def parseEO[F[_]: ApplicativeError[*[_], Throwable]](
+    code: String
+  ): F[Vector[EOBnd[EOExprOnly]]] = {
     sourceCodeEoParser[F]().parse(code).map(_.bnds)
   }
 
@@ -40,14 +40,14 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
     } yield parsed
   }
 
-  def compare[F[_]: Sync](code: String): F[Assertion] = {
+  def compare[F[_]: Sync](code: String): F[Unit] = {
     for {
-      parsedSeq <- parseXMIRFromSeq(code)
-      parsedString <- parseXMIRFromString(code)
-      parsedEO <- parseEO(code)
+      parsedSeq <- parseXMIRFromSeq[F](code)
+      parsedString <- parseXMIRFromString[F](code)
+      parsedEO <- parseEO[F](code)
     } yield {
-      assert(parsedEO == parsedSeq)
-      assert(parsedEO == parsedString)
+      assertEquals(parsedSeq, parsedEO)
+      assertEquals(parsedString, parsedEO)
     }
   }
 
@@ -139,28 +139,27 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
     """"hello" > world
       |""".stripMargin
 
-  "XMIR parser" should {
-    val tests = List(
-      "a lot of code" -> code,
-      "very simple" -> verySimple,
-      "simple" -> simple,
-      "division by zero" -> divByZero,
-      "some arrays" -> arrays,
-    ).appendedAll(
-      FullProgramExamples
-        .correct
-        // "dir walk" test is not run
-        // because the single-line abstraction syntax
-        // is supported incorrectly by the XMIR parser
-        // https://github.com/cqfn/eo/issues/612
-        // TODO: remove .init when it is supported correctly
-        .init
-        .map(tc => (tc.label, tc.code))
-    )
-    tests.foreach { case (label, code) =>
-      registerAsyncTest(label) {
-        compare[IO](code)
-      }
+  val tests: List[(String, String)] = List(
+    "a lot of code" -> code,
+    "very simple" -> verySimple,
+    "simple" -> simple,
+    "division by zero" -> divByZero,
+    "some arrays" -> arrays,
+  ).appendedAll(
+    FullProgramExamples
+      .correct
+      // "dir walk" test is not run
+      // because the single-line abstraction syntax
+      // is supported incorrectly by the XMIR parser
+      // https://github.com/cqfn/eo/issues/612
+      // TODO: remove .init when it is supported correctly
+      .init
+      .map(tc => (tc.label, tc.code))
+  )
+
+  tests.foreach { case (label, code) =>
+    test("XMIR parser test - " + label) {
+      compare[IO](code)
     }
   }
 
