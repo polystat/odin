@@ -60,12 +60,11 @@ package object naive {
           // so we try to find it for some self and record this fact in the
           // method state
           case EODot(EOSimpleApp(dotLeftName), attrName)
-               if args
-                 .headOption
-                 .exists(_.expr match {
-                   case EOSimpleApp(firstArgName) => firstArgName == dotLeftName
-                   case _ => false
-                 }) =>
+               if (args.head.expr match {
+                 case EOSimpleApp(firstArgName) =>
+                   firstArgName == dotLeftName
+                 case _ => false
+               }) =>
             for {
               referencedMethods <- objs.findMethodsWithParamsByName(attrName)
               _ <- referencedMethods.traverse_ { refMeth =>

@@ -1,7 +1,7 @@
 package org.polystat.odin.sandbox
 
+import cats.data.NonEmptyVector
 import cats.data.NonEmptyList
-import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
@@ -48,7 +48,7 @@ object programs {
                             Fix[EOExpr](
                               EODot(Fix[EOExpr](EOSimpleApp("x")), "write")
                             ),
-                            NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                            NonEmptyVector.of(
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )
                           )
@@ -72,7 +72,7 @@ object programs {
                             Fix[EOExpr](
                               EODot(Fix[EOExpr](EOSimpleApp("self")), "f")
                             ),
-                            NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                            NonEmptyVector.of(
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )
@@ -109,7 +109,7 @@ object programs {
                             Fix[EOExpr](
                               EODot(Fix[EOExpr](EOSimpleApp("self")), "g")
                             ),
-                            NonEmpty[Vector[EOBnd[EOExprOnly]]](
+                            NonEmptyVector.of(
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("self"))),
                               EOAnonExpr(Fix[EOExpr](EOSimpleApp("v")))
                             )

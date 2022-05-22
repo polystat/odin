@@ -355,7 +355,7 @@ object ToEO {
 
     def renderCopySingleLine(copy: EOCopy[EOExprOnly]): Inline = {
       val trg: String = renderArgSingleLine(EOAnonExpr(copy.trg))
-      val args: String = copy.args.map(renderArgSingleLine).mkString(" ")
+      val args: String = copy.args.map(renderArgSingleLine).mkString_(" ")
 
       Inline(List(trg, args).mkString(" "))
     }
@@ -365,7 +365,7 @@ object ToEO {
 
         override def toEO(node: EOCopy[EOExprOnly]): InlineOrLines = {
           val outerArgsString =
-            node.args.flatMap(_.toEO.toIterable).map(indent)
+            node.args.toVector.flatMap(_.toEO.toIterable).map(indent)
 
           Fix.un(node.trg) match {
             case EOObj(_, _, _) => renderCopySingleLine(node)
@@ -408,7 +408,7 @@ object ToEO {
       new ToEO[EOBytesData[EOExprOnly], Inline] {
 
         override def toEO(node: EOBytesData[EOExprOnly]): Inline =
-          Inline(node.bytes.map(_.toEO).mkString("-"))
+          Inline(node.bytes.map(_.toEO).mkString_("-"))
 
       }
 

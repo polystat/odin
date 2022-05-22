@@ -1,6 +1,7 @@
 package org.polystat.odin.analysis.utils.inlining
 
 import cats.Applicative
+import cats.data.NonEmptyVector
 import cats.syntax.align._
 import cats.syntax.apply._
 import cats.syntax.foldable._
@@ -10,6 +11,7 @@ import monocle.Optional
 import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.backend.eolang.ToEO.instances._
 import org.polystat.odin.backend.eolang.ToEO.ops._
+import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.core.ast.EOBndExpr
 import org.polystat.odin.core.ast.EONamedBnd
 import org.polystat.odin.core.ast.EOObj
@@ -211,5 +213,5 @@ final case class Call(
   methodName: String,
   callSite: PathToCallSite,
   callLocation: PathToCall,
-  args: CopyArgs
+  args: NonEmptyVector[EOBnd[EOExprOnly]]
 )

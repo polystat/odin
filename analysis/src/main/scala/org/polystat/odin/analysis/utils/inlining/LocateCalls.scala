@@ -48,13 +48,11 @@ object LocateCalls {
                  Fix(EODot(Fix(EOSimpleAppWithLocator("self", locator)), name)),
                  args
                ) if locator == depth =>
-            val firstArgIsValid: Boolean = args
-              .headOption
-              .exists {
-                case EOAnonExpr(EOSimpleAppWithLocator("self", locator))
-                     if locator == depth => true
-                case _ => false
-              }
+            val firstArgIsValid: Boolean = args.head match {
+              case EOAnonExpr(EOSimpleAppWithLocator("self", locator))
+                   if locator == depth => true
+              case _ => false
+            }
             if (firstArgIsValid)
               Vector(
                 inlining.Call(
@@ -91,7 +89,7 @@ object LocateCalls {
                 .andThen(prisms.fixToEOCopy)
                 .andThen(lenses.focusCopyTrg),
               depth = depth
-            ) ++ args.zipWithIndex.flatMap { case (arg, i) =>
+            ) ++ args.zipWithIndex.toVector.flatMap { case (arg, i) =>
               findCallsRec(
                 subExpr = arg.expr,
                 pathToCallSite = pathToCallSite,

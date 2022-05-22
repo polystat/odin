@@ -1,6 +1,5 @@
 package org.polystat.odin.parser
 
-import com.github.tarao.nonempty.collection.NonEmpty
 import pprint.PPrinter
 
 import java.nio.file.Files
@@ -16,14 +15,8 @@ object TestUtils {
   )
 
   val astPrinter: PPrinter = pprint.copy(
-    additionalHandlers = {
-      case nonEmpty: NonEmpty[_, _] => pprint
-          .treeify(
-            x = nonEmpty.value,
-            escapeUnicode = false,
-            showFieldNames = true
-          )
-      case s: String => pprint.Tree.Literal(s)
+    additionalHandlers = { case s: String =>
+      pprint.Tree.Literal(s)
     }
   )
 

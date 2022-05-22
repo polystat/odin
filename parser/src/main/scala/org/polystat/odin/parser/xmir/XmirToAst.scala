@@ -1,8 +1,8 @@
 package org.polystat.odin.parser.xmir
 
+import cats.data.NonEmptyVector
 import cats.effect.Sync
 import cats.syntax.all._
-import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -223,7 +223,7 @@ object XmirToAst {
               eitherWith <- parsedWith
               combineWith = combineErrors(eitherWith.toSeq)
               wth <- combineWith
-            } yield NonEmpty.from(wth.toVector) match {
+            } yield NonEmptyVector.fromVector(wth.toVector) match {
               case Some(value) =>
                 (name, Fix[EOExpr](EOCopy(trg, value.map(bndFromTuple))))
               case None => (name, trg)

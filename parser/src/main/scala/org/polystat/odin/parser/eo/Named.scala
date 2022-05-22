@@ -1,7 +1,6 @@
 package org.polystat.odin.parser.eo
 
 import cats.parse.{Parser => P}
-import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -11,8 +10,6 @@ import org.polystat.odin.parser.eo.SingleLine._
 import org.polystat.odin.parser.eo.Tokens._
 
 object Named {
-
-  type ApplicationArgs = NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]
 
   def `object`(
     indent: Int,

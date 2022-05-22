@@ -1,7 +1,7 @@
 package org.polystat.odin.parser.eo
 
+import cats.data.NonEmptyVector
 import cats.parse.{Parser => P}
-import com.github.tarao.nonempty.collection.NonEmpty
 import org.polystat.odin.core.ast.EOBnd
 import org.polystat.odin.core.ast.EOBndExpr
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -39,12 +39,12 @@ object Common {
   def verticalApplicationArgs(
     indent: Int,
     indentationStep: Int
-  ): P[NonEmpty[EOBnd[EOExprOnly], Vector[EOBnd[EOExprOnly]]]] = P.defer(
+  ): P[NonEmptyVector[EOBnd[EOExprOnly]]] = P.defer(
     wspBetweenObjs(indent, indentationStep)
       *> Parser
         .`object`(indent + indentationStep, indentationStep)
         .repSep(1, wspBetweenObjs(indent, indentationStep))
-        .mapFilter(objs => NonEmpty.from(objs.toList.toVector))
+        .mapFilter(objs => NonEmptyVector.fromVector(objs.toList.toVector))
   )
 
 }
