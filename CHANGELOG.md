@@ -1,3 +1,12 @@
+# v0.4.1
+This is a maintenance release. Notable changes:
+- Published for Scala 3! ([#60](https://github.com/polystat/odin/pull/60))
+- Tests for mutual recursion analyzer were fixed. ([#55](https://github.com/polystat/odin/pull/55))
+- Dropped some dependencies:
+  - `nonEmpty` is replaced with `cats.data.NonEmptyVector`([#58](https://github.com/polystat/odin/pull/58))
+  - `monix.newtypes`, `cats-mtl` and `partial-unification` because they were unused ([#59](https://github.com/polystat/odin/pull/59))
+- Enabled import organizing with a scalafix plugin ([#56](https://github.com/polystat/odin/pull/56))
+
 # v0.4.0
 - Added direct access to base class analyzer (4th defect type) (see [#48](https://github.com/polystat/odin/pull/48))
 - Added Liskov substitution principle analyzer (5th defect type) (see [#51](https://github.com/polystat/odin/pull/51))
