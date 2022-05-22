@@ -6,37 +6,37 @@ package org.polystat.odin.parser.eo
 // https://gist.github.com/re-xyr/b0f1988e744c93d4c83a5f17f58484ea
 
 import cats.data.NonEmptyList
-import cats.parse.Parser.Expectation
 import cats.parse._
+import cats.parse.{Parser => P}
 import org.polystat.odin.utils.text.escape
 
 class Prettyprint(filename: String = "", input: String) {
   private val locmap = LocationMap(input)
 
-  def description(x: Parser.Expectation): String = x match {
-    case Expectation.OneOfStr(_, strs) =>
+  def description(x: P.Expectation): String = x match {
+    case P.Expectation.OneOfStr(_, strs) =>
       val strList = strs.map { x => s"'${escape('\'', x)}'" }.mkString(", ")
       s"one of $strList"
-    case Expectation.InRange(_, lower, upper) =>
+    case P.Expectation.InRange(_, lower, upper) =>
       if (lower == upper) s"'${escape('\'', lower.toString)}'"
       else s"'$lower' ~ '$upper'"
-    case Expectation.StartOfString(_) =>
+    case P.Expectation.StartOfString(_) =>
       "beginning of file"
-    case Expectation.EndOfString(_, _) =>
+    case P.Expectation.EndOfString(_, _) =>
       "end of file"
-    case Expectation.Length(_, expected, actual) =>
+    case P.Expectation.Length(_, expected, actual) =>
       s"unexpected eof; expected ${expected - actual} more characters"
-    case Expectation.ExpectedFailureAt(_, matched) =>
+    case P.Expectation.ExpectedFailureAt(_, matched) =>
       s"unexpected '$matched'"
-    case Expectation.Fail(_) =>
+    case P.Expectation.Fail(_) =>
       "failed to parse"
-    case Expectation.FailWith(_, message) =>
+    case P.Expectation.FailWith(_, message) =>
       message
-    case Expectation.WithContext(contextStr, _) =>
+    case P.Expectation.WithContext(contextStr, _) =>
       s"context: ${escape('\'', contextStr)}"
   }
 
-  def prettyprint(offset: Int, x: NonEmptyList[Parser.Expectation]): String = {
+  def prettyprint(offset: Int, x: NonEmptyList[P.Expectation]): String = {
     val (row, col) = locmap.toLineCol(offset).getOrElse((0, 0))
     val (r, c) = (row + 1, col + 1)
     val line: String = locmap.getLine(row).get
@@ -49,7 +49,7 @@ class Prettyprint(filename: String = "", input: String) {
        |$offending""".stripMargin
   }
 
-  def prettyprint(x: Parser.Error): String =
+  def prettyprint(x: P.Error): String =
     x.expected
       .groupBy(_.offset)
       .map { case (offset, errors) =>

@@ -51,15 +51,7 @@ object Inliner {
     ]
   ]
 
-  def focusObjTreeChildren[
-    P <: GenericParentInfo,
-    M <: GenericMethodInfo,
-    O[_ <: GenericParentInfo, _ <: GenericMethodInfo] <: GenericObjectInfo[
-      _,
-      _,
-      O
-    ]
-  ]: Lens[ObjectTree[O[P, M]], Map[EONamedBnd, ObjectTree[O[P, M]]]] =
+  def focusObjTreeChildren[O[_, _], P, M]: Lens[ObjectTree[O[P, M]], Map[EONamedBnd, ObjectTree[O[P, M]]]] =
     GenLens[ObjectTree[O[P, M]]](_.children)
 
   def inlineAllCalls(
@@ -88,8 +80,8 @@ object Inliner {
 
     for {
       progWithLocators <- setLocators(prog)
-      (bnds, tree) <-
-        parseTopLevelBnds(progWithLocators.bnds).asRight[Nel[String]]
+      parsed <- parseTopLevelBnds(progWithLocators.bnds).asRight[Nel[String]]
+      (bnds, tree) = parsed
       treeWithParents <- resolveParents(tree)
       inlinedObjs <- resolveParentsForInlining(treeWithParents)
         .toVector
@@ -155,7 +147,7 @@ object Inliner {
               .reduceLeft((acc, next) =>
                 acc
                   .andThen(
-                    focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo]
+                    focusObjTreeChildren[ObjectInfo, ParentName, MethodInfo]
                   )
                   .andThen(next)
               )
@@ -210,7 +202,7 @@ object Inliner {
                   optionals.mapValueAtKey[EONamedBnd, PartialObjectTree](name)
                 )
                 .andThen(
-                  focusObjTreeChildren[ParentName, MethodInfo, ObjectInfo]
+                  focusObjTreeChildren[ObjectInfo, ParentName, MethodInfo]
                 )
             recurse(subTree)(ctxs.prepend(ctx)).map((name, _))
           }

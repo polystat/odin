@@ -3,7 +3,7 @@ import sbt.{addCompilerPlugin, _}
 
 object Compiler {
 
-  val options = Seq(
+  val scala213Opts = Seq(
     "-deprecation", // Emit warning and location for usages of deprecated APIs.
     "-encoding",
     "utf-8", // Specify character encoding used by source files.
@@ -79,6 +79,23 @@ object Compiler {
     "-Yrangepos", // required by SemanticDB compiler plugin
   )
 
+  val scala3Opts = Seq(
+    "-Ykind-projector",
+    "-source:3.0-migration",
+    "-deprecation", // Emit warning and location for usages of deprecated APIs.
+    "-encoding",
+    "utf-8", // Specify character encoding used by source files.
+    "-explaintypes", // Explain type errors in more detail.
+    "-feature",
+    /* Emit warning and location for usages of features that should be imported
+     * explicitly. */
+    "-unchecked", /* Enable additional warnings where generated code depends on
+     * assumptions. */
+    // "-Wunused", // Enable compiler warnings.
+    // "-Xlint:-byname-implicit", // Enable compiler linter warnings.
+    "-language:implicitConversions", // Enable implicit conversions
+  )
+
   val consoleOptionsToRemove = Set(
     "-Xfatal-warnings",
     "-Ywarn-unused:implicits",
@@ -90,22 +107,33 @@ object Compiler {
   )
 
   val settings = Seq(
-    scalacOptions ++= options,
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((3, _)) => scala3Opts
+        case _ => scala213Opts
+      }
+    },
 
     // Remove the errors related to unused entities, when launching scala repl,
     // so that the code with unused entities can be conveniently tested during
     // development
-    Compile / console / scalacOptions ~= (_.filterNot(consoleOptionsToRemove)),
+    Compile / console / scalacOptions := (CrossVersion.partialVersion(
+      scalaVersion.value
+    ) match {
+      case Some((3, _)) => scala3Opts
+      case _ => scala213Opts.filterNot(consoleOptionsToRemove)
+    }),
     Test / console / scalacOptions := (Compile / console / scalacOptions).value,
-
-    // Compiler plugins
-    addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-    addCompilerPlugin(
-      "org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full
-    ),
-    addCompilerPlugin(
-      scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
-    ),
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((3, _)) => Seq.empty
+        case _ => Seq(
+            "com.olegpy" %% "better-monadic-for" % "0.3.1",
+            "org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full,
+            scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb,
+          ).map(compilerPlugin)
+      }
+    }
   )
 
 }

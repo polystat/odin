@@ -1,6 +1,12 @@
 import ReleaseTransformations._
+import sbt.addCompilerPlugin
 
 ThisBuild / scalaVersion := "2.13.6"
+
+ThisBuild / crossScalaVersions ++= Seq(
+  "2.13.6",
+  "3.1.2",
+)
 
 ThisBuild / name := "odin-project"
 ThisBuild / organization := "org.polystat.odin"
@@ -61,6 +67,35 @@ lazy val commonSettings = Compiler.settings ++ Seq(
   resolvers += Opts.resolver.sonatypeSnapshots
 )
 
+val checkoutSetupJava = List(WorkflowStep.Checkout) ++
+  WorkflowStep.SetupJava(List(JavaSpec.temurin("11")))
+
+ThisBuild / githubWorkflowPublishTargetBranches := Seq()
+ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value.distinct
+
+ThisBuild / githubWorkflowAddedJobs ++= Seq(
+  WorkflowJob(
+    id = "scalafmt",
+    name = "Format code with scalafmt",
+    scalas = List("2.13.6"),
+    steps = checkoutSetupJava ++
+      githubWorkflowGeneratedCacheSteps.value ++
+      List(
+        WorkflowStep.Sbt(List("scalafmtCheckAll")),
+      ),
+  ),
+  WorkflowJob(
+    id = "scalafix",
+    name = "Check code with scalafix",
+    scalas = List("2.13.6"),
+    steps = checkoutSetupJava ++
+      githubWorkflowGeneratedCacheSteps.value ++
+      List(WorkflowStep.Sbt(List("scalafixAll --check"))),
+  ),
+)
+
+releaseCrossBuild := true
+
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
@@ -69,7 +104,7 @@ releaseProcess := Seq[ReleaseStep](
   setReleaseVersion,
   commitReleaseVersion,
   tagRelease,
-  releaseStepCommandAndRemaining("publishSigned"),
+  releaseStepCommandAndRemaining("+publishSigned"),
   releaseStepCommand("sonatypeBundleRelease"),
   setNextVersion,
   commitNextVersion,
@@ -178,6 +213,9 @@ lazy val sandbox = project
   // Remove strict checks, so that it is easy to modify sandbox when developing
   .settings(scalacOptions ~= (_.filterNot(Compiler.consoleOptionsToRemove)))
   .settings(noPublishSettings)
+  .settings(
+    githubWorkflowArtifactUpload := false
+  )
   .dependsOn(`odin`)
   .settings(
     name := "sandbox",

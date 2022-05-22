@@ -36,11 +36,11 @@ jobs:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
         run: |
-          sbt "release with-defaults"
+          sbt "release cross with-defaults"
       - name: Release the specified version
         if: ${{ github.event.inputs.release_version != '' }}
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
         run: |
-          sbt "release with-defaults release-version ${{ github.event.inputs.release_version }}"
+          sbt "release cross with-defaults release-version ${{ github.event.inputs.release_version }}"
