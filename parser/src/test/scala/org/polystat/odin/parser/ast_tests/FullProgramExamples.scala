@@ -1,15 +1,17 @@
 package org.polystat.odin.parser.ast_tests
 
+import cats.data.NonEmptyList
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
-import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.TestUtils.TestCase
 
 object FullProgramExamples {
 
   val correct: List[TestCase[EOProg[EOExprOnly]]] = List(
     mutualRecursionExample,
+    booleanLiteralsExample,
     dirWalk,
   )
 
@@ -76,6 +78,41 @@ object FullProgramExamples {
     )
   )
 
+  private lazy val booleanLiteralsExample = TestCase(
+    "boolean literals are recognized correctly",
+    code =
+      """[] > main
+        |  TRUE > a_true
+        |  FALSE > a_false
+        |""".stripMargin,
+    ast = Some(
+      EOProg(
+        metas = EOMetas(None, Vector()),
+        bnds = Vector(
+          EOBndExpr(
+            bndName = EOAnyNameBnd(LazyName("main")),
+            expr = Fix(
+              EOObj(
+                Vector(),
+                None,
+                Vector(
+                  EOBndExpr(
+                    EOAnyNameBnd(LazyName("a_true")),
+                    Fix[EOExpr](EOBoolData(true))
+                  ),
+                  EOBndExpr(
+                    EOAnyNameBnd(LazyName("a_false")),
+                    Fix[EOExpr](EOBoolData(false)),
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+
   private lazy val mutualRecursionExample: TestCase[EOProg[Fix[EOExpr]]] =
     TestCase(
       label = "mutual recursion example",
@@ -104,8 +141,14 @@ object FullProgramExamples {
           EOMetas(
             pack = Some("sandbox"),
             metas = Vector(
-              EOAliasMeta("stdout", "org.eolang.io.stdout"),
-              EOAliasMeta("sprintf", "org.eolang.txt.sprintf"),
+              EOAliasMeta(
+                Some("stdout"),
+                NonEmptyList("org", List("eolang", "io", "stdout"))
+              ),
+              EOAliasMeta(
+                Some("sprintf"),
+                NonEmptyList("org", List("eolang", "txt", "sprintf")),
+              )
             )
           ),
           Vector(

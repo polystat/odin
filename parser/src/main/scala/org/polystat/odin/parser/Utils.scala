@@ -2,8 +2,8 @@ package org.polystat.odin.parser
 
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
-import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
 
 private[parser] object Utils {
 

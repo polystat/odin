@@ -1,5 +1,6 @@
 package org.polystat.odin.parser.gens
 
+import cats.data.NonEmptyList
 import org.scalacheck.Gen
 
 object eo {
@@ -64,6 +65,8 @@ object eo {
     after <- digits
   } yield s"$before.$after"
 
+  val boolean: Gen[String] = Gen.oneOf("TRUE", "FALSE")
+
   val escapedUnicode: Gen[String] = betweenStr(4, 4, digit).map("\\u" + _)
 
   val javaEscape: Gen[String] = Gen.frequency(
@@ -119,6 +122,13 @@ object eo {
 
   val packageName: Gen[String] =
     betweenStr(1, 3, identifier, sep = ".")
+
+  val packageNameSplit: Gen[NonEmptyList[String]] =
+    identifier
+      .flatMap(head =>
+        between(0, 2, identifier)
+          .map(tail => NonEmptyList(head, tail))
+      )
 
   val packageMeta: Gen[String] = for {
     name <- packageName
@@ -182,7 +192,8 @@ object eo {
     integer,
     float,
     string,
-    char
+    char,
+    boolean
   )
 
   def singleLineApplication(

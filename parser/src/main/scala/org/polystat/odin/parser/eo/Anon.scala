@@ -4,10 +4,10 @@ import cats.parse.{Parser => P}
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.parser.eo.Tokens._
 import org.polystat.odin.parser.Utils._
 import org.polystat.odin.parser.eo.Common._
 import org.polystat.odin.parser.eo.SingleLine._
+import org.polystat.odin.parser.eo.Tokens._
 
 object Anon {
 

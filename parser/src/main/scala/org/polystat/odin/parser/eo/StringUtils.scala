@@ -1,7 +1,9 @@
 package org.polystat.odin.parser.eo
 
-import cats.parse.{Parser => P, Parser0 => P0}
-import org.polystat.odin.utils.text.{decodeTable, unescape}
+import cats.parse.{Parser => P}
+import cats.parse.{Parser0 => P0}
+import org.polystat.odin.utils.text.decodeTable
+import org.polystat.odin.utils.text.unescape
 
 /**
   * borrowed from:

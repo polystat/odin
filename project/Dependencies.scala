@@ -15,11 +15,13 @@ object Dependencies {
     val fs2 = "3.2.4"
     val fs2io = "3.2.4"
     val newTypes = "0.0.1"
-    val eoParser = "0.21.8"
     val munit = "0.7.29"
     val munitScalacheck = "0.7.29"
-    val munitScalacheckEffect = "1.0.3"
+    val munitScalacheckEffect = "1.0.4"
     val munitCatsEffect = "1.0.7"
+    val eoParser = "0.22.2"
+    val smtlib = "0.2.1-42-gc68dbaa"
+    val princess = "2021-11-15"
   }
 
   val cats = Seq(
@@ -75,11 +77,18 @@ object Dependencies {
     "org.eolang" % "eo-parser" % V.eoParser % Test,
   )
 
+  val smtlib = Seq(
+    "com.regblanc" %% "scala-smtlib" % V.smtlib,
+    "io.github.uuverifiers" %% "princess" % V.princess
+  )
+
   val allCats: Seq[ModuleID] = cats ++ catsEffect
 
   val common: Seq[ModuleID] =
     allCats ++ munit ++ nonEmpty ++ monocle ++
       newTypes
+
+  val analysis: Seq[ModuleID] = common ++ smtlib ++ pprint
 
   val utils: Seq[ModuleID] = common ++ fs2io
 

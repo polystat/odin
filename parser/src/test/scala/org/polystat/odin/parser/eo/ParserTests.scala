@@ -1,17 +1,21 @@
 package org.polystat.odin.parser.eo
 
 import cats.effect.IO
-import cats.implicits._
-import cats.parse.{Parser => P, Parser0 => P0}
-import org.polystat.odin.backend.eolang.ToEO.ops._
+import cats.parse.{Parser => P}
+import cats.parse.{Parser0 => P0}
+import cats.syntax.all._
 import org.polystat.odin.backend.eolang.ToEO.instances._
+import org.polystat.odin.backend.eolang.ToEO.ops._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.TestUtils.TestCase
-import org.polystat.odin.utils.files
-import org.polystat.odin.parser.gens._
 import org.polystat.odin.parser.ast_tests._
-import org.scalacheck.{Gen, Prop, Test}
+import org.polystat.odin.parser.gens._
+import org.polystat.odin.utils.files
+import org.scalacheck.Gen
+import org.scalacheck.Prop
+import org.scalacheck.Test
+
 import ParserTests._
 
 abstract class ParserTests
@@ -25,21 +29,21 @@ abstract class ParserTests
     .withMaxSize(numberOfTests)
     .withMinSize(numberOfTests)
     .withWorkers(8)
-    .withTestCallback(new Test.TestCallback {
+    // .withTestCallback(new Test.TestCallback {
 
-      override def onTestResult(name: String, result: Test.Result): Unit = {
-        println(
-          s"""
-             |Finished with
-             |Status: ${result.status}
-             |Tests passed: ${result.succeeded}
-             |Tests discarded: ${result.discarded}
-             |Time: ${result.time}ms
-             |""".stripMargin
-        )
-      }
+    //   override def onTestResult(name: String, result: Test.Result): Unit = {
+    //     println(
+    //       s"""
+    //          |Finished with
+    //          |Status: ${result.status}
+    //          |Tests passed: ${result.succeeded}
+    //          |Tests discarded: ${result.discarded}
+    //          |Time: ${result.time}ms
+    //          |""".stripMargin
+    //     )
+    //   }
 
-    })
+    // })
     .withLegacyShrinking(false)
 
   def runParserTests[A](
@@ -278,11 +282,11 @@ object ParserTests {
       case Left(value) => value.parseAll(input)
       case Right(value) => value.parseAll(input)
     }
-    parsed match {
-      case Left(value) =>
-        println(new Prettyprint(input = input).prettyprint(value))
-      case Right(_) => ()
-    }
+    // parsed match {
+    //   case Left(value) =>
+    //     println(new Prettyprint(input = input).prettyprint(value))
+    //   case Right(_) => ()
+    // }
     check(parsed)
   }
 

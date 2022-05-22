@@ -1,12 +1,14 @@
 package org.polystat.odin.parser.xmir
 
 import cats.ApplicativeError
-import cats.effect.{IO, Sync}
+import cats.effect.IO
+import cats.effect.Sync
 import cats.implicits._
-import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast.EOBnd
+import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser.sourceCodeEoParser
 import org.polystat.odin.parser.ast_tests.FullProgramExamples
+
 import scala.xml.Elem
 
 class ParserTests extends munit.CatsEffectSuite {
@@ -124,6 +126,15 @@ class ParserTests extends munit.CatsEffectSuite {
       |    aboba > @
       |""".stripMargin
 
+  val arrays: String =
+    """[] > main
+      |  * 0 1 2 3 4 5 6 7 > nums
+      |  * > times-table
+      |    * 1 2 3
+      |    * 2 4 6
+      |    * 3 6 9
+      |""".stripMargin
+
   val verySimple: String =
     """"hello" > world
       |""".stripMargin
@@ -133,7 +144,18 @@ class ParserTests extends munit.CatsEffectSuite {
     "very simple" -> verySimple,
     "simple" -> simple,
     "division by zero" -> divByZero,
-  ) ++ FullProgramExamples.correct.init.map(tc => (tc.label, tc.code))
+    "some arrays" -> arrays,
+  ).appendedAll(
+    FullProgramExamples
+      .correct
+      // "dir walk" test is not run
+      // because the single-line abstraction syntax
+      // is supported incorrectly by the XMIR parser
+      // https://github.com/cqfn/eo/issues/612
+      // TODO: remove .init when it is supported correctly
+      .init
+      .map(tc => (tc.label, tc.code))
+  )
 
   tests.foreach { case (label, code) =>
     test("XMIR parser test - " + label) {

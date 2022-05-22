@@ -1,15 +1,19 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.utils
 
-import cats.{Applicative, Traverse}
-import cats.syntax.functor._
-import cats.syntax.apply._
+import cats.Applicative
+import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.implicits.toFunctorOps
+import cats.implicits.toTraverseOps
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
-import monocle.{Lens, Optional, Prism, Traversal}
+import monocle.Lens
+import monocle.Optional
+import monocle.Prism
+import monocle.Traversal
 import monocle.macros.GenLens
+import org.polystat.odin.analysis.utils.inlining.types.CopyArgs
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.inlining.types._
 
 object Optics {
 
@@ -59,7 +63,10 @@ object Optics {
 
   object lenses {
 
-    val focusFromBndToExpr: Optional[EOBnd[EOExprOnly], EOExprOnly] =
+    val focusFromProgToBnds: Lens[EOProg[EOExprOnly], Vector[EOBnd[EOExprOnly]]] =
+      GenLens[EOProg[EOExprOnly]](_.bnds)
+
+    val focusFromBndToExpr: Lens[EOBnd[EOExprOnly], EOExprOnly] =
       Lens[EOBnd[EOExprOnly], EOExprOnly](bnd => bnd.expr)(expr => {
         case bnd: EOBndExpr[EOExprOnly] => bnd.copy(expr = expr)
         case bnd: EOAnonExpr[EOExprOnly] => bnd.copy(expr = expr)
@@ -89,6 +96,9 @@ object Optics {
   }
 
   object optionals {
+
+    def mapValueAtKey[K, V](k: K): Optional[Map[K, V], V] =
+      Optional[Map[K, V], V](_.get(k))(v => map => map.updated(k, v))
 
     def vectorIndexOptional[A](i: Int): Optional[Vector[A], A] =
       Optional[Vector[A], A](_.lift(i))(item =>
@@ -160,6 +170,15 @@ object Optics {
             .getOrElse(arr)
       )
 
+    val bndToEONamedBND: Optional[EOBnd[EOExprOnly], EONamedBnd] =
+      Optional[EOBnd[EOExprOnly], EONamedBnd] {
+        case EOAnonExpr(_) => None
+        case EOBndExpr(bndName, _) => Some(bndName)
+      }(newName => {
+        case bnd @ EOAnonExpr(_) => bnd
+        case bnd @ EOBndExpr(_, _) => bnd.copy(bndName = newName)
+      })
+
   }
 
   object traversals {
@@ -170,11 +189,25 @@ object Optics {
         override def modifyA[F[_]: Applicative](f: A => F[A])(
           s: NonEmpty[A, Vector[A]]
         ): F[NonEmpty[A, Vector[A]]] = {
-          Applicative[F].map2(
+          (
             f(s.head),
-            Traverse[Vector].traverse(s.tail)(f)
-          )((head, tail) => NonEmpty[Vector[A]](head, tail: _*))
+            s.tail.traverse(f)
+          ).mapN((head, tail) => NonEmpty[Vector[A]](head, tail: _*))
         }
+
+      }
+
+    val eoProg: Traversal[EOProg[EOExprOnly], EOExprOnly] =
+      new Traversal[EOProg[EOExprOnly], EOExprOnly] {
+
+        override def modifyA[F[_]: Applicative](
+          f: EOExprOnly => F[EOExprOnly]
+        )(s: EOProg[EOExprOnly]): F[EOProg[EOExprOnly]] =
+          lenses
+            .focusFromProgToBnds
+            .andThen(Traversal.fromTraverse[Vector, EOBnd[EOExprOnly]])
+            .andThen(lenses.focusFromBndToExpr)
+            .modifyA(f)(s)
 
       }
 
@@ -193,7 +226,37 @@ object Optics {
 
       }
 
-    val eoObjBndAttrs: Traversal[EOObj[EOExprOnly], EOExprOnly] =
+    val eoProgBndAttrs: Traversal[EOProg[EOExprOnly], EOBnd[EOExprOnly]] =
+      new Traversal[EOProg[EOExprOnly], EOBnd[EOExprOnly]] {
+
+        override def modifyA[F[_]: Applicative](
+          f: EOBnd[EOExprOnly] => F[EOBnd[EOExprOnly]]
+        )(
+          s: EOProg[EOExprOnly]
+        ): F[EOProg[EOExprOnly]] =
+          Traversal
+            .fromTraverse[Vector, EOBnd[EOExprOnly]]
+            .modifyA(f)(s.bnds)
+            .map(bnds => s.copy(bnds = bnds))
+
+      }
+
+    val eoObjBndAttrs: Traversal[EOObj[EOExprOnly], EOBndExpr[EOExprOnly]] =
+      new Traversal[EOObj[EOExprOnly], EOBndExpr[EOExprOnly]] {
+
+        override def modifyA[F[_]: Applicative](
+          f: EOBndExpr[EOExprOnly] => F[EOBndExpr[EOExprOnly]]
+        )(
+          s: EOObj[EOExprOnly]
+        ): F[EOObj[EOExprOnly]] =
+          Traversal
+            .fromTraverse[Vector, EOBndExpr[EOExprOnly]]
+            .modifyA(f)(s.bndAttrs)
+            .map(bnds => s.copy(bndAttrs = bnds))
+
+      }
+
+    val eoObjBndAttrExprs: Traversal[EOObj[EOExprOnly], EOExprOnly] =
       new Traversal[EOObj[EOExprOnly], EOExprOnly] {
 
         override def modifyA[F[_]: Applicative](f: EOExprOnly => F[EOExprOnly])(

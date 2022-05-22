@@ -2,7 +2,8 @@ package org.polystat.odin.parser.eo
 
 import cats.parse.{Parser => P}
 import com.github.tarao.nonempty.collection.NonEmpty
-import org.polystat.odin.core.ast.{EOBnd, EOBndExpr}
+import org.polystat.odin.core.ast.EOBnd
+import org.polystat.odin.core.ast.EOBndExpr
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.eo.Tokens._
 

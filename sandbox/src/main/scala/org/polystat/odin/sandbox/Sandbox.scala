@@ -1,64 +1,92 @@
 package org.polystat.odin.sandbox
 
-import cats.effect.{ExitCode, IO, IOApp, Resource}
-import org.polystat.odin.analysis.mutualrec.naive.{
-  findMutualRecursionInTopLevelObjects,
-  resolveMethodsReferencesForEOProgram
-}
-import cats.implicits._
-import org.polystat.odin.backend.eolang.ToEO.instances._
-import org.polystat.odin.backend.eolang.ToEO.ops._
-import org.polystat.odin.backend.eolang.inlineorlines.ops._
-import org.polystat.odin.parser.EoParser.sourceCodeEoParser
-
-import scala.io.Source
-import scala.util.chaining._
+import cats.effect.{ExitCode, IO, IOApp}
+import org.polystat.odin.interop.java.EOOdinAnalyzer
+import cats.syntax.all._
+import scala.jdk.CollectionConverters._
 
 object Sandbox extends IOApp {
 
+  val examples = Map(
+    "first" -> """[x y z] > test
+                 |  x.div (y.add z) > @
+                 |""".stripMargin,
+    "second" -> """[] > test
+                  |  [] > base
+                  |    [self v] > n
+                  |      v > @
+                  |    [self v] > m
+                  |      self.n self v > @
+                  |  [] > derived
+                  |    base > @
+                  |    [self v] > n
+                  |      self.m self v > @
+                  |""".stripMargin,
+    "third" -> """[] > test
+                 |  [] > parent
+                 |    [self x] > f
+                 |      x.sub 5 > y1
+                 |      seq > @
+                 |        assert (0.less y1)
+                 |        x
+                 |    [self y] > g
+                 |      self.f self y > @
+                 |    [self z] > h
+                 |      z > @
+                 |  [] > child
+                 |    test.parent > @
+                 |    [self y] > f
+                 |      y > @
+                 |    [self z] > h
+                 |      self.g self z > @
+                 |""".stripMargin,
+    "fourth" -> """
+                  |1 > non-existent
+                  |[] > a
+                  |  non-existent > @
+                  |""".stripMargin,
+    "fifth" -> """
+                 |[] > b
+                 |[] > a
+                 |  ^.^.b > @
+                 |""".stripMargin,
+    "sixth" -> """
+                 |[] > a
+                 |  [self] > f
+                 |    self.non-existent self > @
+                 |""".stripMargin,
+    "seventh" -> """
+                   |[] > a
+                   |  [self a b] > f
+                   |    a.add b > @
+                   |  [self] > g
+                   |    self.f self 1 > @
+                   |  [self] > h
+                   |    self.f self 1 2 3 > @
+                   |""".stripMargin,
+    "eight" -> """[] > a
+                 |  memory > state
+                 |  [self new_state] > update_state
+                 |    self.state.write new_state > @
+                 |[] > b
+                 |  a > @
+                 |  [self new_state] > change_state_plus_two
+                 |    self.state.write (new_state.add 2) > @
+                 |""".stripMargin,
+  )
+
   override def run(args: List[String]): IO[ExitCode] = for {
     exitCode <- IO.pure(ExitCode.Success)
-    //    mutualRecEORepr: String = mutualRecursionExample.toEO.allLinesToString
-    //    _ <- IO(mutualRecEORepr.tap(println))
-
-    fileName = "mutual_rec_example.eo"
-    fileSourceResource =
-      Resource.make(IO(Source.fromResource(fileName)))(src => IO(src.close()))
-    fileContents <-
-      fileSourceResource.use(src => IO(src.getLines().toVector.mkString("\n")))
-    program <- sourceCodeEoParser[IO]().parse(fileContents)
-    programText = program.toEO.allLinesToString
-    _ <- IO(programText.tap(println))
-
-    topLevelObjects <- resolveMethodsReferencesForEOProgram[IO](program)
-
-    mutualRec <- findMutualRecursionInTopLevelObjects(topLevelObjects)
-    mutualRecFiltered = mutualRec.filter(_.nonEmpty)
-
-    _ <- IO.delay(println())
-    _ <- IO.delay(
-      for {
-        mutualRecDep <- mutualRecFiltered
-        (method, depChains) <- mutualRecDep.toVector
-        depChain <- depChains.toVector
-      } yield for {
-        mutualRecMeth <- depChain.lastOption
-      } yield {
-        val mutualRecString =
-          s"Method `${method.parentObject.objName}.${method.name}` " ++
-            s"is mutually recursive with method " ++
-            s"`${mutualRecMeth.parentObject.objName}.${mutualRecMeth.name}`"
-
-        val dependencyChainString = depChain
-          .append(method)
-          .map(m => s"${m.parentObject.objName}.${m.name}")
-          .mkString_(" -> ")
-
-        println(
-          mutualRecString ++ " through the following possible code path:\n" ++ dependencyChainString
+    _ <- examples.toList.traverse { case (name, code) =>
+      IO.println(s"Example $name:") *>
+        IO(
+          new EOOdinAnalyzer.EOOdinSourceCodeAnalyzer()
+            .analyze(code)
+            .asScala
+            .toList
         )
-      }
-    )
+          .flatMap(IO.println)
+    }
   } yield exitCode
 
 }

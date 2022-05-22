@@ -1,6 +1,7 @@
 package org.polystat.odin.parser.eo
 
-import cats.parse.Rfc5234.{crlf, lf}
+import cats.parse.Rfc5234.crlf
+import cats.parse.Rfc5234.lf
 import cats.parse.{Parser => P, _}
 
 object Tokens {
@@ -33,6 +34,12 @@ object Tokens {
 
   val integer: P[Int] = Numbers.signedIntString.map(_.toInt)
   val string: P[String] = StringUtils.escapedString('\"')
+
+  val boolean: P[Boolean] = P.stringIn(List("TRUE", "FALSE")).flatMap {
+    case "TRUE" => P.pure(true)
+    case "FALSE" => P.pure(false)
+    case _ => P.failWith("Boolean error")
+  }
 
   val char: P[Char] =
     (

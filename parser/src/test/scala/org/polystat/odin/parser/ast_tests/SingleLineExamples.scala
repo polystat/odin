@@ -2,8 +2,8 @@ package org.polystat.odin.parser.ast_tests
 
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
-import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.TestUtils.TestCase
 
 object SingleLineExamples {

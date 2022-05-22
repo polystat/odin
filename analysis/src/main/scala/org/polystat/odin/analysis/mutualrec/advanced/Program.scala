@@ -1,13 +1,11 @@
 package org.polystat.odin.analysis.mutualrec.advanced
 
+import cats.data.{NonEmptyList => Nel}
+import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 
 object Program {
   type Program = List[Object]
-
-  case class ObjectName(container: Option[ObjectName], name: String) {
-    def show: String = container.fold(name)(p => s"${p.show}.$name")
-  }
 
   case class MethodName(whereDefined: ObjectName, name: String) {
     def show: String = s"${whereDefined.show}.$name"
@@ -45,30 +43,34 @@ object Program {
           case (name, calls) =>
             s"""$spaces[self] > ${name.name}
                |  $spaces${if (calls.nonEmpty)
-              calls
-                .map(call => s"self.${call.name} self > @")
-                .mkString(s"\n$spaces  ")
-            else
-              "self > @"}""".stripMargin
+                calls
+                  .map(call => s"self.${call.name} self > @")
+                  .mkString(s"\n$spaces  ")
+              else
+                "self > @"}""".stripMargin
         }
       }
 
       def helper(obj: Object, depth: Int): String = {
         val spaces = "  " * (depth + 1)
-        s"""[] > ${obj.name.name}
-           |${obj
+        val locators = List.fill(depth + 1)('^').mkString(".")
+        val parent = obj
           .parent
-          .fold("")(parent => s"$spaces${parent.name.show} > @\n")}${obj
+          .fold("")(parent => s"$spaces$locators.${parent.name.show} > @\n")
+
+        val methods = obj
           .callGraph
           .filter { case (method, _) =>
             method.whereDefined == obj.name
           }
           .map(renderMethod(depth + 1))
-          .mkString("\n")}
+          .mkString("\n")
+        s"""[] > ${obj.name.name}
+           |$parent$methods
            |$spaces${obj
-          .nestedObjs
-          .map(helper(_, depth + 1))
-          .mkString("\n" + spaces)}""".stripMargin
+            .nestedObjs
+            .map(helper(_, depth + 1))
+            .mkString("\n" + spaces)}""".stripMargin
       }
 
       helper(this, 0)
@@ -80,16 +82,16 @@ object Program {
         cg match {
           case (name, calls) =>
             s"${spaces}virtual void ${name.name}(){${calls
-              .map(call => s"${call.name}();")
-              .mkString(s"\n  $spaces")}};"
+                .map(call => s"${call.name}();")
+                .mkString(s"\n  $spaces")}};"
         }
       }
 
       def helper(obj: Object, depth: Int): String = {
         val spaces = "  " * (depth + 1)
         val class_def = s"""class ${obj.name.name.toUpperCase()} ${obj
-          .parent
-          .fold("")(ext => s": public ${ext.name.name.toUpperCase()}")}"""
+            .parent
+            .fold("")(ext => s": public ${ext.name.name.toUpperCase()}")}"""
         val class_methods =
           "  " + obj
             .callGraph
@@ -121,7 +123,7 @@ object Program {
   implicit final class MethodNameOps(obj: String) {
 
     def %(method: String): MethodName =
-      MethodName(ObjectName(None, obj), method)
+      MethodName(ObjectName(Nel.one(obj)), method)
 
   }
 

@@ -61,33 +61,44 @@ class CallGraphTests extends munit.FunSuite {
   test("correctly find cycles") {
     val cycles: Set[CallChain] = Set(
       List(
-        MethodName(ObjectName(None, "a"), "s"),
-        MethodName(ObjectName(None, "a"), "b"),
-        MethodName(ObjectName(None, "a"), "d"),
-        MethodName(ObjectName(None, "a"), "s")
+        MethodName(ObjectName("a"), "s"),
+        MethodName(ObjectName("a"), "b"),
+        MethodName(ObjectName("a"), "d"),
+        MethodName(ObjectName("a"), "s")
       ),
       List(
-        MethodName(ObjectName(None, "a"), "b"),
-        MethodName(ObjectName(None, "a"), "d"),
-        MethodName(ObjectName(None, "a"), "s"),
-        MethodName(ObjectName(None, "a"), "b")
+        MethodName(ObjectName("a"), "b"),
+        MethodName(ObjectName("a"), "d"),
+        MethodName(ObjectName("a"), "s"),
+        MethodName(ObjectName("a"), "b")
       ),
       List(
-        MethodName(ObjectName(None, "a"), "c"),
-        MethodName(ObjectName(None, "a"), "b"),
-        MethodName(ObjectName(None, "a"), "d"),
-        MethodName(ObjectName(None, "a"), "s"),
-        MethodName(ObjectName(None, "a"), "b")
+        MethodName(ObjectName("a"), "c"),
+        MethodName(ObjectName("a"), "b"),
+        MethodName(ObjectName("a"), "d"),
+        MethodName(ObjectName("a"), "s"),
+        MethodName(ObjectName("a"), "b")
       ),
       List(
-        MethodName(ObjectName(None, "a"), "d"),
-        MethodName(ObjectName(None, "a"), "s"),
-        MethodName(ObjectName(None, "a"), "b"),
-        MethodName(ObjectName(None, "a"), "d")
+        MethodName(ObjectName("a"), "d"),
+        MethodName(ObjectName("a"), "s"),
+        MethodName(ObjectName("a"), "b"),
+        MethodName(ObjectName("a"), "d")
       )
     )
 
-    assertEquals(exampleCgBefore.findCycles.toSet, cycles)
+    assert(exampleCgBefore.findCycles.toSet == cycles)
+  }
+
+  test("correctly extend another call graph") {
+
+    assert(exampleCgBefore.extendWith(exampleCgExtends).size == 5)
+    assert(exampleCgBefore.extendWith(exampleCgExtends) == exampleCgAfter)
+    assert(
+      exampleCgBefore.extendWith(exampleCgExtends) !=
+        exampleCgExtends.extendWith(exampleCgBefore)
+    )
+
   }
 
 }

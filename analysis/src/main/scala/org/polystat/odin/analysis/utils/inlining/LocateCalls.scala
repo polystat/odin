@@ -1,48 +1,25 @@
-package org.polystat.odin.analysis.inlining
+package org.polystat.odin.analysis.utils.inlining
 
-import cats.syntax.foldable._
+import cats.Monoid
 import higherkindness.droste.data.Fix
 import monocle.Iso
-import Optics._
+import org.polystat.odin.analysis.utils.Abstract.foldAst
+import org.polystat.odin.analysis.utils.Optics._
+import org.polystat.odin.analysis.utils.inlining
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.inlining.types._
+
+import types._
 
 object LocateCalls {
 
   def hasNoReferencesToPhi(binds: Vector[EOBnd[Fix[EOExpr]]]): Boolean = {
-
-    def exprHelper(
-      expr: Fix[EOExpr],
-      upperBndName: Option[String]
-    ): Option[String] = Fix.un(expr) match {
-      case EOCopy(trg, args) =>
-        exprHelper(trg, upperBndName)
-          .orElse(
-            args.value.foldMapK(bndHelper(upperBndName))
-          )
-      case EODot(trg, _) =>
-        exprHelper(trg, upperBndName)
-      case EOObj(_, _, bnds) => bnds.foldMapK(bndHelper(upperBndName))
-      case EOSimpleAppWithLocator("@", _) =>
-        upperBndName
-      case _ =>
-        None
+    implicit val andMonoid: Monoid[Boolean] = new Monoid[Boolean] {
+      override def empty: Boolean = true
+      override def combine(x: Boolean, y: Boolean): Boolean = x && y
     }
 
-    def bndHelper(
-      upperBndName: Option[String]
-    )(bnd: EOBnd[Fix[EOExpr]]): Option[String] =
-      bnd match {
-        case EOAnonExpr(expr) => exprHelper(expr, upperBndName)
-        case EOBndExpr(_, expr) => exprHelper(expr, upperBndName)
-      }
-
-    binds.flatMap {
-      case EOAnonExpr(_) => None
-      case EOBndExpr(bndName, expr) =>
-        exprHelper(expr, Some(bndName.name.name))
-    }.isEmpty
+    foldAst[Boolean](binds) { case EOSimpleAppWithLocator("@", _) => false }
   }
 
   def hasPhiAttribute(bnds: Vector[EOBnd[EOExprOnly]]): Boolean =
@@ -80,7 +57,7 @@ object LocateCalls {
               }
             if (firstArgIsValid)
               Vector(
-                Call(
+                inlining.Call(
                   depth = depth,
                   methodName = name,
                   callSite = pathToCallSite,
@@ -165,8 +142,8 @@ object LocateCalls {
     Fix.un(methodBnd.expr) match {
       case obj @ EOObj(params, _, bndAttrs)
            if hasSelfAsFirstParam(params) &&
-             hasPhiAttribute(bndAttrs) &&
-             hasNoReferencesToPhi(bndAttrs) =>
+           hasPhiAttribute(bndAttrs) &&
+           hasNoReferencesToPhi(bndAttrs) =>
         Some(MethodInfo(findCalls(obj), obj, bndDepth))
       case _ => None
     }

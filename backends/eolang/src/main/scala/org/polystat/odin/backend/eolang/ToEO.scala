@@ -1,16 +1,20 @@
 package org.polystat.odin.backend.eolang
 
+import cats.syntax.foldable._
 import higherkindness.droste.data.Fix
+import org.polystat.odin.core.ast._
+import org.polystat.odin.core.ast.astparams.EOExprOnly
+import org.polystat.odin.utils.text.escape
+import org.polystat.odin.utils.text.indent
+
+import scala.util.Properties
+
 import EOBndRepr.instances._
 import ToEO.ops.ToEOOps
 import ToEOBnd.instances._
 import ToEOBnd.ops._
 import inlineorlines._
 import inlineorlines.ops._
-import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast._
-import org.polystat.odin.utils.text.{escape, indent}
-import scala.util.Properties
 
 trait ToEO[T, R] {
   def toEO(node: T): R
@@ -94,10 +98,13 @@ object ToEO {
     implicit val aliasMetaToEO: ToEO[EOAliasMeta, Inline] =
       new ToEO[EOAliasMeta, Inline] {
 
-        override def toEO(node: EOAliasMeta): Inline =
+        override def toEO(node: EOAliasMeta): Inline = {
+          val alias = node.alias.map(_ + " ").getOrElse("")
+          val source = node.src.mkString_(".")
           Inline(
-            s"${Constants.SYMBS.META_PREFIX}alias ${node.alias} ${node.src}"
+            s"${Constants.SYMBS.META_PREFIX}alias $alias$source"
           )
+        }
 
       }
 

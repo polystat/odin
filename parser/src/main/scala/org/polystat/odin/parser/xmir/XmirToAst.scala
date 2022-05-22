@@ -1,7 +1,7 @@
 package org.polystat.odin.parser.xmir
 
 import cats.effect.Sync
-import cats.implicits._
+import cats.syntax.all._
 import com.github.tarao.nonempty.collection.NonEmpty
 import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
@@ -9,10 +9,13 @@ import org.polystat.odin.core.ast.astparams.EOExprOnly
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
+import java.nio.file.Path
 import javax.xml.transform.TransformerFactory
-import javax.xml.transform.stream.{StreamResult, StreamSource}
-import scala.xml.{Elem, XML}
+import javax.xml.transform.stream.StreamResult
+import javax.xml.transform.stream.StreamSource
+import scala.xml.Elem
+import scala.xml.XML
 
 trait XmirToAst[F[_], T] {
   /**
@@ -278,6 +281,15 @@ object XmirToAst {
             for {
               bndAttrs <- boundAttrs
             } yield (name, Fix[EOExpr](EOObj(free, vararg, bndAttrs)))
+
+          case Elem(_, "array", attrs, _, children @ _*) =>
+            val name = extractName(attrs.asAttrMap)
+            val elems = children.collect { case elem: Elem => elem }
+            val parsed = elems
+              .traverse(parseObject)
+              .map(_.map(bndFromTuple).toVector)
+            parsed.map(elems => (name, Fix(EOArray(elems))))
+
           case elem: Elem => Left(s"An unknown element encountered: $elem")
         }
       }

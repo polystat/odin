@@ -1,14 +1,16 @@
 package org.polystat.odin.analysis.mutualrec.naive.services
 
 import cats.data.OptionT
-import cats.effect.Sync
 import cats.effect.Ref
+import cats.effect.Sync
 import cats.implicits._
-import org.polystat.odin.analysis.mutualrec.naive.exceptions.DuplicatedMethodAttributes
-import MethodAttribute.createMethodAttribute
 import higherkindness.droste.data.Fix
+import org.polystat.odin.analysis.mutualrec.naive.exceptions.DuplicatedMethodAttributes
+import org.polystat.odin.core.ast.EOBndExpr
+import org.polystat.odin.core.ast.EOObj
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast.{EOBndExpr, EOObj}
+
+import MethodAttribute.createMethodAttribute
 
 trait TopLevelObject[F[_]] {
   def objName: String

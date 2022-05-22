@@ -1,5 +1,6 @@
 package org.polystat.odin.core.ast
 
+import cats.data.NonEmptyList
 import com.github.tarao.nonempty.collection.NonEmpty
 
 import scala.util.matching.Regex
@@ -20,8 +21,8 @@ sealed case class EOMetas(
 sealed trait EOMeta
 
 sealed case class EOAliasMeta(
-  alias: String,
-  src: String
+  alias: Option[String],
+  src: NonEmptyList[String],
 ) extends EOMeta
 
 sealed case class EORTMeta(

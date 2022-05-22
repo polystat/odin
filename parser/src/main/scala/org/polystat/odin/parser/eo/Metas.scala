@@ -1,8 +1,12 @@
 package org.polystat.odin.parser.eo
 
+import cats.data.NonEmptyList
+import cats.parse.Parser0
 import cats.parse.SemVer.semverString
-import cats.parse.{Parser => P, Parser0}
-import org.polystat.odin.core.ast.{EOAliasMeta, EOMetas, EORTMeta}
+import cats.parse.{Parser => P}
+import org.polystat.odin.core.ast.EOAliasMeta
+import org.polystat.odin.core.ast.EOMetas
+import org.polystat.odin.core.ast.EORTMeta
 import org.polystat.odin.parser.eo.Tokens._
 
 object Metas {
@@ -17,10 +21,16 @@ object Metas {
 
   private val aliasName = identifier
 
+  private val packageNameSplit = identifier.repSep(1, P.char('.'))
+
+  val aliasMetaTail: P[(Option[String], NonEmptyList[String])] =
+    (aliasName ~ (wsp *> packageNameSplit)).map { case (alias, name) =>
+      (Some(alias), name)
+    }.backtrack |
+      packageNameSplit.map(name => (None, name))
+
   val aliasMeta: P[EOAliasMeta] = (
-    P.string("+alias") *>
-      aliasName.surroundedBy(wsp) ~
-      packageName
+    P.string("+alias") *> wsp *> aliasMetaTail
   ).map { case (alias, src) =>
     EOAliasMeta(alias, src)
   }

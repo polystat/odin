@@ -2,17 +2,21 @@ package org.polystat.odin.analysis
 
 import cats.ApplicativeError
 import cats.data.NonEmptyList
-import cats.effect.{IO, Sync}
-import cats.parse.{Parser => P, Parser0 => P0}
+import cats.effect.IO
+import cats.effect.Sync
 import cats.implicits._
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import cats.parse.{Parser => P}
+import cats.parse.{Parser0 => P0}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
+import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
-import org.polystat.odin.analysis.gens.MutualRecursionTestGen.genProgram
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.polystat.odin.parser.eo.Parser
 import org.polystat.odin.utils.files
-import org.scalacheck.{Gen, Test}
+import org.scalacheck.Gen
+import org.scalacheck.Test
 import org.scalacheck.effect.PropF
 import pprint.pprintln
 
@@ -89,6 +93,11 @@ class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
         |c.new.g -> a.new.f -> c.new.g
         |a.new.f -> c.new.g -> a.new.f
         |""".stripMargin,
+    "3rd_defect.eo" ->
+      """
+        |test.parent.g -> test.child.h -> test.parent.g
+        |test.child.h -> test.parent.g -> test.child.h
+        |""".stripMargin
   )
 
   val expectedError: Map[String, String] = Map(
@@ -100,7 +109,7 @@ class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
     for {
       expectedErrors <- parseCallChains[IO](fileNameToChain(fileName))
       actualErrors <- odinErrors[IO](code)
-      _ <- actualErrors.traverse_(e => IO.println(e.show))
+      // _ <- actualErrors.traverse_(e => IO.println(e.show))
     } yield assertEquals(actualErrors.toSet, expectedErrors.toSet)
   }.unsafeRunSync()
 
@@ -117,16 +126,12 @@ class MutualrecTests extends CatsEffectSuite with ScalaCheckEffectSuite {
 
 object MutualrecTests {
 
-  import cats.syntax.foldable._
-
   val simpleName: P[String] =
     P.charsWhile((('a' to 'z') ++ ('A' to 'Z') ++ List('_')).contains(_))
 
   def stringsToMethodName(strs: NonEmptyList[String]): Option[MethodName] = {
     def stringsToObjName(strs: List[String]): Option[ObjectName] =
-      strs.foldLeft[Option[ObjectName]](None) { case (acc, next) =>
-        Some(ObjectName(acc, next))
-      }
+      NonEmptyList.fromList(strs).map(ObjectName(_))
 
     stringsToObjName(strs.init).map(MethodName(_, strs.last))
   }

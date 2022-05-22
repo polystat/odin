@@ -1,9 +1,9 @@
 package org.polystat.odin.parser.gens
 
 import com.github.tarao.nonempty.collection.NonEmpty
+import higherkindness.droste.data.Fix
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams._
-import higherkindness.droste.data.Fix
 import org.scalacheck.Gen
 
 object ast {
@@ -19,6 +19,9 @@ object ast {
 
   val floatData: Gen[EOFloatData[EOExprOnly]] =
     eo.float.map(float => EOFloatData[EOExprOnly](float.toFloat))
+
+  val boolData: Gen[EOBoolData[EOExprOnly]] =
+    Gen.oneOf(true, false).map(EOBoolData[EOExprOnly])
 
   val simpleApp: Gen[EOSimpleApp[EOExprOnly]] =
     Gen
@@ -40,7 +43,8 @@ object ast {
     stringData,
     charData,
     integerData,
-    floatData
+    floatData,
+    boolData,
   )
 
   val rtMeta: Gen[EORTMeta] =
@@ -50,8 +54,8 @@ object ast {
     } yield EORTMeta(alias, artifact)
 
   val aliasMeta: Gen[EOAliasMeta] = for {
-    alias <- eo.identifier
-    artifact <- eo.packageName
+    alias <- Gen.option(eo.identifier)
+    artifact <- eo.packageNameSplit
   } yield EOAliasMeta(alias, artifact)
 
   val metas: Gen[EOMetas] =

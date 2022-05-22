@@ -19,6 +19,7 @@ ThisBuild / releaseVersionBump := sbtrelease.Version.Bump.Next
 ThisBuild / semanticdbEnabled := true
 ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 ThisBuild / scalafixScalaBinaryVersion := "2.13"
+ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
 
 lazy val noPublishSettings = Seq(
   publish := {},
@@ -137,7 +138,7 @@ lazy val analysis = project
   )
   .settings(
     name := "analysis",
-    libraryDependencies ++= Dependencies.munit ++ Dependencies.pprint
+    libraryDependencies ++= Dependencies.analysis
   )
 
 val backendsBaseDirectory: File = file("backends")

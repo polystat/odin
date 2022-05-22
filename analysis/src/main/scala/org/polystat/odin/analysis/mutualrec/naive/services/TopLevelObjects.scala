@@ -3,23 +3,20 @@ package org.polystat.odin.analysis.mutualrec.naive.services
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
-import org.polystat.odin.analysis.mutualrec.naive.exceptions.{
-  DecorateeNotFound,
-  UnsupportedDecoration
-}
-import TopLevelObject.createTopLevelObject
 import higherkindness.droste.data.Fix
+import org.polystat.odin.analysis.mutualrec.naive.exceptions.DecorateeNotFound
+import org.polystat.odin.analysis.mutualrec.naive.exceptions.UnsupportedDecoration
+import org.polystat.odin.core.ast.EOApp
+import org.polystat.odin.core.ast.EOBndExpr
+import org.polystat.odin.core.ast.EOCopy
+import org.polystat.odin.core.ast.EODecoration
+import org.polystat.odin.core.ast.EOObj
+import org.polystat.odin.core.ast.EOSimpleApp
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.core.ast.{
-  EOApp,
-  EOBndExpr,
-  EOCopy,
-  EODecoration,
-  EOObj,
-  EOSimpleApp
-}
 
 import scala.annotation.tailrec
+
+import TopLevelObject.createTopLevelObject
 
 trait TopLevelObjects[F[_]] {
   def objects: F[Vector[TopLevelObject[F]]]
