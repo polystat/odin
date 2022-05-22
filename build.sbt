@@ -71,6 +71,7 @@ val checkoutSetupJava = List(WorkflowStep.Checkout) ++
   WorkflowStep.SetupJava(List(JavaSpec.temurin("11")))
 
 ThisBuild / githubWorkflowPublishTargetBranches := Seq()
+ThisBuild / githubWorkflowScalaVersions := crossScalaVersions.value.distinct
 
 ThisBuild / githubWorkflowAddedJobs ++= Seq(
   WorkflowJob(
