@@ -69,7 +69,8 @@ object Analyzer {
             methodsBefore,
             res2,
             methodsAfter,
-            name => s"Method $name is not referentially transparent"
+            name =>
+              s"Method $name is not safe to inline: doing so may break the behaviour of subclasses!"
           )
       } yield res.toList
     }

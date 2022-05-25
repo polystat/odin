@@ -23,6 +23,9 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 
+  def errorMessage(methodName: String): String =
+    s"Method $methodName is not safe to inline: doing so may break the behaviour of subclasses!"
+
   val testCasesWithErrors: List[TestCase] = List(
     TestCase(
       label = "One not referentially transparent method",
@@ -46,7 +49,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    [self z] > h
           |      self.g self z > @
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
+      expected = List(errorMessage("g"))
     ),
     TestCase(
       label = "One not referentially transparent method 2",
@@ -68,7 +71,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      assert (5.less x)
           |      x.sub 1
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
+      expected = List(errorMessage("g"))
     ),
     TestCase(
       label =
@@ -90,7 +93,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      assert (5.less x)
           |      x.sub 1
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
+      expected = List(errorMessage("g"))
     ),
     TestCase(
       label = "One not referentially transparent method 4",
@@ -118,7 +121,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    [self z] > h
           |      self.g self z > @
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
+      expected = List(errorMessage("g"))
     ),
     TestCase(
       label =
@@ -138,7 +141,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    [self v] > n
           |      self.m self v > @
           |""".stripMargin,
-      expected = List("Method m is not referentially transparent")
+      expected = List(errorMessage("m"))
     ),
     TestCase(
       label = "Two not referentially transparent method",
@@ -165,8 +168,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      self.g self z > @
           |""".stripMargin,
       expected = List(
-        "Method g is not referentially transparent",
-        "Method g2 is not referentially transparent"
+        errorMessage("g"),
+        errorMessage("g2"),
       )
     ),
     TestCase(
@@ -201,8 +204,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      self.ggg self z > @
           |""".stripMargin,
       expected = List(
-        "Method g is not referentially transparent",
-        "Method ggg is not referentially transparent"
+        errorMessage("g"),
+        errorMessage("ggg"),
       )
     ),
   )
@@ -274,7 +277,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
            |  [self v] > n
            |    self.m self v > @
            |""".stripMargin,
-      expected = List("Method m is not referentially transparent"),
+      expected = List(errorMessage("m")),
     )
   )
 
