@@ -3,6 +3,7 @@ package org.polystat.odin.analysis
 import cats._
 import cats.data.EitherNel
 import cats.data.NonEmptyList
+import cats.effect.Sync
 import cats.syntax.all._
 import org.polystat.odin.analysis.EOOdinAnalyzer._
 import org.polystat.odin.analysis.liskov.Analyzer
@@ -84,7 +85,7 @@ object EOOdinAnalyzer {
 
     }
 
-  def unjustifiedAssumptionAnalyzer[F[_]: MonadThrow]: ASTAnalyzer[F] =
+  def unjustifiedAssumptionAnalyzer[F[_]: Sync]: ASTAnalyzer[F] =
     new ASTAnalyzer[F] {
 
       override val name: String = "Unjustified Assumption"
@@ -96,14 +97,17 @@ object EOOdinAnalyzer {
           for {
             tree <-
               toThrow(Inliner.zipMethodsWithTheirInlinedVersionsFromParent(ast))
-            errors <-
-              toThrow(unjustifiedassumptions.Analyzer.analyzeObjectTree(tree))
+            errors <- unjustifiedassumptions
+              .Analyzer
+              .analyzeObjectTree[F](tree)
+              .value
+              .flatMap(e => toThrow(e))
           } yield errors
         }
 
     }
 
-  def liskovPrincipleViolationAnalyzer[F[_]: MonadThrow]: ASTAnalyzer[F] =
+  def liskovPrincipleViolationAnalyzer[F[_]: Sync]: ASTAnalyzer[F] =
     new ASTAnalyzer[F] {
 
       override val name: String = "Liskov Substitution principle violation"
@@ -117,8 +121,7 @@ object EOOdinAnalyzer {
               toThrow(Inliner.createObjectTree(ast))
             parentedTree <- toThrow(Inliner.resolveParents(partialTree))
             tree <- toThrow(Inliner.resolveIndirectMethods(parentedTree))
-            errors <-
-              toThrow(Analyzer.analyze(tree))
+            errors <- Analyzer.analyze(tree).value.flatMap(toThrow(_))
           } yield errors
         }
 

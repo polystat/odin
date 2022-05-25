@@ -3,9 +3,11 @@ package org.polystat.odin.analysis.utils.logicalextraction
 import ap.SimpleAPI
 import ap.SimpleAPI.FunctionalityMode
 import cats.data.EitherNel
+import cats.data.EitherT
 import cats.data.NonEmptyVector
 import cats.data.{NonEmptyList => Nel}
-import cats.syntax.either._
+import cats.effect.Sync
+import cats.syntax.monadError._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.Info
@@ -345,7 +347,7 @@ object ExtractLogic {
 
   }
 
-  def checkImplication(
+  def checkImplication[F[_]](
     methodName: String,
     before: Info,
     methodsBefore: Map[EONamedBnd, Info],
@@ -354,7 +356,7 @@ object ExtractLogic {
     resultMsgGenerator: String => String,
     beforeTag: String = "before",
     afterTag: String = "after"
-  ): EitherNel[String, Option[String]] = {
+  )(implicit F: Sync[F]): EitherT[F, Nel[String], Option[String]] = {
     val impl = addVarCorrespondenceToTerm(
       before.forall,
       after.forall,
@@ -387,40 +389,39 @@ object ExtractLogic {
       (cleansedDefs ++ orderedDefs).map(DefineFun) ++ List(Assert(impl))
 
     val formula = prog.map(RecursivePrinter.toString).mkString
-//    print(formula)
 
-    util
-      .Try(SimpleAPI.withProver(p => {
-        val (assertions, functions, constants, predicates) =
-          p.extractSMTLIBAssertionsSymbols(
-            new StringReader(formula),
-            fullyInline = true
-          )
-        assertions.foreach(p.addAssertion)
-        functions
-          .keySet
-          .foreach(f => {
-            p.addFunction(f, FunctionalityMode.NoUnification)
-          })
-        constants.keySet.foreach(p.addConstantRaw)
-        predicates.keySet.foreach(p.addRelation)
-        p.checkSat(true)
-        p.getStatus(true) match {
-          case ap.SimpleAPI.ProverStatus.Sat => Right(None)
-          case ap.SimpleAPI.ProverStatus.Unsat => Right(
-              Some(resultMsgGenerator(methodName))
+    EitherT(
+      F.delay(
+        SimpleAPI.withProver(p => {
+          val (assertions, functions, constants, predicates) =
+            p.extractSMTLIBAssertionsSymbols(
+              new StringReader(formula),
+              fullyInline = true
             )
-          case err => Left(Nel.one(s"SMT solver failed with error: $err"))
-        }
-      }))
-      .toEither
-      .leftMap(t =>
-        Nel.one(
-          s"SMT failed to parse the generated program with error: ${t.getMessage}"
+          assertions.foreach(p.addAssertion)
+          functions
+            .keySet
+            .foreach(f => {
+              p.addFunction(f, FunctionalityMode.NoUnification)
+            })
+          constants.keySet.foreach(p.addConstantRaw)
+          predicates.keySet.foreach(p.addRelation)
+          p.checkSat(true)
+          p.getStatus(true) match {
+            case ap.SimpleAPI.ProverStatus.Sat => Right(None)
+            case ap.SimpleAPI.ProverStatus.Unsat => Right(
+                Some(resultMsgGenerator(methodName))
+              )
+            case err => Left(Nel.one(s"SMT solver failed with error: $err"))
+          }
+        })
+      ).adaptError(t =>
+        new Exception(
+          s"SMT failed to parse the generated program with error:${t.getMessage}",
+          t
         )
       )
-      .flatten
-
+    )
   }
 
 }

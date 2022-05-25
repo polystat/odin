@@ -1,9 +1,10 @@
 package org.polystat.odin.analysis.unjustifiedassumptions
 
 import cats.data.EitherNel
+import cats.data.EitherT
 import cats.data.{NonEmptyList => Nel}
-import cats.syntax.align._
-import cats.syntax.traverse._
+import cats.effect.Sync
+import cats.syntax.all._
 import org.polystat.odin.analysis.utils.inlining.Inliner.AnalysisInfo
 import org.polystat.odin.analysis.utils.inlining.MethodInfoForAnalysis
 import org.polystat.odin.analysis.utils.inlining.ObjectTree
@@ -20,21 +21,22 @@ import smtlib.trees.Terms._
 
 object Analyzer {
 
-  def analyzeObjectTree(
+  def analyzeObjectTree[F[_]](
     objs: Map[EONamedBnd, ObjectTree[(AnalysisInfo, AnalysisInfo)]]
-  ): EitherNel[String, List[String]] = {
+  )(implicit F: Sync[F]): EitherT[F, Nel[String], List[String]] = {
     objs.toList.flatTraverse { case (_, tree) =>
+      val (before, after) = tree.info
       for {
-        currentRes <- checkMethods _ tupled tree.info
+        currentRes <- checkMethods(before, after)
         recurseRes <- Analyzer.analyzeObjectTree(tree.children)
       } yield currentRes ++ recurseRes
     }
   }
 
-  def checkMethods(
+  def checkMethods[F[_]](
     infoBefore: AnalysisInfo,
     infoAfter: AnalysisInfo
-  ): EitherNel[String, List[String]] = {
+  )(implicit F: Sync[F]): EitherT[F, Nel[String], List[String]] = {
     val methodPairs = infoBefore
       .indirectMethods
       .alignWith(infoAfter.indirectMethods)(_.onlyBoth.get)
@@ -47,14 +49,21 @@ object Analyzer {
       // println(after.body.toEOPretty)
       // println("==================================================")
       for {
-        methodsBefore <- getMethodsInfo("before", infoBefore.allMethods)
-        methodsAfter <- getMethodsInfo("after", infoAfter.allMethods)
+        methodsBefore <-
+          EitherT
+            .fromEither[F](getMethodsInfo("before", infoBefore.allMethods))
+        methodsAfter <-
+          EitherT.fromEither[F](getMethodsInfo("after", infoAfter.allMethods))
 
         res1 <-
-          processMethod("before", before, methodName, methodsBefore.keySet)
-        res2 <- processMethod("after", after, methodName, methodsAfter.keySet)
+          EitherT.fromEither[F](
+            processMethod("before", before, methodName, methodsBefore.keySet)
+          )
+        res2 <- EitherT.fromEither[F](
+          processMethod("after", after, methodName, methodsAfter.keySet)
+        )
         res <-
-          checkImplication(
+          checkImplication[F](
             methodName,
             res1,
             methodsBefore,
