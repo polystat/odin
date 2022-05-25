@@ -255,6 +255,26 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      self.m self v > @
           |""".stripMargin,
       expected = List()
+    ),
+    TestCase(
+      label = "Test from the fragile base class paper",
+      code =
+        """|[] > c
+           |  [self v] > l
+           |    assert (v.less 5) > @
+           |  [self v] > m
+           |    self.l self v > @
+           |  [self v] > n
+           |    v > @
+           |
+           |[] > m
+           |  c > @
+           |  [self v] > l
+           |    v > @
+           |  [self v] > n
+           |    self.m self v > @
+           |""".stripMargin,
+      expected = List("Method m is not referentially transparent"),
     )
   )
 
