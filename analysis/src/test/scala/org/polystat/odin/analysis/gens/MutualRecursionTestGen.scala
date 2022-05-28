@@ -1,32 +1,54 @@
 package org.polystat.odin.analysis.gens
 
-import cats.effect.kernel.Sync
-import cats.syntax.flatMap._
 import fs2.Stream
 import fs2.io.file.Files
 import fs2.io.file.Path
-import fs2.text.utf8
+// import fs2.io.file.Flags
 import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.scalacheck.Gen
+import cats.effect.IOApp
+import cats.effect.{ExitCode, IO}
 
-object MutualRecursionTestGen {
+object MutualRecursionTestGen extends IOApp {
+
+  var i = 0
+
+  override def run(args: List[String]): IO[ExitCode] =
+    (1 to 1200)
+      .foldLeft[IO[Unit]](IO.unit) { case (acc, n) =>
+        acc.flatMap(_ =>
+          for {
+            _ <- IO.println(s"Writing program #$n...")
+            _ <- Stream
+              .emits(genProgram(100).sample.get.toEO.getBytes)
+              .through(
+                Files[IO].writeAll(Path("progs") / Path(s"$n.eo"))
+              )
+              .compile
+              .drain
+          } yield ()
+        )
+      }
+      .as(ExitCode.Success)
 
   // NOTE: there can only be 26*27 different object names
   def genObjectName(
-    p: Program,
     containerObjName: Option[ObjectName]
-  ): Gen[ObjectName] = {
-    Gen
-      .oneOf(1, 2)
-      .flatMap(n =>
-        Gen
-          .listOfN(n, Gen.alphaLowerChar)
-          .map(_.mkString)
-      )
-      .retryUntil(!p.containsObjectWithName(_))
-      .map(name => ObjectName.fromContainer(containerObjName, name))
+  ): ObjectName = {
+    val name = s"o$i"
+    i += 1
+    ObjectName.fromContainer(containerObjName, name)
+    // Gen
+    //   .oneOf(1, 2)
+    //   .flatMap(n =>
+    //     Gen
+    //       .listOfN(n, Gen.alphaLowerChar)
+    //       .map(_.mkString)
+    //   )
+    //   .retryUntil(!p.containsObjectWithName(_))
+    //   .map(name => ObjectName.fromContainer(containerObjName, name))
   }
 
   def between[T](min: Int, max: Int, g: Gen[T]): Gen[List[T]] =
@@ -64,11 +86,14 @@ object MutualRecursionTestGen {
       }
   }
 
-  def genMethodName(scope: List[String]): Gen[String] =
-    Gen
-      .listOfN(1, Gen.alphaLowerChar)
-      .map(_.mkString)
-      .retryUntil(s => !scope.contains(s))
+  def genMethodName(scope: Int): String = {
+    val name = s"m$scope"
+    name
+  }
+  // Gen
+  //   .listOfN(1, Gen.alphaLowerChar)
+  //   .map(_.mkString)
+  //   .retryUntil(s => !scope.contains(s))
 
   def genCallGraph(
     methodNamesToDefine: List[MethodName],
@@ -84,19 +109,22 @@ object MutualRecursionTestGen {
 
   def genExtendedObject(
     obj: Object,
-    scope: Program,
     containerObj: Option[ObjectName]
   ): Gen[Object] = for {
     // name for new object
-    objName <- genObjectName(scope, containerObj)
+    _ <- Gen.const(())
+    objName = genObjectName(containerObj)
 
     // new method definitions
     newMethodNames <-
-      between(0, 2, genMethodName(List(objName.name)))
-        .retryUntil(names =>
-          names.forall(n => !obj.callGraph.containsMethodWithName(n))
-        )
-        .map(_.map(MethodName(objName, _)))
+      Gen
+        .choose(0, 3)
+        .map(n => (0 until n).map(i => MethodName(objName, genMethodName(i))))
+    // between(0, 2, genMethodName(List(objName.name)))
+    //   .retryUntil(names =>
+    //     names.forall(n => !obj.callGraph.containsMethodWithName(n))
+    //   )
+    //   .map(_.map(MethodName(objName, _)))
 
     // redefined methods, e.g. methods with the same name as those from the
     // parent object
@@ -113,7 +141,8 @@ object MutualRecursionTestGen {
 
     // new methods may call any other method, both new and old
     methodNamesToCall = methodNamesToDefine ++ otherMethodNames
-    callGraph <- genCallGraph(methodNamesToDefine, methodNamesToCall)
+    callGraph <-
+      genCallGraph(methodNamesToDefine.toList, methodNamesToCall.toList)
     nestedObjects <- genNestedObjs(objName)
   } yield obj.extended(objName, callGraph, nestedObjects)
 
@@ -127,7 +156,7 @@ object MutualRecursionTestGen {
         )((accGen, _) =>
           for {
             acc <- accGen
-            obj <- genObject(acc, Some(containerObj))
+            obj <- genObject(Some(containerObj))
               .retryUntil(o => !o.callGraph.containsSingleObjectCycles)
           } yield acc :+ obj
         )
@@ -135,16 +164,18 @@ object MutualRecursionTestGen {
     )
 
   def genObject(
-    scope: Program,
     containerObj: Option[ObjectName]
   ): Gen[Object] =
     for {
-      objectName <- genObjectName(scope, containerObj)
+      _ <- Gen.const(())
+      objectName = genObjectName(containerObj)
       nestedObjects <- genNestedObjs(objectName)
-      methods <-
-        between(0, 4, genMethodName(List(objectName.name)))
-          .map(_.map(MethodName(objectName, _)))
-      cg <- genCallGraph(methods, methods)
+      methods <- Gen
+        .choose(0, 4)
+        .map(n => (0 until n).map(i => MethodName(objectName, genMethodName(i))))
+      // between(0, 4, genMethodName(List(objectName.name)))
+      //   .map(_.map(MethodName(objectName, _)))
+      cg <- genCallGraph(methods.toList, methods.toList)
     } yield Object(
       name = objectName,
       parent = None,
@@ -170,10 +201,10 @@ object MutualRecursionTestGen {
             Gen
               .oneOf(extendCandidates)
               .flatMap(extendCandidate =>
-                genExtendedObject(extendCandidate, scope, container)
+                genExtendedObject(extendCandidate, container)
               )
           else
-            genObject(scope, container)
+            genObject(container)
         )
           .retryUntil(p => !p.callGraph.containsSingleObjectCycles)
     } yield scope ++ List(newObj)
@@ -226,55 +257,6 @@ object MutualRecursionTestGen {
         newProg <- addObj(oldProg)
       } yield newProg
     }
-  }
-
-  def generateProgramFiles[F[_]: Files: Sync](
-    n: Int,
-    dir: Path,
-    programGen: Gen[Program],
-    converters: List[(Program => String, String)]
-  ): Stream[F, Unit] =
-    for {
-      i <- Stream.range(1, n + 1)
-      prog <- Stream.eval(retryUntilComplete(programGen))
-      (convert, ext) <- Stream.emits(converters)
-      _ <- Stream
-        .emit(prog)
-        .map(convert)
-        .through(utf8.encode)
-        .through(
-          Files[F].writeAll(dir.resolve(s"$i.$ext"))
-        )
-        .as(())
-    } yield ()
-
-  def retryUntilComplete[F[_]: Sync, T](g: Gen[T]): F[T] = {
-    Sync[F]
-      .attempt(
-        Sync[F].delay(g.sample.get)
-      )
-      .flatMap {
-        case Left(_) => retryUntilComplete(g)
-        case Right(value) => Sync[F].pure(value)
-      }
-  }
-
-  def textFromProgram(
-    prog: Program,
-    commentMarker: String,
-    display: Object => String
-  ): String = {
-    val cycles = prog
-      .flatMap(_.callGraph.findCycles.map(cc => commentMarker + cc.show))
-      .mkString("\n")
-
-    val progText = prog.map(display).mkString("\n")
-
-    s"""$cycles
-       |
-       |$progText
-       |""".stripMargin
-
   }
 
 }

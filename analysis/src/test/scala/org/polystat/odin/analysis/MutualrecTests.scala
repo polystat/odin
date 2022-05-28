@@ -28,17 +28,18 @@ class MutualrecTests extends AnyWordSpec with Checkers {
     Test
       .Parameters
       .default
-      .withMinSuccessfulTests(1000)
+      .withMinSuccessfulTests(10000)
       .withWorkers(4)
 
   def odinErrors(
-    code: String
+    code: String,
+    print: Boolean = false
   ): Either[String, List[CallChain]] = {
     Parser
       .parse(code)
-      .flatMap(
+      .flatMap(parsed =>
         Analyzer
-          .produceChains[Either[String, *]](_)
+          .produceChains[Either[String, *]](parsed, print = print)
       )
   }
 
@@ -54,9 +55,27 @@ class MutualrecTests extends AnyWordSpec with Checkers {
         .forAllNoShrink(gen) { prog =>
           val code = prog.toEO + "\n"
           val assertion = for {
-            errors <- odinErrors(code)
-          } yield errors.toSet == prog.findMultiObjectCycles.toSet
-          assertion.getOrElse(false)
+            obtained <- odinErrors(code).map(_.toSet)
+            expected = prog.findMultiObjectCycles.toSet 
+          } yield expected.subsetOf(obtained)
+
+          val finalAssertion = assertion.getOrElse(false)
+          if (!finalAssertion) {
+            println(
+              odinErrors(code, print = true)
+                .toOption
+                .get
+                .map(_.show)
+                .mkString("\n")
+            )
+            println(
+              s"expected: \n\t${prog.findMultiObjectCycles.map(_.show).mkString("\n\t")}"
+            )
+            println(code)
+            finalAssertion
+          } else {
+            finalAssertion
+          }
         }
       check(prop, params)
     }
