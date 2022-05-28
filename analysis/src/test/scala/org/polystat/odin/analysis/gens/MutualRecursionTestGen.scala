@@ -3,7 +3,7 @@ package org.polystat.odin.analysis.gens
 import fs2.Stream
 import fs2.io.file.Files
 import fs2.io.file.Path
-// import fs2.io.file.Flags
+import fs2.io.file.Flags
 import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
@@ -16,22 +16,26 @@ object MutualRecursionTestGen extends IOApp {
   var i = 0
 
   override def run(args: List[String]): IO[ExitCode] =
-    (1 to 1200)
-      .foldLeft[IO[Unit]](IO.unit) { case (acc, n) =>
-        acc.flatMap(_ =>
-          for {
-            _ <- IO.println(s"Writing program #$n...")
-            _ <- Stream
-              .emits(genProgram(100).sample.get.toEO.getBytes)
-              .through(
-                Files[IO].writeAll(Path("progs") / Path(s"$n.eo"))
-              )
-              .compile
-              .drain
-          } yield ()
-        )
-      }
-      .as(ExitCode.Success)
+    Files[IO].delete(Path("sandbox/src/main/resources/huge/prog.eo")) *>
+      (1 to 1200)
+        .foldLeft[IO[Unit]](IO.unit) { case (acc, n) =>
+          acc.flatMap(_ =>
+            for {
+              _ <- IO.println(s"Writing program #$n...")
+              _ <- Stream
+                .emits(genProgram(10).sample.get.toEO.getBytes)
+                .through(
+                  Files[IO].writeAll(
+                    Path("sandbox/src/main/resources/huge/prog.eo"),
+                    Flags.Append
+                  )
+                )
+                .compile
+                .drain
+            } yield ()
+          )
+        }
+        .as(ExitCode.Success)
 
   // NOTE: there can only be 26*27 different object names
   def genObjectName(
@@ -172,7 +176,9 @@ object MutualRecursionTestGen extends IOApp {
       nestedObjects <- genNestedObjs(objectName)
       methods <- Gen
         .choose(0, 4)
-        .map(n => (0 until n).map(i => MethodName(objectName, genMethodName(i))))
+        .map(n =>
+          (0 until n).map(i => MethodName(objectName, genMethodName(i)))
+        )
       // between(0, 4, genMethodName(List(objectName.name)))
       //   .map(_.map(MethodName(objectName, _)))
       cg <- genCallGraph(methods.toList, methods.toList)

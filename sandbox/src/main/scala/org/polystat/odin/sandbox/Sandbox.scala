@@ -2,8 +2,11 @@ package org.polystat.odin.sandbox
 
 import cats.effect.{ExitCode, IO, IOApp}
 import org.polystat.odin.interop.java.EOOdinAnalyzer
+import org.polystat.odin.analysis.EOOdinAnalyzer.advancedMutualRecursionAnalyzer
 import cats.syntax.all._
 import scala.jdk.CollectionConverters._
+import org.polystat.odin.utils.files
+import org.polystat.odin.parser.eo.Parser
 
 object Sandbox extends IOApp {
 
@@ -77,16 +80,28 @@ object Sandbox extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = for {
     exitCode <- IO.pure(ExitCode.Success)
-    _ <- examples.toList.traverse { case (name, code) =>
-      IO.println(s"Example $name:") *>
-        IO(
-          new EOOdinAnalyzer.EOOdinSourceCodeAnalyzer()
-            .analyze(code)
-            .asScala
-            .toList
-        )
-          .flatMap(IO.println)
+    code <- files.readEoCodeFromResources[IO]("/huge")
+    analyzed <- code.traverse { case (path, code) =>
+      for {
+        _ <- IO.println(s"Analyzing $path...")
+        parsed <-
+          IO.fromEither(Parser.parse(code).leftMap(e => new Exception(e)))
+        analyzed <- advancedMutualRecursionAnalyzer[IO].analyze(parsed)
+        _ <- IO.println("Done!")
+        _ <- IO.println(analyzed)
+      } yield ()
     }
   } yield exitCode
+
+  //   _ <- examples.toList.traverse { case (name, code) =>
+  //   IO.println(s"Example $name:") *>
+  //     IO(
+  //       new EOOdinAnalyzer.EOOdinSourceCodeAnalyzer()
+  //         .analyze(code)
+  //         .asScala
+  //         .toList
+  //     )
+  //       .flatMap(IO.println)
+  // }
 
 }

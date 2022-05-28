@@ -41,17 +41,23 @@ object Program {
         val spaces = "  " * depth
         cg match {
           case (name, calls) =>
+            val renderedCalls = calls.toList match {
+              case Nil => "self > @"
+              case call :: Nil => s"self.${call.name} self > @"
+              case calls =>
+                val spaces2 = " " * (depth + 2)
+                val spaces1 = " " * (depth + 1)
+                val seq = calls
+                  .map(call => s"${spaces2}self.${call.name} self")
+                  .mkString("\n")
+                s"${spaces1}seq > @\n$seq"
+            }
             s"""$spaces[self] > ${name.name}
-               |  $spaces${if (calls.nonEmpty)
-                calls
-                  .map(call => s"self.${call.name} self > @")
-                  .mkString(s"\n$spaces  ")
-              else
-                "self > @"}""".stripMargin
+               |  $spaces$renderedCalls""".stripMargin
         }
       }
 
-      def helper(obj: Object, depth: Int): String = {
+      def renderObject(obj: Object, depth: Int): String = {
         val spaces = "  " * (depth + 1)
         val locators = List.fill(depth + 1)('^').mkString(".")
         val parent = obj
@@ -64,16 +70,22 @@ object Program {
             method.whereDefined == obj.name
           }
           .map(renderMethod(depth + 1))
-          .mkString("\n")
-        s"""[] > ${obj.name.name}
-           |$parent$methods
-           |$spaces${obj
-            .nestedObjs
-            .map(helper(_, depth + 1))
-            .mkString("\n" + spaces)}""".stripMargin
+          .mkString("\n") +
+          (if (obj.callGraph.isEmpty && obj.nestedObjs.isEmpty) "" else "\n")
+
+        val nestedObjs =
+          if (obj.nestedObjs.isEmpty)
+            ""
+          else
+            spaces + obj
+              .nestedObjs
+              .map(renderObject(_, depth + 1))
+              .mkString("\n" + spaces)
+        val header = s"[] > ${obj.name.name}\n"
+        header + parent + methods + nestedObjs
       }
 
-      helper(this, 0)
+      renderObject(this, 0)
     }
 
     def toCPP: String = {
