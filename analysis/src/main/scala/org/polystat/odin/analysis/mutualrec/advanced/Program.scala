@@ -33,7 +33,7 @@ object Program {
         name = name,
         parent = Some(ParentInfo(this.name, this.callGraph, this.parent)),
         nestedObjs = nestedObjs,
-        callGraph = this.callGraph.extendWith(cg),
+        callGraph = this.callGraph.extendWith(cg)
       )
 
     def toEO: String = {
@@ -130,6 +130,47 @@ object Program {
       helper(this, 0)
     }
 
+    def toJava: String = {
+      def renderMethod(depth: Int)(cg: CallGraphEntry): String = {
+        val spaces = "  " * depth
+        cg match {
+          case (name, calls) =>
+            s"${spaces}public void ${name.name}(){${calls
+              .map(call => s"${call.name}();")
+              .mkString(s"\n  $spaces")}};"
+        }
+      }
+
+      def helper(obj: Object, depth: Int): String = {
+
+        val spaces = "  " * (depth + 1)
+        val class_def = s"""static class ${obj.name.name.toUpperCase()} ${obj
+          .parent
+          .fold("")(ext => s" extends ${ext.name.names.map(_.toUpperCase).toList.mkString(".")}")}"""
+        val class_methods =
+          "  " + obj
+            .callGraph
+            .filter { case (method, _) =>
+              method.whereDefined.name == obj.name.name
+            }
+            .map(renderMethod(depth + 1))
+            .mkString("\n  ")
+        val nested_classes =
+          obj
+            .nestedObjs
+            .map(helper(_, depth + 1))
+            .mkString("\n  " + spaces)
+        val nested_block =
+          if (nested_classes.nonEmpty) spaces + "  " + nested_classes else ""
+        val bracket_balance =
+          if (depth == 0) "" else spaces
+        s"""$class_def{
+           |$class_methods${if (nested_classes.nonEmpty) "\n" else ""}
+           |$nested_block$bracket_balance};\n""".stripMargin
+      }
+
+      helper(this, 0)
+    }
   }
 
   implicit final class MethodNameOps(obj: String) {
