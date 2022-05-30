@@ -26,7 +26,8 @@ object DetectStateAccess {
   )
 
   def collectNestedStates(mainParent: String)(
-    subTree: Inliner.CompleteObjectTree
+    subTree: Inliner.CompleteObjectTree,
+    depth: Int
   ): Vector[State] = {
     val currentLvlStateNames = subTree
       .info
@@ -41,11 +42,15 @@ object DetectStateAccess {
       }
 
     Vector(
-      State(mainParent, subTree.info.fqn.names.tail, currentLvlStateNames)
+      State(
+        mainParent,
+        subTree.info.fqn.names.toList.drop(depth),
+        currentLvlStateNames
+      )
     ) ++
       subTree
         .children
-        .flatMap(t => collectNestedStates(mainParent)(t._2))
+        .flatMap(t => collectNestedStates(mainParent)(t._2, depth))
   }
 
   def accumulateParentState(tree: Map[EONamedBnd, Inliner.CompleteObjectTree])(
@@ -73,7 +78,10 @@ object DetectStateAccess {
         val nestedStates = parentObj
           .children
           .flatMap(c =>
-            collectNestedStates(parentObj.info.name.name.name)(c._2)
+            collectNestedStates(parentObj.info.name.name.name)(
+              c._2,
+              parentObj.info.depth.toInt + 1
+            )
           )
           .toVector
 
