@@ -48,7 +48,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
       val gen = Gen
         .choose(2, 100)
         .flatMap(n =>
-          genProgram(n, 50, 50, 3).retryUntil(p => p.findMultiObjectCycles.nonEmpty)
+          genProgram(n, 50, 50, 0,3).retryUntil(p => p.findMultiObjectCycles.nonEmpty)
         )
 
       val prop = Prop

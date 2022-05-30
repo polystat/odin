@@ -27,7 +27,7 @@ object MutualRecursionTestGen extends IOApp {
             for {
               _ <- IO.println(s"Writing program #$n...")
               _ <- Stream
-                .emits(genProgram(10, 50, 50, 3).sample.get.toEO.getBytes)
+                .emits(genProgram(10, 50, 50, 0, 3).sample.get.toEO.getBytes)
                 .through(
                   Files[IO].writeAll(
                     Path("sandbox/src/main/resources/huge/prog.eo"),
@@ -121,7 +121,8 @@ object MutualRecursionTestGen extends IOApp {
     obj: Object,
     scope: Program,
     containerObj: Option[ObjectName],
-    maxMethods : Int
+    minMethods: Int,
+    maxMethods: Int
   ): Gen[Object] = for {
     // name for new object
     _ <- Gen.const(())
@@ -130,7 +131,7 @@ object MutualRecursionTestGen extends IOApp {
     // new method definitions
     newMethodNames <-
       Gen
-        .choose(0, maxMethods)
+        .choose(minMethods, maxMethods)
         .map(n => (0 until n).map(i => MethodName(objName, genMethodName(i))))
     // between(0, 2, genMethodName(List(objName.name)))
     //   .retryUntil(names =>
@@ -205,7 +206,8 @@ object MutualRecursionTestGen extends IOApp {
     size: Int,
     probDeepnessPercent: Int,
     probExtendednessPercent: Int,
-    maxMethods : Int
+    minMethods: Int,
+    maxMethods: Int
   ): Gen[Program] = {
 
     def flattenProgram(prog: Program): List[Object] = {
@@ -231,7 +233,13 @@ object MutualRecursionTestGen extends IOApp {
               Gen
                 .oneOf(extendCandidates)
                 .flatMap(extendCandidate =>
-                  genExtendedObject(extendCandidate, scope, container, maxMethods)
+                  genExtendedObject(
+                    extendCandidate,
+                    scope,
+                    container,
+                    minMethods,
+                    maxMethods
+                  )
                 )
             else
               genObject(scope, container)
@@ -283,7 +291,7 @@ object MutualRecursionTestGen extends IOApp {
               ObjectName("THE VALUE OF THIS STRING DOESN'T MATTER"),
             parent = None,
             nestedObjs = prog,
-            callGraph = Map()
+            callGraph = Map(),
           ),
           None
         )
@@ -301,12 +309,13 @@ object MutualRecursionTestGen extends IOApp {
     n: Int,
     dir: Path,
     programGen: Gen[Program],
-    converters: List[(Program => String, String)]
+    converter: Program => String,
+    ext: String
   ): Stream[F, Unit] =
     for {
       i <- Stream.range(1, n + 1)
       prog <- Stream.eval(retryUntilComplete(programGen))
-      (convert, ext) <- Stream.emits(converters)
+      convert <- Stream.emit(converter)
       _ <- Stream
         .emit(prog)
         .map(convert)
@@ -328,20 +337,44 @@ object MutualRecursionTestGen extends IOApp {
       }
   }
 
-  def textFromProgram(
+  def textFromProgram(displays: List[(Object => String, String)])(
     prog: Program,
-    commentMarker: String,
-    display: Object => String
   ): String = {
     val cycles = prog
-      .flatMap(_.callGraph.findCycles.map(cc => commentMarker + cc.show))
+      .flatMap(_.callGraph.findCycles.map(cc => cc.show))
+      .mkString("\n")
+      .split("\n")
+      .mkString("\n  ")
+
+    val bads = displays
+      .map { case (converter, marker) =>
+        val programCode = prog
+          .map(converter)
+          .mkString("\n")
+          .split("\n")
+          .mkString("\n    ")
+        s"""
+           |  $marker: |
+           |    $programCode
+           |
+           |""".stripMargin
+      }
       .mkString("\n")
 
-    val progText = prog.map(display).mkString("\n")
-
-    s"""$cycles
+    s"""title: Mutual recursion in a chain of inheritance
+       |description: >
+       |  The defect manifests in the form of call chain cycles.
+       |  The following cycles are present here:
+       |  $cycles
        |
-       |$progText
+       |features:
+       |  - inheritance
+       |  - overriding
+       |  - method
+       |  - polymorphism
+       |
+       |bad:
+       |   $bads
        |""".stripMargin
 
   }
@@ -355,10 +388,10 @@ object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
 
     val gen = Gen
-      .choose(1, 15)
+      .choose(1, 20)
       .flatMap(n =>
-        genProgram(n, 5, 95, 50).retryUntil(p =>
-          p.findMultiObjectCycles.exists(_.length > 10)
+        genProgram(n, 5, 90, 2, 5).retryUntil(p =>
+          p.findMultiObjectCycles.exists(_.length > 5)
         )
       )
 
@@ -366,9 +399,14 @@ object Main extends IOApp {
       1,
       Path("./generated"),
       gen,
-      List(
-        (p => textFromProgram(p, "//", (x: Object) => x.toJava), "java")
-      )
+      textFromProgram(
+        List(
+          ((x: Object) => x.toCPP, "source.cpp"),
+          ((x: Object) => x.toJava, "Test.java"),
+          ((x: Object) => x.toEO, "test.eo"),
+        )
+      ),
+      "yml"
     )
       .compile
       .drain
