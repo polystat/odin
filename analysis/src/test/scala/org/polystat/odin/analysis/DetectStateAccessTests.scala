@@ -326,6 +326,27 @@ class DetectStateAccessTests extends AnyWordSpec {
       expected = List(
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
       )
+    ),
+    TestCase(
+      label = "Access to inner state in a nested object",
+      code = """
+               |[] > test
+               |  [] > a
+               |    [] > inner_a
+               |      [] > very_inner_a
+               |        memory > state
+               |  [] > b
+               |    a > @
+               |  [] > c
+               |    b > @
+               |  [] > d
+               |    c > @
+               |    [self x] > n
+               |      self.inner_a.very_inner_a.state.add x > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'test.d' directly accesses state 'state' of base class 'a.inner_a.very_inner_a'",
+      )
     )
   )
 
