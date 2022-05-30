@@ -1,15 +1,19 @@
 package org.polystat.odin.analysis.gens
 
+import cats.effect.kernel.Sync
+import cats.effect.{ExitCode, IO, IOApp}
+import cats.syntax.flatMap._
 import fs2.Stream
-import fs2.io.file.Files
-import fs2.io.file.Path
-import fs2.io.file.Flags
+import fs2.io.file.{Files, Flags, Path}
+import fs2.text.utf8
 import org.polystat.odin.analysis.ObjectName
+import org.polystat.odin.analysis.gens.MutualRecursionTestGen.{
+  genProgram,
+  generateProgramFiles
+}
 import org.polystat.odin.analysis.mutualrec.advanced.CallGraph._
 import org.polystat.odin.analysis.mutualrec.advanced.Program._
 import org.scalacheck.Gen
-import cats.effect.IOApp
-import cats.effect.{ExitCode, IO}
 
 object MutualRecursionTestGen extends IOApp {
 
@@ -23,7 +27,7 @@ object MutualRecursionTestGen extends IOApp {
             for {
               _ <- IO.println(s"Writing program #$n...")
               _ <- Stream
-                .emits(genProgram(10).sample.get.toEO.getBytes)
+                .emits(genProgram(10, 50, 50, 3).sample.get.toEO.getBytes)
                 .through(
                   Files[IO].writeAll(
                     Path("sandbox/src/main/resources/huge/prog.eo"),
@@ -39,20 +43,22 @@ object MutualRecursionTestGen extends IOApp {
 
   // NOTE: there can only be 26*27 different object names
   def genObjectName(
+//                     p: Program,
     containerObjName: Option[ObjectName]
   ): ObjectName = {
     val name = s"o$i"
     i += 1
     ObjectName.fromContainer(containerObjName, name)
-    // Gen
-    //   .oneOf(1, 2)
-    //   .flatMap(n =>
-    //     Gen
-    //       .listOfN(n, Gen.alphaLowerChar)
-    //       .map(_.mkString)
-    //   )
-    //   .retryUntil(!p.containsObjectWithName(_))
-    //   .map(name => ObjectName.fromContainer(containerObjName, name))
+
+    //    Gen
+//      .oneOf(1, 2)
+//      .flatMap(n =>
+//        Gen
+//          .listOfN(n, Gen.alphaLowerChar)
+//          .map(_.mkString)
+//      )
+//      .retryUntil(!p.containsObjectWithName(_))
+//      .map(name => ObjectName.fromContainer(containerObjName, name))
   }
 
   def between[T](min: Int, max: Int, g: Gen[T]): Gen[List[T]] =
@@ -113,7 +119,9 @@ object MutualRecursionTestGen extends IOApp {
 
   def genExtendedObject(
     obj: Object,
-    containerObj: Option[ObjectName]
+    scope: Program,
+    containerObj: Option[ObjectName],
+    maxMethods : Int
   ): Gen[Object] = for {
     // name for new object
     _ <- Gen.const(())
@@ -122,7 +130,7 @@ object MutualRecursionTestGen extends IOApp {
     // new method definitions
     newMethodNames <-
       Gen
-        .choose(0, 3)
+        .choose(0, maxMethods)
         .map(n => (0 until n).map(i => MethodName(objName, genMethodName(i))))
     // between(0, 2, genMethodName(List(objName.name)))
     //   .retryUntil(names =>
@@ -147,10 +155,13 @@ object MutualRecursionTestGen extends IOApp {
     methodNamesToCall = methodNamesToDefine ++ otherMethodNames
     callGraph <-
       genCallGraph(methodNamesToDefine.toList, methodNamesToCall.toList)
-    nestedObjects <- genNestedObjs(objName)
+    nestedObjects <- genNestedObjs(objName, scope)
   } yield obj.extended(objName, callGraph, nestedObjects)
 
-  def genNestedObjs(containerObj: ObjectName): Gen[List[Object]] =
+  def genNestedObjs(
+    containerObj: ObjectName,
+    scope: Program
+  ): Gen[List[Object]] =
     Gen.frequency(
       4 -> Gen.const(List()),
       1 -> (for {
@@ -160,7 +171,7 @@ object MutualRecursionTestGen extends IOApp {
         )((accGen, _) =>
           for {
             acc <- accGen
-            obj <- genObject(Some(containerObj))
+            obj <- genObject(scope, Some(containerObj))
               .retryUntil(o => !o.callGraph.containsSingleObjectCycles)
           } yield acc :+ obj
         )
@@ -168,12 +179,13 @@ object MutualRecursionTestGen extends IOApp {
     )
 
   def genObject(
+    scope: Program,
     containerObj: Option[ObjectName]
   ): Gen[Object] =
     for {
       _ <- Gen.const(())
       objectName = genObjectName(containerObj)
-      nestedObjects <- genNestedObjs(objectName)
+      nestedObjects <- genNestedObjs(objectName, scope)
       methods <- Gen
         .choose(0, 4)
         .map(n =>
@@ -189,7 +201,12 @@ object MutualRecursionTestGen extends IOApp {
       callGraph = cg,
     )
 
-  def genProgram(size: Int): Gen[Program] = {
+  def genProgram(
+    size: Int,
+    probDeepnessPercent: Int,
+    probExtendednessPercent: Int,
+    maxMethods : Int
+  ): Gen[Program] = {
 
     def flattenProgram(prog: Program): List[Object] = {
       prog ++ prog.flatMap(obj => flattenProgram(obj.nestedObjs))
@@ -198,33 +215,45 @@ object MutualRecursionTestGen extends IOApp {
     def addExtendedOrSimpleObj(
       scope: Program,
       extendCandidates: List[Object],
-      container: Option[ObjectName]
-    ): Gen[Program] = for {
-      extend <- Gen.oneOf(false, true)
-      newObj <-
-        (
-          if (extend && extendCandidates.nonEmpty)
-            Gen
-              .oneOf(extendCandidates)
-              .flatMap(extendCandidate =>
-                genExtendedObject(extendCandidate, container)
-              )
-          else
-            genObject(container)
-        )
-          .retryUntil(p => !p.callGraph.containsSingleObjectCycles)
-    } yield scope ++ List(newObj)
+      container: Option[ObjectName],
+      probExtendedNessPercent: Int
+    ): Gen[Program] = {
+      val probs = List.fill(100 - probExtendedNessPercent)(false) ++ List.fill(
+        probExtendedNessPercent
+      )(true)
 
+      for {
+
+        extend <- Gen.oneOf(probs)
+        newObj <-
+          (
+            if (extend && extendCandidates.nonEmpty)
+              Gen
+                .oneOf(extendCandidates)
+                .flatMap(extendCandidate =>
+                  genExtendedObject(extendCandidate, scope, container, maxMethods)
+                )
+            else
+              genObject(scope, container)
+          )
+            .retryUntil(p => !p.callGraph.containsSingleObjectCycles)
+      } yield scope ++ List(newObj)
+    }
     // Type 1 -> add to topLevel
     // Type 2 -> Add to some obj as nested
     // Both T1 & T2 can be extensions of other objs
-    def addObj(prog: Program): Gen[Program] = {
+    def addObj(
+      prog: Program
+    ): Gen[Program] = {
       def addObjRec(
         container: Object,
         containerName: Option[ObjectName]
       ): Gen[Program] = {
+        val probs = List.fill(100 - probDeepnessPercent)(false) ++ List.fill(
+          probDeepnessPercent
+        )(true)
         for {
-          deeper <- Gen.oneOf(true, false)
+          deeper <- Gen.oneOf(probs)
           currentLevel = container.nestedObjs
           next <-
             if (deeper) {
@@ -237,13 +266,16 @@ object MutualRecursionTestGen extends IOApp {
                 newProg <- addExtendedOrSimpleObj(
                   currentLevel,
                   flattenProgram(prog),
-                  containerName
+                  containerName,
+                  probExtendednessPercent
                 )
               } yield newProg
             }
         } yield next
       }
-      if (prog.isEmpty) addExtendedOrSimpleObj(prog, List.empty, None)
+
+      if (prog.isEmpty)
+        addExtendedOrSimpleObj(prog, List.empty, None, probExtendednessPercent)
       else
         addObjRec(
           Object(
@@ -263,6 +295,84 @@ object MutualRecursionTestGen extends IOApp {
         newProg <- addObj(oldProg)
       } yield newProg
     }
+  }
+
+  def generateProgramFiles[F[_]: Files: Sync](
+    n: Int,
+    dir: Path,
+    programGen: Gen[Program],
+    converters: List[(Program => String, String)]
+  ): Stream[F, Unit] =
+    for {
+      i <- Stream.range(1, n + 1)
+      prog <- Stream.eval(retryUntilComplete(programGen))
+      (convert, ext) <- Stream.emits(converters)
+      _ <- Stream
+        .emit(prog)
+        .map(convert)
+        .through(utf8.encode)
+        .through(
+          Files[F].writeAll(dir.resolve(s"$i.$ext"))
+        )
+        .as(())
+    } yield ()
+
+  def retryUntilComplete[F[_]: Sync, T](g: Gen[T]): F[T] = {
+    Sync[F]
+      .attempt(
+        Sync[F].delay(g.sample.get)
+      )
+      .flatMap {
+        case Left(_) => retryUntilComplete(g)
+        case Right(value) => Sync[F].pure(value)
+      }
+  }
+
+  def textFromProgram(
+    prog: Program,
+    commentMarker: String,
+    display: Object => String
+  ): String = {
+    val cycles = prog
+      .flatMap(_.callGraph.findCycles.map(cc => commentMarker + cc.show))
+      .mkString("\n")
+
+    val progText = prog.map(display).mkString("\n")
+
+    s"""$cycles
+       |
+       |$progText
+       |""".stripMargin
+
+  }
+
+}
+
+object Main extends IOApp {
+
+  import MutualRecursionTestGen.textFromProgram
+
+  def run(args: List[String]): IO[ExitCode] = {
+
+    val gen = Gen
+      .choose(1, 15)
+      .flatMap(n =>
+        genProgram(n, 5, 95, 50).retryUntil(p =>
+          p.findMultiObjectCycles.exists(_.length > 10)
+        )
+      )
+
+    generateProgramFiles[IO](
+      1,
+      Path("./generated"),
+      gen,
+      List(
+        (p => textFromProgram(p, "//", (x: Object) => x.toJava), "java")
+      )
+    )
+      .compile
+      .drain
+      .as(ExitCode(0))
   }
 
 }
