@@ -1,7 +1,6 @@
 package org.polystat.odin.analysis.utils.logicalextraction
 
 import ap.SimpleAPI
-import ap.SimpleAPI.FunctionalityMode
 import cats.data.EitherNel
 import cats.data.EitherT
 import cats.data.NonEmptyVector
@@ -10,11 +9,9 @@ import cats.effect.Sync
 import cats.syntax.monadError._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.{
-  mkPropertiesFunIdent,
-  mkValueFunIdent,
-  Info
-}
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.Info
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.mkPropertiesFunIdent
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.mkValueFunIdent
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import smtlib.printer.RecursivePrinter
@@ -326,7 +323,8 @@ object ExtractLogic {
         }
       case EOIntData(n) =>
         Right(Info(List.empty, List.empty, SNumeral(n), True()))
-      case EOBoolData(v) => Right(Info(List.empty, List.empty, if (v) True() else False(), True()))
+      case EOBoolData(v) =>
+        Right(Info(List.empty, List.empty, if (v) True() else False(), True()))
       case _ => Left(Nel.one(s"Some case is not checked: $expr")) // FIXME
     }
   }
@@ -415,19 +413,7 @@ object ExtractLogic {
     EitherT(
       F.delay(
         SimpleAPI.withProver(p => {
-          val (assertions, functions, constants, predicates) =
-            p.extractSMTLIBAssertionsSymbols(
-              new StringReader(formula),
-              fullyInline = true
-            )
-          assertions.foreach(p.addAssertion)
-          functions
-            .keySet
-            .foreach(f => {
-              p.addFunction(f, FunctionalityMode.NoUnification)
-            })
-          constants.keySet.foreach(p.addConstantRaw)
-          predicates.keySet.foreach(p.addRelation)
+          p.execSMTLIB(new StringReader(formula))
           p.checkSat(true)
           p.getStatus(true) match {
             case ap.SimpleAPI.ProverStatus.Sat => Right(None)
