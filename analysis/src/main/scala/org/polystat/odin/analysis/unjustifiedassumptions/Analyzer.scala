@@ -70,7 +70,7 @@ object Analyzer {
             res2,
             methodsAfter,
             name =>
-              s"Method $name is not safe to inline: doing so may break the behaviour of subclasses!"
+              s"Inlining calls in method $name is not safe: doing so may break the behaviour of subclasses!"
           )
       } yield res.toList
     }

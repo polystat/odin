@@ -23,8 +23,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 
-  def errorMessage(methodName: String): String =
-    s"Method $methodName is not safe to inline: doing so may break the behaviour of subclasses!"
+  def errorMessage(name: String): String =
+    s"Inlining calls in method $name is not safe: doing so may break the behaviour of subclasses!"
 
   val testCasesWithErrors: List[TestCase] = List(
     TestCase(
