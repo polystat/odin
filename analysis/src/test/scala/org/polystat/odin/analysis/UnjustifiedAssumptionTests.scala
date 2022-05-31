@@ -208,6 +208,54 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
         errorMessage("ggg"),
       )
     ),
+    TestCase(
+      label = "Test from the fragile base class paper",
+      code =
+        """|[] > c
+           |  [self v] > l
+           |    assert (v.less 5) > @
+           |  [self v] > m
+           |    self.l self v > @
+           |  [self v] > n
+           |    v > @
+           |
+           |[] > m
+           |  c > @
+           |  [self v] > l
+           |    v > @
+           |  [self v] > n
+           |    self.m self v > @
+           |""".stripMargin,
+      expected = List(errorMessage("m")),
+    ),
+    TestCase(
+      label =
+        "Unjustified assumption in two participants of the inheritance chain",
+      code =
+        """
+          |[] > base
+          |  [self v] > n
+          |    seq > @
+          |      assert (v.less 10)
+          |      2
+          |  [self v] > m
+          |    self.n self v > @
+          |
+          |[] > osnova
+          |  base > @
+          |  [self x] > k
+          |    self.n self x > @
+          |
+          |[] > derived
+          |  osnova > @
+          |  [self v] > n
+          |    33 > @
+          |""".stripMargin,
+      expected = List(
+        errorMessage("m"),
+        errorMessage("k")
+      ),
+    ),
   )
 
   val testCasesWithoutErrors: List[TestCase] = List(
@@ -259,26 +307,6 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |""".stripMargin,
       expected = List()
     ),
-    TestCase(
-      label = "Test from the fragile base class paper",
-      code =
-        """|[] > c
-           |  [self v] > l
-           |    assert (v.less 5) > @
-           |  [self v] > m
-           |    self.l self v > @
-           |  [self v] > n
-           |    v > @
-           |
-           |[] > m
-           |  c > @
-           |  [self v] > l
-           |    v > @
-           |  [self v] > n
-           |    self.m self v > @
-           |""".stripMargin,
-      expected = List(errorMessage("m")),
-    )
   )
 
   def runTests(tests: List[TestCase]): Unit =
