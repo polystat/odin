@@ -30,6 +30,11 @@ sealed case class EORTMeta(
   src: String
 ) extends EOMeta
 
+sealed case class EOOtherMeta(
+  head: String,
+  tail: Seq[String],
+) extends EOMeta
+
 // Binding name //////////////////////////////////////////////////////////////
 sealed trait BndName {
   val name: String

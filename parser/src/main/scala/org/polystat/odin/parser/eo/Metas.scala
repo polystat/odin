@@ -7,6 +7,7 @@ import cats.parse.{Parser => P}
 import org.polystat.odin.core.ast.EOAliasMeta
 import org.polystat.odin.core.ast.EOMetas
 import org.polystat.odin.core.ast.EORTMeta
+import org.polystat.odin.core.ast.EOOtherMeta
 import org.polystat.odin.parser.eo.Tokens._
 
 object Metas {
@@ -35,6 +36,13 @@ object Metas {
     EOAliasMeta(alias, src)
   }
 
+  val otherMeta: P[EOOtherMeta] =
+    (
+      (P.char('+') *> identifier) ~ identifier.repSep0(wsp)
+    ).map { case (head, tail) =>
+      EOOtherMeta(head, tail)
+    }
+
   private val artifactId = {
 
     val artifactName = identifier
@@ -57,7 +65,9 @@ object Metas {
 
   val metas: Parser0[EOMetas] = (
     (emptyLinesOrComments *> (packageMeta <* eol).?) ~
-      (emptyLinesOrComments.with1.soft *> ((rtMeta | aliasMeta) <* eol)).rep0
+      (emptyLinesOrComments
+        .with1
+        .soft *> ((rtMeta | aliasMeta | otherMeta) <* eol)).rep0
   ).map { case (pkg, metas) =>
     EOMetas(pkg, metas.toVector)
   }
