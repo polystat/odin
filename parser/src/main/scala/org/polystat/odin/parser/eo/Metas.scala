@@ -6,8 +6,8 @@ import cats.parse.SemVer.semverString
 import cats.parse.{Parser => P}
 import org.polystat.odin.core.ast.EOAliasMeta
 import org.polystat.odin.core.ast.EOMetas
-import org.polystat.odin.core.ast.EORTMeta
 import org.polystat.odin.core.ast.EOOtherMeta
+import org.polystat.odin.core.ast.EORTMeta
 import org.polystat.odin.parser.eo.Tokens._
 
 object Metas {
@@ -36,12 +36,16 @@ object Metas {
     EOAliasMeta(alias, src)
   }
 
-  val otherMeta: P[EOOtherMeta] =
-    (
-      (P.char('+') *> identifier) ~ identifier.repSep0(wsp)
+  val otherMeta: P[EOOtherMeta] = {
+    val justHead = (P.char('+') *> identifier)
+    val headWithTail = (
+      ((justHead <* wsp) ~ identifier.repSep0(wsp)) <* optWsp
     ).map { case (head, tail) =>
       EOOtherMeta(head, tail)
     }
+
+    headWithTail.backtrack | justHead.map(head => EOOtherMeta(head, Seq()))
+  }
 
   private val artifactId = {
 
@@ -67,7 +71,7 @@ object Metas {
     (emptyLinesOrComments *> (packageMeta <* eol).?) ~
       (emptyLinesOrComments
         .with1
-        .soft *> ((rtMeta | aliasMeta | otherMeta) <* eol)).rep0
+        .soft *> ((rtMeta.backtrack | aliasMeta.backtrack | otherMeta) <* eol)).rep0
   ).map { case (pkg, metas) =>
     EOMetas(pkg, metas.toVector)
   }
