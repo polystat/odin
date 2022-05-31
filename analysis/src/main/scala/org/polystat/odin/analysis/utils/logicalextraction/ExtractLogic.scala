@@ -1,7 +1,6 @@
 package org.polystat.odin.analysis.utils.logicalextraction
 
 import ap.SimpleAPI
-import ap.SimpleAPI.FunctionalityMode
 import cats.data.EitherNel
 import cats.data.EitherT
 import cats.data.NonEmptyVector
@@ -415,19 +414,7 @@ object ExtractLogic {
     EitherT(
       F.delay(
         SimpleAPI.withProver(p => {
-          val (assertions, functions, constants, predicates) =
-            p.extractSMTLIBAssertionsSymbols(
-              new StringReader(formula),
-              fullyInline = true
-            )
-          assertions.foreach(p.addAssertion)
-          functions
-            .keySet
-            .foreach(f => {
-              p.addFunction(f, FunctionalityMode.NoUnification)
-            })
-          constants.keySet.foreach(p.addConstantRaw)
-          predicates.keySet.foreach(p.addRelation)
+          p.execSMTLIB(new StringReader(formula))
           p.checkSat(true)
           p.getStatus(true) match {
             case ap.SimpleAPI.ProverStatus.Sat => Right(None)
