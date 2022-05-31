@@ -304,6 +304,7 @@ object ExtractLogic {
         }
       case EOIntData(n) =>
         Right(Info(List.empty, List.empty, SNumeral(n), True()))
+      case EOBoolData(v) => Right(Info(List.empty, List.empty, if (v) True() else False(), True()))
       case _ => Left(Nel.one(s"Some case is not checked: $expr")) // FIXME
     }
   }
