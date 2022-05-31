@@ -123,6 +123,7 @@ object SMTUtils {
         case Exists(_, _, term) => recurse(term)
         case FunctionApplication(fun, terms) =>
           List(fun.id.symbol.name) ++ terms.flatMap(recurse)
+        case QualifiedIdentifier(Identifier(SSymbol(name), _), _) => List(name)
         case _ => List()
       }
     }

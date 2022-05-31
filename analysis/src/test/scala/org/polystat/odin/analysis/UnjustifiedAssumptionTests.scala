@@ -307,6 +307,30 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |""".stripMargin,
       expected = List()
     ),
+    TestCase(
+      label = "No precondition strengthening with a function without arguments",
+      code =
+        """
+          |[] > base
+          |  [self] > n
+          |    seq > @
+          |      assert (2.less 10)
+          |      2
+          |  [self v] > m
+          |    self.n self > @
+          |
+          |[] > osnova
+          |  base > @
+          |  [self x] > k
+          |    self.n self > @
+          |
+          |[] > derived
+          |  osnova > @
+          |  [self] > n
+          |    33 > @
+          |""".stripMargin,
+      expected = List()
+    ),
   )
 
   def runTests(tests: List[TestCase]): Unit =

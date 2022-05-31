@@ -10,7 +10,11 @@ import cats.effect.Sync
 import cats.syntax.monadError._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.Info
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.{
+  mkPropertiesFunIdent,
+  mkValueFunIdent,
+  Info
+}
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import smtlib.printer.RecursivePrinter
@@ -141,31 +145,49 @@ object ExtractLogic {
                   .traverse(expr =>
                     extractInfo(depth, Fix(expr), availableMethods)
                   )
-                  .flatMap(infos =>
+                  .flatMap(arguments =>
                     if (
                       availableMethods
                         .contains(EOAnyNameBnd(LazyName(methodName)))
                     ) {
-                      Right(
-                        Info(
-                          List.empty,
-                          List.empty,
-                          FunctionApplication(
-                            SMTUtils.mkValueFunIdent(
-                              methodName,
-                              depth.drop(locator.toInt + 1)
-                            ),
-                            infos.map(arg => arg.value)
-                          ),
-                          FunctionApplication(
-                            SMTUtils.mkPropertiesFunIdent(
-                              methodName,
-                              depth.drop(locator.toInt + 1)
-                            ),
-                            infos.map(arg => arg.value)
+                      arguments match {
+                        case Vector() =>
+                          Right(
+                            Info(
+                              List.empty,
+                              List.empty,
+                              mkValueFunIdent(
+                                methodName,
+                                depth.drop(locator.toInt + 1)
+                              ),
+                              mkPropertiesFunIdent(
+                                methodName,
+                                depth.drop(locator.toInt + 1)
+                              )
+                            )
                           )
-                        )
-                      )
+                        case _ =>
+                          Right(
+                            Info(
+                              List.empty,
+                              List.empty,
+                              FunctionApplication(
+                                SMTUtils.mkValueFunIdent(
+                                  methodName,
+                                  depth.drop(locator.toInt + 1)
+                                ),
+                                arguments.map(arg => arg.value)
+                              ),
+                              FunctionApplication(
+                                SMTUtils.mkPropertiesFunIdent(
+                                  methodName,
+                                  depth.drop(locator.toInt + 1)
+                                ),
+                                arguments.map(arg => arg.value)
+                              )
+                            )
+                          )
+                      }
 
                     } else
                       Left(Nel.one(s"Unknown method $methodName"))
@@ -390,7 +412,6 @@ object ExtractLogic {
       (cleansedDefs ++ orderedDefs).map(DefineFun) ++ List(Assert(impl))
 
     val formula = prog.map(RecursivePrinter.toString).mkString
-
     EitherT(
       F.delay(
         SimpleAPI.withProver(p => {
