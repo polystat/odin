@@ -151,10 +151,10 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      seq > @
           |        assert (0.less y1)
           |        x
-          |    [self y] > g
-          |      self.f self y > @
-          |    [self y] > g2
-          |      self.f self y > @
+          |    [this y] > g
+          |      this.f this y > @
+          |    [hahaha_this_is_self y] > g2
+          |      hahaha_this_is_self.f hahaha_this_is_self y > @
           |    [self z] > h
           |      z > @
           |  [] > child
@@ -185,11 +185,11 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |        assert (0.less t)
           |        x
           |
-          |    [self y2] > gg
-          |      self.g self y2 > @
+          |    [this y2] > gg
+          |      this.g this y2 > @
           |
-          |    [self y3] > ggg
-          |      self.gg self y3 > @
+          |    [this y3] > ggg
+          |      this.gg this y3 > @
           |
           |    [self z] > h
           |      z > @
@@ -197,8 +197,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    test.parent > @
           |    [self y] > f
           |      y > @
-          |    [self z] > h
-          |      self.ggg self z > @
+          |    [slf z] > h
+          |      slf.ggg slf z > @
           |""".stripMargin,
       expected = List(
         "Method g is not referentially transparent",
@@ -213,10 +213,10 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       code =
         """[] > test
           |  [] > base
-          |    [self v] > n
+          |    [this v] > n
           |      2 > @
-          |    [self v] > m
-          |      self.n self v > @
+          |    [this v] > m
+          |      this.n this v > @
           |  [] > derived
           |    base > @
           |    [self v] > n
