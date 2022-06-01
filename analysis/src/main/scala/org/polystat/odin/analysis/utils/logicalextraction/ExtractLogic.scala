@@ -9,9 +9,11 @@ import cats.effect.Sync
 import cats.syntax.monadError._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.Info
-import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.mkPropertiesFunIdent
-import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.mkValueFunIdent
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.{
+  mkPropertiesFunIdent,
+  mkValueFunIdent,
+  logicInfo
+}
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import smtlib.printer.RecursivePrinter
@@ -70,7 +72,7 @@ object ExtractLogic {
     depth: List[String],
     expr: EOExprOnly,
     availableMethods: Set[EONamedBnd]
-  ): EitherNel[String, Info] = {
+  ): EitherNel[String, logicInfo] = {
     Fix.un(expr) match {
       case EOObj(Vector(), None, bndAttrs) =>
         val infos = bndAttrs.traverse { case EOBndExpr(bndName, expr) =>
@@ -99,8 +101,8 @@ object ExtractLogic {
           }
           infos.toMap.get(EODecoration) match {
             case Some(resultInfo) =>
-              Info(List.empty, newExists, resultInfo.value, newProperties)
-            case None => Info(
+              logicInfo(List.empty, newExists, resultInfo.value, newProperties)
+            case None => logicInfo(
                 List.empty,
                 newExists,
                 QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value"))),
@@ -150,7 +152,7 @@ object ExtractLogic {
                       arguments match {
                         case Vector() =>
                           Right(
-                            Info(
+                            logicInfo(
                               List.empty,
                               List.empty,
                               mkValueFunIdent(
@@ -165,7 +167,7 @@ object ExtractLogic {
                           )
                         case _ =>
                           Right(
-                            Info(
+                            logicInfo(
                               List.empty,
                               List.empty,
                               FunctionApplication(
@@ -199,7 +201,7 @@ object ExtractLogic {
               result <- (name, infoArgs) match {
                 case ("seq", NonEmptyVector(arg, Vector())) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       arg.exists,
                       arg.value,
@@ -208,7 +210,7 @@ object ExtractLogic {
                   )
                 case ("seq", args) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       args.last.exists,
                       args.last.value,
@@ -219,7 +221,7 @@ object ExtractLogic {
                 // assert (3.div 2) causes problems with type correspondance
                 case ("assert", NonEmptyVector(arg, Vector())) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       List.empty,
                       arg.value,
@@ -241,7 +243,7 @@ object ExtractLogic {
               result <- (attr, infoArgs.toVector.toList) match {
                 case ("add", infoArg :: Nil) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       List.empty,
                       Add(infoSrc.value, infoArg.value),
@@ -250,7 +252,7 @@ object ExtractLogic {
                   )
                 case ("div", infoArg :: Nil) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       List.empty,
                       Div(infoSrc.value, infoArg.value),
@@ -263,7 +265,7 @@ object ExtractLogic {
                   )
                 case ("mul", infoArg :: Nil) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       List.empty,
                       Mul(infoSrc.value, infoArg.value),
@@ -272,7 +274,7 @@ object ExtractLogic {
                   )
                 case ("sub", infoArg :: Nil) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       List.empty,
                       Sub(infoSrc.value, infoArg.value),
@@ -281,7 +283,7 @@ object ExtractLogic {
                   )
                 case ("less", infoArg :: Nil) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       List.empty,
                       LessThan(infoSrc.value, infoArg.value),
@@ -290,7 +292,7 @@ object ExtractLogic {
                   )
                 case ("greater", infoArg :: Nil) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       List.empty,
                       GreaterThan(infoSrc.value, infoArg.value),
@@ -299,7 +301,7 @@ object ExtractLogic {
                   )
                 case ("if", ifTrue :: ifFalse :: Nil) =>
                   Right(
-                    Info(
+                    logicInfo(
                       List.empty,
                       List.empty,
                       ITE(infoSrc.value, ifTrue.value, ifFalse.value),
@@ -322,9 +324,9 @@ object ExtractLogic {
           case _ => Left(Nel.one(s"Some EOCopy is not supported yet: $app"))
         }
       case EOIntData(n) =>
-        Right(Info(List.empty, List.empty, SNumeral(n), True()))
-      case EOBoolData(v) =>
-        Right(Info(List.empty, List.empty, if (v) True() else False(), True()))
+        Right(logicInfo(List.empty, List.empty, SNumeral(n), True()))
+      case EOBoolData(v) => 
+        Right(logicInfo(List.empty, List.empty, if (v) True() else False(), True()))
       case _ => Left(Nel.one(s"Some case is not checked: $expr")) // FIXME
     }
   }
@@ -369,14 +371,14 @@ object ExtractLogic {
   }
 
   def checkImplication[F[_]](
-    methodName: String,
-    before: Info,
-    methodsBefore: Map[EONamedBnd, Info],
-    after: Info,
-    methodsAfter: Map[EONamedBnd, Info],
-    resultMsgGenerator: String => String,
-    beforeTag: String = "before",
-    afterTag: String = "after"
+                              methodName: String,
+                              before: logicInfo,
+                              methodsBefore: Map[EONamedBnd, logicInfo],
+                              after: logicInfo,
+                              methodsAfter: Map[EONamedBnd, logicInfo],
+                              resultMsgGenerator: String => String,
+                              beforeTag: String = "before",
+                              afterTag: String = "after"
   )(implicit F: Sync[F]): EitherT[F, Nel[String], Option[String]] = {
     val impl = addVarCorrespondenceToTerm(
       before.forall,

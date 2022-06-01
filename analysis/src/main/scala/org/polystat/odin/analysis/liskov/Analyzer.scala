@@ -7,7 +7,7 @@ import cats.effect.Sync
 import cats.syntax.functorFilter._
 import cats.syntax.parallel._
 import org.polystat.odin.analysis.unjustifiedassumptions.Analyzer.getMethodsInfo
-import org.polystat.odin.analysis.unjustifiedassumptions.Analyzer.processMethod
+import org.polystat.odin.analysis.unjustifiedassumptions.Analyzer.extractMethodLogic
 import org.polystat.odin.analysis.utils.inlining.Inliner
 import org.polystat.odin.analysis.utils.inlining.Inliner.AnalysisInfo
 import org.polystat.odin.analysis.utils.inlining.Inliner.ObjectTreeForAnalysis
@@ -53,7 +53,7 @@ object Analyzer {
         EitherT.fromEither[F](getMethodsInfo(childTag, method.childCtx))
 
       parentMethod <- EitherT.fromEither[F](
-        processMethod(
+        extractMethodLogic(
           parentTag,
           method.parentVersion,
           methodName,
@@ -61,7 +61,7 @@ object Analyzer {
         )
       )
       childMethod <- EitherT.fromEither[F](
-        processMethod(
+        extractMethodLogic(
           childTag,
           method.childVersion,
           methodName,

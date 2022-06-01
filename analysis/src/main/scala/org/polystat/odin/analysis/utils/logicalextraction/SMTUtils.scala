@@ -21,15 +21,15 @@ import scala.annotation.tailrec
 
 object SMTUtils {
 
-  final case class Info(
+  final case class logicInfo(
     forall: List[SortedVar],
     exists: List[SortedVar],
     value: Term,
     properties: Term
   )
 
-  def simpleAppToInfo(names: List[String], depth: List[String]): Info = {
-    Info(
+  def simpleAppToInfo(names: List[String], depth: List[String]): logicInfo = {
+    logicInfo(
       List.empty,
       List.empty,
       QualifiedIdentifier(SimpleIdentifier(nameToSSymbol(names, depth))),
@@ -74,7 +74,7 @@ object SMTUtils {
     SortedVar(SMTUtils.nameToSSymbol(List(name), depth), IntSort())
   }
 
-  def mkFunDefs(tag: String, name: EONamedBnd, info: Info): List[FunDef] = {
+  def mkFunDefs(tag: String, name: EONamedBnd, info: logicInfo): List[FunDef] = {
     val valueDef =
       FunDef(
         SMTUtils.mkValueFunSSymbol(name.name.name, List(tag)),
