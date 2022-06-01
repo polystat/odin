@@ -254,6 +254,31 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
     ),
     TestCase(
       label =
+        "Test from the fragile base class paper but with functions without arguments",
+      code =
+        """|[] > c
+           |  [self] > method
+           |    2 > @
+           |  [self v] > l
+           |    assert (v.less 5) > @
+           |  [self v] > m
+           |    self.l self v > @
+           |  [self v] > n
+           |    seq > @
+           |      self.method self
+           |      v
+           |
+           |[] > m
+           |  c > @
+           |  [self v] > l
+           |    v > @
+           |  [self v] > n
+           |    self.m self v > @
+           |""".stripMargin,
+      expected = List(errorMessage("m")),
+    ),
+    TestCase(
+      label =
         "Unjustified assumption in two participants of the inheritance chain",
       code =
         """
