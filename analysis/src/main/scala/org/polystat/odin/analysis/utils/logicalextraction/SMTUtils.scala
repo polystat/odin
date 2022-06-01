@@ -1,21 +1,13 @@
 package org.polystat.odin.analysis.utils.logicalextraction
 
+import cats.data.{EitherNel, NonEmptyList}
 import org.polystat.odin.core.ast.EONamedBnd
+import smtlib.common.Positioned
 import smtlib.theories.Core.BoolSort
 import smtlib.theories.Core.True
 import smtlib.theories.Ints.IntSort
 import smtlib.trees.Commands.FunDef
-import smtlib.trees.Terms.Exists
-import smtlib.trees.Terms.Forall
-import smtlib.trees.Terms.FunctionApplication
-import smtlib.trees.Terms.Identifier
-import smtlib.trees.Terms.Let
-import smtlib.trees.Terms.QualifiedIdentifier
-import smtlib.trees.Terms.SNumeral
-import smtlib.trees.Terms.SSymbol
-import smtlib.trees.Terms.SimpleIdentifier
-import smtlib.trees.Terms.SortedVar
-import smtlib.trees.Terms.Term
+import smtlib.trees.Terms.{Exists, Forall, FunctionApplication, Identifier, Let, QualifiedIdentifier, SNumeral, SSymbol, SimpleIdentifier, SortedVar, Term, VarBinding}
 
 import scala.annotation.tailrec
 
@@ -74,7 +66,11 @@ object SMTUtils {
     SortedVar(SMTUtils.nameToSSymbol(List(name), depth), IntSort())
   }
 
-  def mkFunDefs(tag: String, name: EONamedBnd, info: logicInfo): List[FunDef] = {
+  def mkFunDefs(
+    tag: String,
+    name: EONamedBnd,
+    info: logicInfo
+  ): List[FunDef] = {
     val valueDef =
       FunDef(
         SMTUtils.mkValueFunSSymbol(name.name.name, List(tag)),
@@ -115,10 +111,11 @@ object SMTUtils {
     tsort(toPred, Seq())
   }
 
-  def extractMethodDependencies(term: Term): List[String] = {
-    def recurse(t: Term): List[String] = {
+  def extractMethodDependencies(term: Positioned): List[String] = {
+    def recurse(t: Positioned): List[String] = {
       t match {
-        case Let(_, _, term) => recurse(term)
+        case VarBinding(_, term) => recurse(term)
+        case Let(x, xs, term) => recurse(term) ++ xs.flatMap(recurse) ++ recurse(x)
         case Forall(_, _, term) => recurse(term)
         case Exists(_, _, term) => recurse(term)
         case FunctionApplication(fun, terms) =>
@@ -131,15 +128,59 @@ object SMTUtils {
     recurse(term)
   }
 
+  def orderLets(
+    lets: List[VarBinding],
+    realTerm: Term
+  ): EitherNel[String, Term] = {
+    def nestLets(binding: List[VarBinding]): Term = {
+      binding match {
+        case ::(current, next) => Let(current, List(), nestLets(next))
+        case Nil => realTerm
+      }
+    }
+
+    if (lets.isEmpty)
+      Right(realTerm)
+    else {
+      val letGraph = lets
+        .map(let => (let, extractMethodDependencies(let.term)))
+        .flatMap { case (binding, dependencies) =>
+          dependencies.map(depName =>
+            (binding, lets.find(_.name.name == depName))
+          )
+        }
+        .collect { case (binding, Some(dep)) => (binding, dep) }
+      val (sortedLets, badLets) = tsort(letGraph)
+
+      if (badLets.nonEmpty)
+        Left(
+          NonEmptyList.one(
+            s"The following local binding form a circular dependency: $sortedLets"
+          )
+        )
+      else
+        Right(nestLets(sortedLets.toList.reverse))
+    }
+  }
+
   def removeProblematicCalls(fun: FunDef, badFuns: Set[SSymbol]): FunDef = {
     def recurse(t: Term): Term = {
       t match {
-        case let @ Let(_, _, term) => let.copy(term = recurse(term))
+
+        case let @ Let(x, xs, term) => let.copy(
+          binding = x.copy(term = recurse(x.term)),
+          bindings = xs.map( x => x.copy(term = recurse(x.term))),
+          term = recurse(term)
+        )
         case forAll @ Forall(_, _, term) => forAll.copy(term = recurse(term))
         case exists @ Exists(_, _, term) => exists.copy(term = recurse(term))
-        case call @ FunctionApplication(fun, terms) =>
-          if (badFuns.contains(fun.id.symbol))
-            True()
+        case call @ FunctionApplication(calledFun, terms) =>
+          if (badFuns.contains(calledFun.id.symbol)) {
+            fun.returnSort match {
+              case BoolSort() => True()
+              case _ => SNumeral(8008)
+            }
+          }
           else {
             call.copy(terms = terms.map(recurse))
           }

@@ -12,7 +12,10 @@ import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.checkImpl
 import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.extractInfo
 import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.mkEqualsBndAttr
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils
-import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.logicInfo
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.{
+  logicInfo,
+  orderLets
+}
 import org.polystat.odin.core.ast._
 import smtlib.theories.Core.And
 import smtlib.theories.Core.True
@@ -148,6 +151,7 @@ object Analyzer {
                 .tail
                 .toList
                 .map(name => SMTUtils.mkIntVar(name.name, depth))
+
               val lets =
                 localInfos.collect {
                   case (EOAnyNameBnd(LazyName(letName)), letTerm) =>
@@ -163,27 +167,31 @@ object Analyzer {
                     )
                 }.toList
 
-              val resultValue = lets match {
-                case x :: xs => Let(x, xs, resultInfo.value)
-                case Nil => resultInfo.value
-              }
+              orderLets(lets, resultInfo.value)
+                .flatMap(resultValue => {
+                  Right(
+                    newExists match {
+                      case x :: xs => logicInfo(
+                          params,
+                          // TODO: IS THIS HOW IT SHOULD BE?????
+                          x :: xs,//List.empty,
+                          resultValue,
+                          Exists(
+                            x,
+                            xs,
+                            And(resultInfo.properties, newProperties)
+                          )
+                        )
+                      case Nil => logicInfo(
+                          params,
+                          List.empty,
+                          resultValue,
+                          And(resultInfo.properties, newProperties)
+                        )
+                    }
+                  )
+                })
 
-              Right(
-                newExists match {
-                  case x :: xs => logicInfo(
-                      params,
-                      List.empty,
-                      resultValue,
-                      Exists(x, xs, And(resultInfo.properties, newProperties))
-                    )
-                  case Nil => logicInfo(
-                      params,
-                      List.empty,
-                      resultValue,
-                      And(resultInfo.properties, newProperties)
-                    )
-                }
-              )
             case None => Left(Nel.one("Impossible happened!"))
           }
         )
