@@ -95,11 +95,14 @@ object DetectStateAccess {
     }
   }
 
-  def getAccessedStates(method: (EONamedBnd, MethodInfo)): List[StateChange] = {
+  def getAccessedStates(selfArgName: String)(
+    method: (EONamedBnd, MethodInfo)
+  ): List[StateChange] = {
     @tailrec
     def hasSelfAsSource(dot: EODot[EOExprOnly]): Boolean = {
       Fix.un(dot.src) match {
-        case EOSimpleAppWithLocator("self", x) if x == 0 => true
+        case EOSimpleAppWithLocator(dotSrc, x)
+             if x == 0 && dotSrc == selfArgName => true
         case innerDot @ EODot(_, _) => hasSelfAsSource(innerDot)
         case _ => false
       }
@@ -107,7 +110,8 @@ object DetectStateAccess {
 
     def buildDotChain(dot: EODot[EOExprOnly]): List[String] =
       Fix.un(dot.src) match {
-        case EOSimpleAppWithLocator("self", x) if x == 0 => List()
+        case EOSimpleAppWithLocator(argName, x)
+             if x == 0 && argName == selfArgName => List()
         case innerDot @ EODot(_, _) =>
           buildDotChain(innerDot).appended(innerDot.name)
         case _ => List()
@@ -140,7 +144,10 @@ object DetectStateAccess {
   )(obj: (EONamedBnd, Inliner.CompleteObjectTree)): List[String] = {
     val availableParentStates =
       accumulateParentState(tree)(obj._2.info.parentInfo)
-    val accessedStates = obj._2.info.methods.flatMap(getAccessedStates)
+    val accessedStates =
+      obj._2.info.methods.flatMap { case method @ (_, methodInfo) =>
+        getAccessedStates(methodInfo.selfArgName)(method)
+      }
     val results =
       for {
         StateChange(targetMethod, state, accessedStatePath) <- accessedStates

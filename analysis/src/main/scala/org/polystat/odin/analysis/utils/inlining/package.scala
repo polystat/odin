@@ -103,6 +103,7 @@ object ObjectInfo {
 }
 
 final case class MethodInfoForAnalysis(
+  selfArgName: String,
   body: EOObj[EOExprOnly],
   depth: BigInt
 )
