@@ -85,13 +85,27 @@ object ExtractLogic {
         case (EODecoration, _) => false
         case _ => true
       }
-      val newExists = localInfos.toList.flatMap { case (name, info) =>
-        SortedVar(
-          SMTUtils.nameToSSymbol(List(name.name.name), depth),
-          IntSort()
-        ) :: info.exists
-      }
-      val newProperties = localInfos.toList match {
+
+      val localLets =
+        localInfos.toList.flatMap {
+          case (EOAnyNameBnd(LazyName(letName)), letTerm) =>
+            VarBinding(
+              SMTUtils.nameToSSymbol(List(letName), depth),
+              letTerm.value match {
+                case QualifiedIdentifier(
+                       SimpleIdentifier(SSymbol("no-value")),
+                       _
+                     )
+                     // TODO: Somehow check what sort should be here
+                     => SNumeral(8008) // True()
+                case value => value
+              }
+            ) :: letTerm.bindings
+          case (EODecoration, term) => term.bindings
+          case _ => List()
+        }
+
+      val localProperties = localInfos.toList match {
         case _ :: _ :: _ => And(localInfos.map { case (name, info) =>
             And(
               info.properties,
@@ -110,9 +124,9 @@ object ExtractLogic {
         Right(
           LogicInfo(
             List.empty,
-            newExists,
+            localLets,
             QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value"))),
-            newProperties
+            localProperties
           )
         )
       } else {
@@ -121,7 +135,6 @@ object ExtractLogic {
           case None =>
             Left(Nel.one("Some method has no phi attribute attached!"))
           case Some(resultInfo) =>
-
             // FIXME: we are assuming first argument is self (need to check)
             val params = body
               .freeAttrs
@@ -129,42 +142,31 @@ object ExtractLogic {
               .toList
               .map(name => SMTUtils.mkIntVar(name.name, depth))
 
-            val lets =
-              localInfos.collect {
-                case (EOAnyNameBnd(LazyName(letName)), letTerm) =>
-                  VarBinding(
-                    SMTUtils.nameToSSymbol(List(letName), depth),
-                    letTerm.value match {
-                      case QualifiedIdentifier(
-                             SimpleIdentifier(SSymbol("no-value")),
-                             _
-                           ) => True()
-                      case value => value
-                    }
-                  )
-              }.toList
-
-            orderLets(lets, resultInfo.value)
+            orderLets(localLets, resultInfo.value)
               .flatMap(resultValue => {
 
                 Right(
-                  newExists match {
+                  localLets match {
                     case x :: xs => LogicInfo(
                         params,
                         // TODO: IS THIS HOW IT SHOULD BE?????
                         x :: xs, // List.empty,
-                        resultValue,
-                        Exists(
+                        Let(
                           x,
                           xs,
-                          And(resultInfo.properties, newProperties)
+                          resultValue
+                        ),
+                        Let(
+                          x,
+                          xs,
+                          And(resultInfo.properties, localProperties)
                         )
                       )
                     case Nil => LogicInfo(
                         params,
                         List.empty,
                         resultValue,
-                        And(resultInfo.properties, newProperties)
+                        And(resultInfo.properties, localProperties)
                       )
                   }
                 )
@@ -277,7 +279,7 @@ object ExtractLogic {
                   Right(
                     LogicInfo(
                       List.empty,
-                      arg.exists,
+                      arg.bindings,
                       arg.value,
                       arg.properties
                     )
@@ -286,7 +288,7 @@ object ExtractLogic {
                   Right(
                     LogicInfo(
                       List.empty,
-                      args.last.exists,
+                      args.last.bindings,
                       args.last.value,
                       And(args.toVector.map(x => x.properties))
                     )
@@ -488,7 +490,6 @@ object ExtractLogic {
       (cleansedDefs ++ orderedDefs).map(DefineFun) ++ List(Assert(impl))
 
     val formula = prog.map(RecursivePrinter.toString).mkString
-    
     EitherT(
       F.delay(
         SimpleAPI.withProver(p => {

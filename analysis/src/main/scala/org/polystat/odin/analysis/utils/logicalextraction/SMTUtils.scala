@@ -7,7 +7,20 @@ import smtlib.theories.Core.BoolSort
 import smtlib.theories.Core.True
 import smtlib.theories.Ints.IntSort
 import smtlib.trees.Commands.FunDef
-import smtlib.trees.Terms.{Exists, Forall, FunctionApplication, Identifier, Let, QualifiedIdentifier, SNumeral, SSymbol, SimpleIdentifier, SortedVar, Term, VarBinding}
+import smtlib.trees.Terms.{
+  Exists,
+  Forall,
+  FunctionApplication,
+  Identifier,
+  Let,
+  QualifiedIdentifier,
+  SNumeral,
+  SSymbol,
+  SimpleIdentifier,
+  SortedVar,
+  Term,
+  VarBinding
+}
 
 import scala.annotation.tailrec
 
@@ -15,10 +28,9 @@ object SMTUtils {
 
   final case class LogicInfo(
     forall: List[SortedVar],
-    exists: List[SortedVar],
+    bindings: List[VarBinding],
     value: Term,
     properties: Term,
-    lets : List[VarBinding] = List()
   )
 
   def simpleAppToInfo(names: List[String], depth: List[String]): LogicInfo = {
@@ -116,7 +128,8 @@ object SMTUtils {
     def recurse(t: Positioned): List[String] = {
       t match {
         case VarBinding(_, term) => recurse(term)
-        case Let(x, xs, term) => recurse(term) ++ xs.flatMap(recurse) ++ recurse(x)
+        case Let(x, xs, term) =>
+          recurse(term) ++ xs.flatMap(recurse) ++ recurse(x)
         case Forall(_, _, term) => recurse(term)
         case Exists(_, _, term) => recurse(term)
         case FunctionApplication(fun, terms) =>
@@ -169,10 +182,10 @@ object SMTUtils {
       t match {
 
         case let @ Let(x, xs, term) => let.copy(
-          binding = x.copy(term = recurse(x.term)),
-          bindings = xs.map( x => x.copy(term = recurse(x.term))),
-          term = recurse(term)
-        )
+            binding = x.copy(term = recurse(x.term)),
+            bindings = xs.map(x => x.copy(term = recurse(x.term))),
+            term = recurse(term)
+          )
         case forAll @ Forall(_, _, term) => forAll.copy(term = recurse(term))
         case exists @ Exists(_, _, term) => exists.copy(term = recurse(term))
         case call @ FunctionApplication(calledFun, terms) =>
@@ -181,21 +194,22 @@ object SMTUtils {
               case BoolSort() => True()
               case _ => SNumeral(8008)
             }
-          }
-          else {
+          } else {
             call.copy(terms = terms.map(recurse))
           }
         case other => other
       }
     }
 
-    val res = fun.copy(body = recurse(fun.body) match {
-      case QualifiedIdentifier(Identifier(SSymbol("true"), _), _) =>
-        SNumeral(8008)
-      case good => good
-    })
+    fun.copy(body = recurse(fun.body))
 
-    res
+    //    val res = fun.copy(body = recurse(fun.body) match {
+//      case QualifiedIdentifier(Identifier(SSymbol("true"), _), _) =>
+//        SNumeral(8008)
+//      case good => good
+//    })
+//
+//    res
   }
 
 }

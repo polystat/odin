@@ -246,6 +246,61 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |      y > @
           |""".stripMargin,
       expected = List()
+    ),
+    TestCase(
+      label = "J2EO example with mutual recursion",
+      code =
+        """
+          |+alias stdlib.primitives.prim__int
+          |[] > class__MutualRec
+          |  [] > class__Base
+          |    [] > new
+          |      [] > self
+          |        "class__Base" > className
+          |        [self] > init
+          |          seq > @
+          |            TRUE
+          |        # f :: int -> int
+          |        [self x] > f
+          |          seq > @
+          |            s589835301
+          |          [] > s589835301
+          |            s_r992802731 > @
+          |          [] > s_r992802731
+          |            x > @
+          |        # g :: int -> int
+          |        [self x] > g
+          |          seq > @
+          |            s750468423
+          |          [] > s750468423
+          |            m_i1384010761 > @
+          |          [] > m_i1384010761
+          |            self.f > @
+          |              self
+          |              s_r715378067
+          |          [] > s_r715378067
+          |            x > @
+          |      self > @
+          |
+          |
+          |  [] > class__Derived
+          |    class__Base > super
+          |    class__Base > @
+          |    [] > new
+          |      [] > self
+          |        class__Base.new > super
+          |        class__Base.new > @
+          |        "class__Derived" > className
+          |        [self] > init
+          |          seq > @
+          |            TRUE
+          |        [self x] > f
+          |          self.g self x > @
+          |      seq > @
+          |        self
+          |    # null :: null -> void
+          |""".stripMargin,
+      expected = List()
     )
   )
 
