@@ -12,7 +12,8 @@ import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.{
   mkPropertiesFunIdent,
   mkValueFunIdent,
-  logicInfo
+  orderLets,
+  LogicInfo
 }
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -68,48 +69,121 @@ object ExtractLogic {
     }
   }
 
-  def extractInfo(
+  def extractObjectLogic(
+    body: EOObj[EOExprOnly],
+    availableMethods: Set[EONamedBnd],
+    depth: List[String],
+    stubPhi: Boolean = false
+  ): EitherNel[String, LogicInfo] = {
+    body.bndAttrs.traverse { case EOBndExpr(bndName, expr) =>
+      extractLogic(bndName.name.name :: depth, expr, availableMethods)
+        .map(info => (bndName, info))
+    } flatMap (infos => {
+      val phi = infos.toMap.get(EODecoration)
+
+      val localInfos = infos.filter {
+        case (EODecoration, _) => false
+        case _ => true
+      }
+      val newExists = localInfos.toList.flatMap { case (name, info) =>
+        SortedVar(
+          SMTUtils.nameToSSymbol(List(name.name.name), depth),
+          IntSort()
+        ) :: info.exists
+      }
+      val newProperties = localInfos.toList match {
+        case _ :: _ :: _ => And(localInfos.map { case (name, info) =>
+            And(
+              info.properties,
+              mkEqualsBndAttr(name, depth, info.value)
+            )
+          })
+        case (name, info) :: Nil =>
+          And(
+            info.properties,
+            mkEqualsBndAttr(name, depth, info.value)
+          )
+        case Nil => True()
+      }
+
+      if (stubPhi) {
+        Right(
+          LogicInfo(
+            List.empty,
+            newExists,
+            QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value"))),
+            newProperties
+          )
+        )
+      } else {
+
+        phi match {
+          case None =>
+            Left(Nel.one("Some method has no phi attribute attached!"))
+          case Some(resultInfo) =>
+
+            // FIXME: we are assuming first argument is self (need to check)
+            val params = body
+              .freeAttrs
+              .tail
+              .toList
+              .map(name => SMTUtils.mkIntVar(name.name, depth))
+
+            val lets =
+              localInfos.collect {
+                case (EOAnyNameBnd(LazyName(letName)), letTerm) =>
+                  VarBinding(
+                    SMTUtils.nameToSSymbol(List(letName), depth),
+                    letTerm.value match {
+                      case QualifiedIdentifier(
+                             SimpleIdentifier(SSymbol("no-value")),
+                             _
+                           ) => True()
+                      case value => value
+                    }
+                  )
+              }.toList
+
+            orderLets(lets, resultInfo.value)
+              .flatMap(resultValue => {
+
+                Right(
+                  newExists match {
+                    case x :: xs => LogicInfo(
+                        params,
+                        // TODO: IS THIS HOW IT SHOULD BE?????
+                        x :: xs, // List.empty,
+                        resultValue,
+                        Exists(
+                          x,
+                          xs,
+                          And(resultInfo.properties, newProperties)
+                        )
+                      )
+                    case Nil => LogicInfo(
+                        params,
+                        List.empty,
+                        resultValue,
+                        And(resultInfo.properties, newProperties)
+                      )
+                  }
+                )
+              })
+
+        }
+      }
+    })
+  }
+
+  def extractLogic(
     depth: List[String],
     expr: EOExprOnly,
     availableMethods: Set[EONamedBnd]
-  ): EitherNel[String, logicInfo] = {
+  ): EitherNel[String, LogicInfo] = {
     Fix.un(expr) match {
-      case EOObj(Vector(), None, bndAttrs) =>
-        val infos = bndAttrs.traverse { case EOBndExpr(bndName, expr) =>
-          extractInfo(bndName.name.name :: depth, expr, availableMethods).map(
-            info => (bndName, info)
-          )
-        }
-        infos.map(infos => {
-          val localInfos = infos.filter {
-            case (EODecoration, _) => false
-            case _ => true
-          }
-          val newExists = localInfos.toList.flatMap { case (name, info) =>
-            SortedVar(
-              SMTUtils.nameToSSymbol(List(name.name.name), depth),
-              IntSort()
-            ) :: info.exists
-          }
-          val newProperties = localInfos.toList match {
-            case _ :: _ :: _ => And(localInfos.map { case (name, info) =>
-                And(info.properties, mkEqualsBndAttr(name, depth, info.value))
-              })
-            case (name, info) :: Nil =>
-              And(info.properties, mkEqualsBndAttr(name, depth, info.value))
-            case Nil => True()
-          }
-          infos.toMap.get(EODecoration) match {
-            case Some(resultInfo) =>
-              logicInfo(List.empty, newExists, resultInfo.value, newProperties)
-            case None => logicInfo(
-                List.empty,
-                newExists,
-                QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value"))),
-                newProperties
-              )
-          }
-        })
+      case body @ EOObj(Vector(), None, _) =>
+        extractObjectLogic(body, availableMethods, depth, stubPhi = true)
+
       case EOObj(_, _, _) =>
         Left(Nel.one("object with void attributes are not supported yet!")) /*
          * FIXME */
@@ -142,7 +216,7 @@ object ExtractLogic {
                    ) if locator == locator2 =>
                 moreArgs
                   .traverse(expr =>
-                    extractInfo(depth, Fix(expr), availableMethods)
+                    extractLogic(depth, Fix(expr), availableMethods)
                   )
                   .flatMap(arguments =>
                     if (
@@ -152,7 +226,7 @@ object ExtractLogic {
                       arguments match {
                         case Vector() =>
                           Right(
-                            logicInfo(
+                            LogicInfo(
                               List.empty,
                               List.empty,
                               mkValueFunIdent(
@@ -167,7 +241,7 @@ object ExtractLogic {
                           )
                         case _ =>
                           Right(
-                            logicInfo(
+                            LogicInfo(
                               List.empty,
                               List.empty,
                               FunctionApplication(
@@ -196,12 +270,12 @@ object ExtractLogic {
           case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for { /*
                * FIXME: check locators */
               infoArgs <- args.traverse(arg =>
-                extractInfo(depth, arg.expr, availableMethods)
+                extractLogic(depth, arg.expr, availableMethods)
               )
               result <- (name, infoArgs) match {
                 case ("seq", NonEmptyVector(arg, Vector())) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       arg.exists,
                       arg.value,
@@ -210,7 +284,7 @@ object ExtractLogic {
                   )
                 case ("seq", args) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       args.last.exists,
                       args.last.value,
@@ -221,7 +295,7 @@ object ExtractLogic {
                 // assert (3.div 2) causes problems with type correspondance
                 case ("assert", NonEmptyVector(arg, Vector())) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       List.empty,
                       arg.value,
@@ -236,14 +310,14 @@ object ExtractLogic {
               }
             } yield result
           case EOCopy(Fix(EODot(src, attr)), args) => for {
-              infoSrc <- extractInfo(depth, src, availableMethods)
+              infoSrc <- extractLogic(depth, src, availableMethods)
               infoArgs <- args.traverse(arg =>
-                extractInfo(depth, arg.expr, availableMethods)
+                extractLogic(depth, arg.expr, availableMethods)
               )
               result <- (attr, infoArgs.toVector.toList) match {
                 case ("add", infoArg :: Nil) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       List.empty,
                       Add(infoSrc.value, infoArg.value),
@@ -252,7 +326,7 @@ object ExtractLogic {
                   )
                 case ("div", infoArg :: Nil) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       List.empty,
                       Div(infoSrc.value, infoArg.value),
@@ -265,7 +339,7 @@ object ExtractLogic {
                   )
                 case ("mul", infoArg :: Nil) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       List.empty,
                       Mul(infoSrc.value, infoArg.value),
@@ -274,7 +348,7 @@ object ExtractLogic {
                   )
                 case ("sub", infoArg :: Nil) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       List.empty,
                       Sub(infoSrc.value, infoArg.value),
@@ -283,7 +357,7 @@ object ExtractLogic {
                   )
                 case ("less", infoArg :: Nil) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       List.empty,
                       LessThan(infoSrc.value, infoArg.value),
@@ -292,7 +366,7 @@ object ExtractLogic {
                   )
                 case ("greater", infoArg :: Nil) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       List.empty,
                       GreaterThan(infoSrc.value, infoArg.value),
@@ -301,7 +375,7 @@ object ExtractLogic {
                   )
                 case ("if", ifTrue :: ifFalse :: Nil) =>
                   Right(
-                    logicInfo(
+                    LogicInfo(
                       List.empty,
                       List.empty,
                       ITE(infoSrc.value, ifTrue.value, ifFalse.value),
@@ -324,9 +398,11 @@ object ExtractLogic {
           case _ => Left(Nel.one(s"Some EOCopy is not supported yet: $app"))
         }
       case EOIntData(n) =>
-        Right(logicInfo(List.empty, List.empty, SNumeral(n), True()))
-      case EOBoolData(v) => 
-        Right(logicInfo(List.empty, List.empty, if (v) True() else False(), True()))
+        Right(LogicInfo(List.empty, List.empty, SNumeral(n), True()))
+      case EOBoolData(v) =>
+        Right(
+          LogicInfo(List.empty, List.empty, if (v) True() else False(), True())
+        )
       case _ => Left(Nel.one(s"Some case is not checked: $expr")) // FIXME
     }
   }
@@ -371,14 +447,14 @@ object ExtractLogic {
   }
 
   def checkImplication[F[_]](
-                              methodName: String,
-                              before: logicInfo,
-                              methodsBefore: Map[EONamedBnd, logicInfo],
-                              after: logicInfo,
-                              methodsAfter: Map[EONamedBnd, logicInfo],
-                              resultMsgGenerator: String => String,
-                              beforeTag: String = "before",
-                              afterTag: String = "after"
+    methodName: String,
+    before: LogicInfo,
+    methodsBefore: Map[EONamedBnd, LogicInfo],
+    after: LogicInfo,
+    methodsAfter: Map[EONamedBnd, LogicInfo],
+    resultMsgGenerator: String => String,
+    beforeTag: String = "before",
+    afterTag: String = "after"
   )(implicit F: Sync[F]): EitherT[F, Nel[String], Option[String]] = {
     val impl = addVarCorrespondenceToTerm(
       before.forall,
@@ -412,6 +488,7 @@ object ExtractLogic {
       (cleansedDefs ++ orderedDefs).map(DefineFun) ++ List(Assert(impl))
 
     val formula = prog.map(RecursivePrinter.toString).mkString
+    
     EitherT(
       F.delay(
         SimpleAPI.withProver(p => {
