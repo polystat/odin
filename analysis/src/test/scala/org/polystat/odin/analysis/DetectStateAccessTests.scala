@@ -359,7 +359,8 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
-      label = "State access when decorated object is an attribute of the same object",
+      label =
+        "State access when decorated object is an attribute of the same object",
       code = """
                |[] > parent
                |  memory > state
@@ -374,7 +375,8 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
-      label = "State access when decorated object is an attribute of the same object, but with transitivity",
+      label =
+        "State access when decorated object is an attribute of the same object, but with transitivity",
       code = """
                |[] > parent
                |  memory > state

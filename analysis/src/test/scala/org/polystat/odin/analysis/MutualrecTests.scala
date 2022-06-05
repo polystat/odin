@@ -31,6 +31,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
       .withMinSuccessfulTests(1000)
       .withWorkers(4)
 
+  // TODO: rewrite using Odin Source code analyzer
   def odinErrors(
     code: String
   ): Either[String, List[CallChain]] = {
@@ -101,15 +102,21 @@ class MutualrecTests extends AnyWordSpec with Checkers {
               |test.child.h -> test.parent.g -> test.child.h
               |""".stripMargin,
           "j2eo.eo" ->
-          """
+            """
               |class__MutualRec.class__Base.new.this.g -> class__MutualRec.class__Derived.new.this.f -> class__MutualRec.class__Base.new.this.g
               |class__MutualRec.class__Derived.new.this.f -> class__MutualRec.class__Base.new.this.g -> class__MutualRec.class__Derived.new.this.f
+              |""".stripMargin,
+          "random_j2eo_test.eo" ->
+            """
+              |class__Derived.new.this.m -> class__DerivedAgain.new.this.n -> class__Derived.new.this.m
+              |class__DerivedAgain.new.this.n -> class__Derived.new.this.m -> class__DerivedAgain.new.this.n
               |""".stripMargin
         )
 
         runTestsFrom[IO](
           "/mutualrec/with_recursion",
           (fileName, code) => {
+//            println(odinErrors(code).toOption.get.map(_.show).mkString("\n"))
             val passes =
               for {
                 expectedErrors <-

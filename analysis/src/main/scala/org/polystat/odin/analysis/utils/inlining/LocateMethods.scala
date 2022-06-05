@@ -27,7 +27,9 @@ object LocateMethods {
     ): Option[ObjectNameWithLocator] = {
       Fix.un(expr) match {
         case EOSimpleAppWithLocator(name, locator)
-             if locator == 0 && isNotObj(bnds.find(_.bndName.name.name == name).get.expr) =>
+             if locator == 0 && isNotObj(
+               bnds.find(_.bndName.name.name == name).get.expr
+             ) =>
           bnds.collectFirst {
             case EOBndExpr(bndName, expr) if name == bndName.name.name =>
               parseObjectName(expr)

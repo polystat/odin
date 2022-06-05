@@ -141,7 +141,7 @@ object LocateCalls {
            if hasPhiAttribute(bndAttrs) &&
            hasNoReferencesToPhi(bndAttrs) &&
            // TODO: properly handle constructors
-          methodBnd.bndName.name.name != "constructor"=>
+           methodBnd.bndName.name.name != "constructor" =>
         Some(
           MethodInfo(
             selfArgName = selfArg.name,
