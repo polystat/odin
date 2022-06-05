@@ -141,7 +141,9 @@ object LocateCalls {
       case obj @ EOObj(params, _, bndAttrs)
            if hasSelfAsFirstParam(params) &&
            hasPhiAttribute(bndAttrs) &&
-           hasNoReferencesToPhi(bndAttrs) =>
+           hasNoReferencesToPhi(bndAttrs)
+           // TODO: properly handle constructors
+           && methodBnd.bndName.name.name != "constructor"=>
         Some(MethodInfo(findCalls(obj), obj, bndDepth))
       case _ => None
     }
