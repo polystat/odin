@@ -14,7 +14,7 @@ object DetectStateAccess {
   type ObjInfo = ObjectInfo[ParentInfo[MethodInfo, ObjectInfo], MethodInfo]
 
   case class State(
-    containerName: String,
+    container: ObjInfo,
     statePath: List[String],
     states: Vector[EONamedBnd]
   )
@@ -25,7 +25,7 @@ object DetectStateAccess {
     statePath: List[String]
   )
 
-  def collectNestedStates(mainParent: String)(
+  def collectNestedStates(mainParent: ObjInfo)(
     subTree: Inliner.CompleteObjectTree,
     depth: Int
   ): Vector[State] = {
@@ -60,7 +60,6 @@ object DetectStateAccess {
     currentParentLink match {
       case Some(parentLink) =>
         val parentObj = parentLink.linkToParent.getOption(tree).get
-        val currentObjName = parentObj.info.name.name.name
         val currentLvlStateNames = parentObj
           .info
           .bnds
@@ -74,11 +73,11 @@ object DetectStateAccess {
               bndName
           }
         val currentLvlState =
-          State(currentObjName, List(), currentLvlStateNames)
+          State(parentObj.info, List(), currentLvlStateNames)
         val nestedStates = parentObj
           .children
           .flatMap(c =>
-            collectNestedStates(parentObj.info.name.name.name)(
+            collectNestedStates(parentObj.info)(
               c._2,
               parentObj.info.depth.toInt + 1
             )
@@ -99,19 +98,21 @@ object DetectStateAccess {
     method: (EONamedBnd, MethodInfo)
   ): List[StateChange] = {
     @tailrec
-    def hasSelfAsSource(dot: EODot[EOExprOnly]): Boolean = {
+    def hasSelfAsSource(dot: EODot[EOExprOnly], depth: BigInt): Boolean = {
       Fix.un(dot.src) match {
+        // TODO: add a proper depth check
         case EOSimpleAppWithLocator(dotSrc, x)
-             if x == 0 && dotSrc == selfArgName => true
-        case innerDot @ EODot(_, _) => hasSelfAsSource(innerDot)
+             if x == depth && dotSrc == selfArgName => true
+        case innerDot @ EODot(_, _) => hasSelfAsSource(innerDot, depth)
         case _ => false
       }
     }
 
     def buildDotChain(dot: EODot[EOExprOnly]): List[String] =
       Fix.un(dot.src) match {
-        case EOSimpleAppWithLocator(argName, x)
-             if x == 0 && argName == selfArgName => List()
+        // TODO: add depth check???
+        case EOSimpleAppWithLocator(argName, _) if argName == selfArgName =>
+          List()
         case innerDot @ EODot(_, _) =>
           buildDotChain(innerDot).appended(innerDot.name)
         case _ => List()
@@ -129,12 +130,14 @@ object DetectStateAccess {
       List(StateChange(method._1, stateName, containerChain))
     }
 
-    Abstract.foldAst[List[StateChange]](binds) {
-      case EOCopy(Fix(dot @ EODot(Fix(innerDot @ EODot(_, state)), _)), _)
-           if hasSelfAsSource(dot) =>
+    Abstract.foldAst[List[StateChange]](binds, 0) {
+      case (
+             EOCopy(Fix(dot @ EODot(Fix(innerDot @ EODot(_, state)), _)), _),
+             depth
+           ) if hasSelfAsSource(dot, depth) =>
         processDot(innerDot, state)
 
-      case dot @ EODot(_, state) if hasSelfAsSource(dot) =>
+      case (dot @ EODot(_, state), depth) if hasSelfAsSource(dot, depth) =>
         processDot(dot, state)
     }
   }
@@ -155,9 +158,9 @@ object DetectStateAccess {
       } yield
         if (changedStates.contains(state) && statePath == accessedStatePath) {
           val objName = obj._2.info.fqn.names.toList.mkString(".")
-          val stateName = state.name.name
+          val stateName = statePath.appended(state.name.name).mkString(".")
           val method = targetMethod.name.name
-          val container = statePath.prepended(baseClass).mkString(".")
+          val container = baseClass.fqn.show
 
           List(
             f"Method '$method' of object '$objName' directly accesses state '$stateName' of base class '$container'"

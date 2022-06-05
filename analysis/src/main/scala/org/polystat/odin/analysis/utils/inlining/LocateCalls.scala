@@ -19,7 +19,9 @@ object LocateCalls {
       override def combine(x: Boolean, y: Boolean): Boolean = x && y
     }
 
-    foldAst[Boolean](binds) { case EOSimpleAppWithLocator("@", _) => false }
+    foldAst[Boolean](binds, 0) { case (EOSimpleAppWithLocator("@", _), _) =>
+      false
+    }
   }
 
   def hasPhiAttribute(bnds: Vector[EOBnd[EOExprOnly]]): Boolean =
