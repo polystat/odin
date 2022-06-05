@@ -5,13 +5,13 @@
       seq > @
         assert (0.less y1)
         x
-    [self y] > g
-      self.h self y > @
-    [self z] > h
+    [this y] > g
+      this.h this y > @
+    [this z] > h
       z > @
   [] > child
     parent > @
     [self y] > f
       y > @
-    [self z] > h
-      self.g self z > @
+    [this z] > h
+      this.g this z > @

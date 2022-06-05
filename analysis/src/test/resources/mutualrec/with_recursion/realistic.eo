@@ -3,15 +3,15 @@
 [] > a
   [] > new
     b.new > @
-    [self x y] > f
-      self.g self y x > @
+    [this x y] > f
+      this.g this y x > @
 
 [] > b
   [] > new
     c.new > @
 [] > c
   [] > new
-    [self y x] > g
-      self.f self x y > @
-    [self x y] > f
-      self > @
+    [slf y x] > g
+      slf.f slf x y > @
+    [this x y] > f
+      this > @

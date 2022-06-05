@@ -91,14 +91,14 @@ class LiskovPrincipleTests extends AnyWordSpec {
         """
           |[] > test
           |  [] > parent
-          |    [self x] > f
+          |    [this_self_is_not_used x] > f
           |      x > @
-          |    [self x] > g
-          |      self.f self x > @
+          |    [this x] > g
+          |      this.f this x > @
           |
           |  [] > child
           |    test.parent > @
-          |    [self y] > f
+          |    [slf y] > f
           |      10.div y > @
           |""".stripMargin,
       expected = List(
@@ -113,17 +113,17 @@ class LiskovPrincipleTests extends AnyWordSpec {
         """
           |[] > test
           |  [] > grandparent
-          |    [self x] > a
+          |    [this x] > a
           |      10 > @
-          |    [self x] > b
-          |      self.a self x > @
+          |    [this x] > b
+          |      this.a this x > @
           |
           |  [] > parent
           |    test.grandparent > @
           |    [self x] > f
           |      x > @
-          |    [self x] > g
-          |      self.f self x > @
+          |    [this x] > g
+          |      this.f this x > @
           |
           |  [] > child
           |    test.parent > @
@@ -176,8 +176,8 @@ class LiskovPrincipleTests extends AnyWordSpec {
           |  [] > base
           |    [self v] > n
           |      2 > @
-          |    [self v] > m
-          |      self.n self v > @
+          |    [slf v] > m
+          |      slf.n slf v > @
           |  [] > derived
           |    base > @
           |    [self v] > n

@@ -32,7 +32,11 @@ object Analyzer {
   )
 
   def convertMethodInfo(info: MethodInfo): MethodInfoForAnalysis =
-    MethodInfoForAnalysis(body = info.body, depth = info.depth)
+    MethodInfoForAnalysis(
+      selfArgName = info.selfArgName,
+      body = info.body,
+      depth = info.depth
+    )
 
   def processAnalysisInfo(
     method: MethodAnalysisInfo
