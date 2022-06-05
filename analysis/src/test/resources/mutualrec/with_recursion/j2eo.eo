@@ -1,0 +1,107 @@
++alias stdlib.primitives.prim__int
+
+[] > class__Object
+  [] > new
+    [] > this
+  [this] > constructor
+    this > @
+
+
+[] > class__MutualRec
+  class__Object > super
+  class__Object > @
+  [] > new
+    [] > this
+      class__Object.new > super
+      class__Object.new > @
+      "class__MutualRec" > className
+      [this] > init
+        seq > @
+          TRUE
+    seq > @
+      this
+  [] > class__Base
+    class__Object > super
+    class__Object > @
+    [] > new
+      [] > this
+        class__Object.new > super
+        class__Object.new > @
+        "class__Base" > className
+        [this] > init
+          seq > @
+            TRUE
+        # f :: int -> int
+        [this x] > f
+          seq > @
+            s589835301
+          [] > s589835301
+            s_r992802731 > @
+          [] > s_r992802731
+            x > @
+        # g :: int -> int
+        [this x] > g
+          seq > @
+            s750468423
+          [] > s750468423
+            m_i1384010761 > @
+          [] > m_i1384010761
+            this.f > @
+              this
+              s_r715378067
+          [] > s_r715378067
+            x > @
+      this > @
+
+    # null :: null -> void
+    [this] > constructor
+      seq > @
+        initialization
+        s2124643775
+        this
+      [] > initialization
+        this.init > @
+          this
+      [] > s2124643775
+        super.constructor > @
+          this.super
+
+  [] > class__Derived
+    class__Base > super
+    class__Base > @
+    [] > new
+      [] > this
+        class__Base.new > super
+        class__Base.new > @
+        "class__Derived" > className
+        [this] > init
+          seq > @
+            TRUE
+        [this x] > f
+          this.g this x > @
+      seq > @
+        this
+    # null :: null -> void
+    [this] > constructor
+      seq > @
+        initialization
+        s2027775614
+        this
+      [] > initialization
+        this.init > @
+          this
+      [] > s2027775614
+        super.constructor > @
+          this.super
+  # null :: null -> void
+  [this] > constructor
+    seq > @
+      initialization
+      s282821294
+      this
+    [] > initialization
+      this.init > @
+        this
+    [] > s282821294
+      super.constructor > @
+        this.super

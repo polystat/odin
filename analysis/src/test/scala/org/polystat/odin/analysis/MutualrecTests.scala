@@ -99,6 +99,11 @@ class MutualrecTests extends AnyWordSpec with Checkers {
             """
               |test.parent.g -> test.child.h -> test.parent.g
               |test.child.h -> test.parent.g -> test.child.h
+              |""".stripMargin,
+          "j2eo.eo" ->
+          """
+              |class__MutualRec.class__Base.new.this.g -> class__MutualRec.class__Derived.new.this.f -> class__MutualRec.class__Base.new.this.g
+              |class__MutualRec.class__Derived.new.this.f -> class__MutualRec.class__Base.new.this.g -> class__MutualRec.class__Derived.new.this.f
               |""".stripMargin
         )
 
