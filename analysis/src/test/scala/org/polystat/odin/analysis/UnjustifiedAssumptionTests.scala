@@ -229,10 +229,12 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       expected = List(errorMessage("m")),
     ),
     TestCase(
-      label = "Test from the fragile base class paper but with functions without arguments",
+      label = "Test from the fragile base class paper but with functions without arguments and keywords ",
       code =
         """|[] > c
            |  [self] > method
+           |    memory > local_m
+           |    cage > local_m
            |    2 > @
            |  [self v] > l
            |    assert (v.less 5) > @
@@ -280,6 +282,103 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
         errorMessage("k")
       ),
     ),
+    TestCase(label = "J2EO example with mutual recursionh",
+      code =
+        """
+          |[] > prim__int
+          |  [] > new
+          |    []> @
+          |  [self x] > constructor_1
+          |    [] > @
+          |  [self x] > constructor_2
+          |    [] > @
+          |
+          |[] > class__Parent
+          |  [] > new
+          |    [] > self
+          |      "class__Parent" > className
+          |      [self] > init
+          |        seq > @
+          |          TRUE
+          |      # f :: int -> int
+          |      [self x] > f
+          |        i_s1147580192 > t
+          |        [] > i_s1147580192
+          |          b1337335626 > @
+          |        [] > b1337335626
+          |          s_r78204644.div > @
+          |            l1287934450
+          |        [] > s_r78204644
+          |          x > @
+          |        [] > l1287934450
+          |          5 > @
+          |        [] > s712609105
+          |          s_r1364913072 > @
+          |        [] > s_r1364913072
+          |          x > @
+          |        seq > @
+          |          t
+          |          i_s1147580192
+          |      # g :: int -> int
+          |      [self y] > g
+          |        [] > s758348212
+          |          m_i817978763 > @
+          |        [] > m_i817978763
+          |          self.f > @
+          |            self
+          |            s_r1798219673
+          |        [] > s_r1798219673
+          |          y > @
+          |        seq > @
+          |          s758348212
+          |      # h :: int -> int
+          |      [self z] > h
+          |        [] > s1092572064
+          |          s_r728885526 > @
+          |        [] > s_r728885526
+          |          z > @
+          |        seq > @
+          |          s1092572064
+          |
+          |    seq > @
+          |      self
+          |
+          |[] > class__Child
+          |  class__Parent > super
+          |  class__Parent > @
+          |  [] > new
+          |    [] > self
+          |      class__Parent.new.self > super
+          |      class__Parent.new.self > @
+          |      "class__Child" > className
+          |      [self] > init
+          |        seq > @
+          |          TRUE
+          |      # f :: int -> int
+          |      [self y] > f
+          |        seq > @
+          |          s1647809929
+          |        [] > s1647809929
+          |          s_r1258084361 > @
+          |        [] > s_r1258084361
+          |          y > @
+          |      # h :: int -> int
+          |      [self z] > h
+          |        seq > @
+          |          s391914049
+          |        [] > s391914049
+          |          m_i96406857 > @
+          |        [] > m_i96406857
+          |          self.g > @
+          |            self
+          |            s_r1534745514
+          |        [] > s_r1534745514
+          |          z > @
+          |    seq > @
+          |      self
+          |""".stripMargin,
+      expected = List("THere should be mutaul recurtsion somewhere here")
+    )
   )
 
   val testCasesWithoutErrors: List[TestCase] = List(
