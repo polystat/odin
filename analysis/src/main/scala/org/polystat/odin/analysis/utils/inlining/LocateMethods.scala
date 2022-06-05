@@ -11,15 +11,29 @@ import LocateCalls._
 
 object LocateMethods {
 
+  def isNotObj(expr: EOExprOnly): Boolean =
+    Fix.un(expr) match {
+      case EOObj(_, _, _) => false
+      case _ => true
+    }
+
   def parseParentName(
-    bnd: EOBnd[EOExprOnly]
+    bnd: EOBnd[EOExprOnly],
+    bnds: Vector[EOBndExpr[Fix[EOExpr]]]
   ): Option[ObjectNameWithLocator] = {
 
     def parseObjectName(
       expr: EOExprOnly,
     ): Option[ObjectNameWithLocator] = {
       Fix.un(expr) match {
-
+        case EOSimpleAppWithLocator(name, locator)
+             if locator == 0 && isNotObj(
+               bnds.find(_.bndName.name.name == name).get.expr
+             ) =>
+          bnds.collectFirst {
+            case EOBndExpr(bndName, expr) if name == bndName.name.name =>
+              parseObjectName(expr)
+          }.flatten
         case EOSimpleAppWithLocator(name, locator) =>
           Some(
             ObjectNameWithLocator(locator, ObjectName(Nel.one(name)))
@@ -30,6 +44,12 @@ object LocateMethods {
               ObjectName(parent.name.names.concatNel(Nel.one(dotName)))
             )
           )
+        // TODO: add a proper depth check (disambiguate `seq`)
+        case EOCopy(EOSimpleAppWithLocator("seq", _), args) =>
+          args.last match {
+            case EOAnonExpr(expr) => parseObjectName(expr)
+            case _ => None
+          }
         case _ => None
       }
     }
@@ -81,7 +101,7 @@ object LocateMethods {
                       )
                     )
                   ),
-                parseParentName(next)
+                parseParentName(next, bnds)
                   .map(p =>
                     acc.copy(
                       parentName = Some(p),

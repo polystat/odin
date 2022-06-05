@@ -9,9 +9,11 @@ import org.polystat.odin.analysis.liskov.Analyzer
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer.analyzeAst
 import org.polystat.odin.analysis.stateaccess.DetectStateAccess
 import org.polystat.odin.analysis.utils.inlining.Inliner
+import org.polystat.odin.core.ast.EOBndExpr
 import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser
+import org.polystat.odin.parser.eo.Parser
 
 trait ASTAnalyzer[F[_]] {
   val name: String
@@ -19,6 +21,28 @@ trait ASTAnalyzer[F[_]] {
 }
 
 object EOOdinAnalyzer {
+
+  private def addPredef(existing: EOProg[EOExprOnly]): EOProg[EOExprOnly] = {
+    val PREDEF = Seq(
+      """
+        |[] > class__Object
+        |  [] > new
+        |    [] > self
+        |  [self] > constructor
+        |    self > @
+        |    [self] > init
+        |      [] > @
+        |  [self] > init
+        |    seq > @
+        |      TRUE
+        |""".stripMargin
+    ).flatMap(code => Parser.parse(code).toOption.get.bnds)
+      .filterNot(bnd =>
+        existing.bnds.collect { case e @ EOBndExpr(_, _) => e }.contains(bnd)
+      )
+
+    existing.copy(bnds = existing.bnds.prependedAll(PREDEF))
+  }
 
   sealed trait OdinAnalysisResult {
     val ruleId: String
@@ -153,9 +177,10 @@ object EOOdinAnalyzer {
     parser: EoParser[EORepr, F, EOProg[EOExprOnly]],
   ): F[OdinAnalysisResult] = for {
     programAst <- parser.parse(eoRepr)
+    astWithPredef = addPredef(programAst)
     mutualRecursionErrors <-
       analyzer
-        .analyze(programAst)
+        .analyze(astWithPredef)
 //        .handleErrorWith(_ => Stream.empty)
   } yield mutualRecursionErrors
 

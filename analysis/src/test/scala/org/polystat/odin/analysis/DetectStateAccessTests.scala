@@ -328,6 +328,72 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
+      label = "State access with a weird decoration",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  seq > @
+               |    parent
+               |  [self] > method
+               |    self.state > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+    TestCase(
+      label = "State access with a weird nested decoration",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > nest
+               |  [] > child
+               |    seq > @
+               |      parent
+               |    [self] > method
+               |      self.state > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'nest.child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+    TestCase(
+      label =
+        "State access when decorated object is an attribute of the same object",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  parent > super
+               |  super > @
+               |  [self] > method
+               |    self.state > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+    TestCase(
+      label =
+        "State access when decorated object is an attribute of the same object, but with transitivity",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  parent > super
+               |  super > superpuper
+               |  superpuper > omegaduper
+               |  omegaduper > megadupersuperpuper
+               |  megadupersuperpuper > @
+               |  [self] > method
+               |    self.state > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+    TestCase(
       label = "Access to inner state in a nested object",
       code = """
                |[] > test

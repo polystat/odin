@@ -139,7 +139,9 @@ object LocateCalls {
     Fix.un(methodBnd.expr) match {
       case obj @ EOObj(selfArg +: _, _, bndAttrs)
            if hasPhiAttribute(bndAttrs) &&
-           hasNoReferencesToPhi(bndAttrs) =>
+           hasNoReferencesToPhi(bndAttrs) &&
+           // TODO: properly handle constructors
+           methodBnd.bndName.name.name != "constructor" =>
         Some(
           MethodInfo(
             selfArgName = selfArg.name,
