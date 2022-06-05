@@ -12,7 +12,8 @@ import LocateCalls._
 object LocateMethods {
 
   def parseParentName(
-    bnd: EOBnd[EOExprOnly]
+    bnd: EOBnd[EOExprOnly],
+    depth: BigInt
   ): Option[ObjectNameWithLocator] = {
 
     def parseObjectName(
@@ -30,6 +31,11 @@ object LocateMethods {
               ObjectName(parent.name.names.concatNel(Nel.one(dotName)))
             )
           )
+        case EOCopy(EOSimpleAppWithLocator("seq", dep), args) if dep == (depth+1) =>
+          args.last match {
+            case EOAnonExpr(expr) => parseObjectName(expr)
+            case _ => None
+          }
         case _ => None
       }
     }
@@ -81,7 +87,7 @@ object LocateMethods {
                       )
                     )
                   ),
-                parseParentName(next)
+                parseParentName(next, objDepth)
                   .map(p =>
                     acc.copy(
                       parentName = Some(p),
