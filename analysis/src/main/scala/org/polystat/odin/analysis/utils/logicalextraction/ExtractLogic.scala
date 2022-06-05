@@ -504,25 +504,37 @@ object ExtractLogic {
     val defsAfter = methodsAfter.toList.flatMap { case (name, info) =>
       SMTUtils.mkFunDefs(afterTag, name, info)
     }
-    val allDefs = defsBefore ++ defsAfter
-    val callGraph = allDefs
-      .map(func =>
-        (
-          func,
-          SMTUtils
-            .extractMethodDependencies(
-              func.body,
-              allDefs.map(_.name.name).zip(allDefs).toMap
-            )
-        )
-      )
-      .flatMap { case (caller, vals) =>
-        vals.map(callee => (caller, callee))
-      }
-      .distinct
 
-    val (orderedDefs, badDefs) = SMTUtils.tsort[FunDef](
-      callGraph,
+// TODO: Check why the commented code does not cause type inconsistencies
+
+//    val allDefs = defsBefore ++ defsAfter
+//    val callGraph = allDefs
+//      .map(func =>
+//        (
+//          func,
+//          SMTUtils
+//            .extractMethodDependencies(
+//              func.body,
+//              allDefs.map(_.name.name).zip(allDefs).toMap
+//            )
+//        )
+//      )
+//      .flatMap { case (caller, vals) =>
+//        vals.map(callee => (caller, callee))
+//      }
+//      .distinct
+//
+//    val (orderedDefs, badDefs) = SMTUtils.tsort[FunDef](
+//      callGraph,
+//      { case (func, bads) =>
+//        Right(SMTUtils.removeProblematicCalls(func, bads.map(_.name)))
+//      }
+//    )
+
+    val (orderedDefs, badDefs) = SMTUtils.runTsort[FunDef](
+      defsBefore ++ defsAfter,
+      _.body,
+      _.name.name,
       { case (func, bads) =>
         Right(SMTUtils.removeProblematicCalls(func, bads.map(_.name)))
       }
@@ -542,7 +554,7 @@ object ExtractLogic {
       val prog = orderedDefs.map(DefineFun) ++ List(Assert(impl))
 
       val formula = prog.map(RecursivePrinter.toString).mkString
-      println(formula)
+//      println(formula)
       EitherT(
         F.delay(
           SimpleAPI.withProver(p => {

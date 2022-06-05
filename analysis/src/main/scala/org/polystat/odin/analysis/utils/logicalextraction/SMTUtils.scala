@@ -103,8 +103,7 @@ object SMTUtils {
 
   def tsort[A](
     edges: Iterable[(A, A)],
-    handleBads: (A, Set[A]) => Either[(A, Set[A]), A] =
-      (a: A, s: Set[A]) => Left((a, s))
+    handleBads: (A, Set[A]) => Either[(A, Set[A]), A]
   ): (List[A], Map[A, Set[A]]) = {
 
     @tailrec
@@ -167,6 +166,39 @@ object SMTUtils {
     recurse(term)
   }
 
+  def runTsort[A](
+    elements: List[A],
+    toTerm: A => Term,
+    toString: A => String,
+    handleBads: (A, Set[A]) => Either[(A, Set[A]), A] =
+      (a: A, s: Set[A]) => Left((a, s))
+  ): (List[A], Map[A, Set[A]]) = {
+    val elDepPairs = elements.map(el =>
+      (
+        el,
+        extractMethodDependencies[A](
+          toTerm(el),
+          elements.map(toString).zip(elements).toMap
+        )
+      )
+    )
+    val independentEls = elDepPairs.collect { case (a, List()) =>
+      a
+    }
+    val dependentEls = elDepPairs.collect { case pair @ (_, _ :: _) =>
+      pair
+    }
+
+    val graph = dependentEls
+      .flatMap { case (binding, dependencies) =>
+        dependencies.map(dependency => (binding, dependency))
+      }
+      .distinct
+    val (sortedEls, badEls) = tsort(graph, handleBads)
+
+    ((independentEls ++ sortedEls).distinct, badEls)
+  }
+
   def orderLets(
     lets: List[VarBinding],
     realTerm: Term
@@ -181,20 +213,8 @@ object SMTUtils {
     if (lets.isEmpty)
       Right(realTerm)
     else {
-      val letGraph = lets
-        .map(let =>
-          (
-            let,
-            extractMethodDependencies[VarBinding](
-              let.term,
-              lets.map(_.name.name).zip(lets).toMap
-            )
-          )
-        )
-        .flatMap { case (binding, dependencies) =>
-          dependencies.map(dependency => (binding, dependency))
-        }
-      val (sortedLets, badLets) = tsort(letGraph)
+      val (sortedLets, badLets) =
+        runTsort[VarBinding](lets, _.term, _.name.name)
 
       if (badLets.nonEmpty)
         Left(
