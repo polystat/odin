@@ -328,6 +328,21 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
+      label = "State access with a weird decoration",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  seq > @
+               |    parent
+               |  [self] > method
+               |    self.state > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+        TestCase(
       label = "Access to state by simply returning it",
       code = """
                |[] > parent
@@ -377,6 +392,25 @@ class DetectStateAccessTests extends AnyWordSpec {
                |      self.state > @
                |    [] > s_r1769193365
                |      5 > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+        TestCase(
+      label =
+        "State access when decorated object is an attribute of the same object, but with transitivity",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  parent > super
+               |  super > superpuper
+               |  superpuper > omegaduper
+               |  omegaduper > megadupersuperpuper
+               |  megadupersuperpuper > @
+               |  [self] > method
+               |    self.state > @
                |""".stripMargin,
       expected = List(
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",

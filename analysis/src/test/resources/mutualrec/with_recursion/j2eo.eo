@@ -1,0 +1,118 @@
+# 2022-05-30T13:33:52.305847400
+# j2eo team
++alias stdlib.lang.class__Object
++alias stdlib.primitives.prim__int
+
+[] > class__Object
+  [] > new
+    [] > this
+  [this] > constructor
+    this > @
+
+[] > class__MutualRec
+  class__Object > super
+  super > @
+  [] > new
+    [] > this
+      class__Object.new > super
+      super > @
+      "class__MutualRec" > className
+      [this] > init
+        seq > @
+          TRUE
+    seq > @
+      this
+  [] > class__Base
+    class__Object > super
+    super > @
+    [] > new
+      [] > this
+        class__Object.new > super
+        super > @
+        "class__Base" > className
+        [this] > init
+          seq > @
+            TRUE
+        # f :: int -> int
+        [this x] > f
+          seq > @
+            s306980751
+          [] > s306980751
+            s_r1422222071 > @
+          [] > s_r1422222071
+            x > @
+        # g :: int -> int
+        [this x] > g
+          seq > @
+            s6750210
+          [] > s6750210
+            m_i521081105 > @
+          [] > m_i521081105
+            this.f > @
+              this
+              s_r158199555
+          [] > s_r158199555
+            x > @
+      seq > @
+        this
+    # null :: null -> void
+    [this] > constructor
+      seq > @
+        initialization
+        s1556995360
+        this
+      [] > initialization
+        this.init > @
+          this
+      [] > s1556995360
+        super.constructor > @
+          this.super
+  [] > class__Derived
+    class__Base > super
+    super > @
+    [] > new
+      [] > this
+        class__Base.new > super
+        super > @
+        "class__Derived" > className
+        [this] > init
+          seq > @
+            TRUE
+        # f :: int -> int
+        [this x] > f
+          seq > @
+            s517052730
+          [] > s517052730
+            m_i524241174 > @
+          [] > m_i524241174
+            this.g > @
+              this
+              s_r2035070981
+          [] > s_r2035070981
+            x > @
+      seq > @
+        this
+    # null :: null -> void
+    [this] > constructor
+      seq > @
+        initialization
+        s1264213713
+        this
+      [] > initialization
+        this.init > @
+          this
+      [] > s1264213713
+        super.constructor > @
+          this.super
+  # null :: null -> void
+  [this] > constructor
+    seq > @
+      initialization
+      s1506809545
+      this
+    [] > initialization
+      this.init > @
+        this
+    [] > s1506809545
+      super.constructor > @
+        this.super
