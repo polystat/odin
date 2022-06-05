@@ -19,8 +19,7 @@ object LocateMethods {
 
   def parseParentName(
     bnd: EOBnd[EOExprOnly],
-    bnds: Vector[EOBndExpr[Fix[EOExpr]]],
-    depth: BigInt
+    bnds: Vector[EOBndExpr[Fix[EOExpr]]]
   ): Option[ObjectNameWithLocator] = {
 
     def parseObjectName(
@@ -43,8 +42,8 @@ object LocateMethods {
               ObjectName(parent.name.names.concatNel(Nel.one(dotName)))
             )
           )
-        case EOCopy(EOSimpleAppWithLocator("seq", dep), args)
-             if dep == (depth + 1) =>
+        // TODO: add a proper depth check (disambiguate `seq`)
+        case EOCopy(EOSimpleAppWithLocator("seq", _), args) =>
           args.last match {
             case EOAnonExpr(expr) => parseObjectName(expr)
             case _ => None
@@ -100,7 +99,7 @@ object LocateMethods {
                       )
                     )
                   ),
-                parseParentName(next, bnds, objDepth)
+                parseParentName(next, bnds)
                   .map(p =>
                     acc.copy(
                       parentName = Some(p),
