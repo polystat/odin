@@ -103,7 +103,7 @@ object DetectStateAccess {
         // TODO: add a proper depth check
         case EOSimpleAppWithLocator(dotSrc, x)
              if x == depth && dotSrc == selfArgName => true
-        case innerDot @ EODot(_, _) => hasSelfAsSource(innerDot)
+        case innerDot @ EODot(_, _) => hasSelfAsSource(innerDot, depth)
         case _ => false
       }
     }
@@ -111,8 +111,8 @@ object DetectStateAccess {
     def buildDotChain(dot: EODot[EOExprOnly]): List[String] =
       Fix.un(dot.src) match {
         // TODO: add depth check???
-        case EOSimpleAppWithLocator(argName, _)
-             if argName == selfArgName => List()
+        case EOSimpleAppWithLocator(argName, _) if argName == selfArgName =>
+          List()
         case innerDot @ EODot(_, _) =>
           buildDotChain(innerDot).appended(innerDot.name)
         case _ => List()

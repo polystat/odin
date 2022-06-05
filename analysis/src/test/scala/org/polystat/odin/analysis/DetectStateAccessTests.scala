@@ -342,7 +342,7 @@ class DetectStateAccessTests extends AnyWordSpec {
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
       )
     ),
-        TestCase(
+    TestCase(
       label = "Access to state by simply returning it",
       code = """
                |[] > parent
@@ -397,7 +397,7 @@ class DetectStateAccessTests extends AnyWordSpec {
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
       )
     ),
-        TestCase(
+    TestCase(
       label =
         "State access when decorated object is an attribute of the same object, but with transitivity",
       code = """
