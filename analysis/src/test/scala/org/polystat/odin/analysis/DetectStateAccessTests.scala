@@ -292,8 +292,8 @@ class DetectStateAccessTests extends AnyWordSpec {
                |  memory > state
                |[] > child
                |  parent > @
-               |  [self] > method
-               |    self.state.add 10 > @
+               |  [this] > method
+               |    this.state.add 10 > @
                |""".stripMargin,
       expected = List(
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
@@ -306,8 +306,8 @@ class DetectStateAccessTests extends AnyWordSpec {
                |  memory > state
                |[] > child
                |  parent > @
-               |  [self] > method
-               |    (self.state.add 10).write 4 > @
+               |  [this] > method
+               |    (this.state.add 10).write 4 > @
                |""".stripMargin,
       expected = List(
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
@@ -320,8 +320,8 @@ class DetectStateAccessTests extends AnyWordSpec {
                |  memory > state
                |[] > child
                |  parent > @
-               |  [self] > method
-               |    3.sub ((self.state.add 10).add 10) > @
+               |  [slf] > method
+               |    3.sub ((slf.state.add 10).add 10) > @
                |""".stripMargin,
       expected = List(
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
@@ -359,9 +359,9 @@ class DetectStateAccessTests extends AnyWordSpec {
                |    self.state.write new_state > @
                |[] > b
                |  a > @
-               |  [self new_state] > change_state_plus_two
+               |  [this new_state] > change_state_plus_two
                |    new_state.add 2 > tmp
-               |    self.update_state self tmp > @
+               |    this.update_state this tmp > @
                |""".stripMargin,
       expected = List()
     ),

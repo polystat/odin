@@ -103,6 +103,7 @@ object ObjectInfo {
 }
 
 final case class MethodInfoForAnalysis(
+  selfArgName: String,
   body: EOObj[EOExprOnly],
   depth: BigInt
 )
@@ -165,6 +166,7 @@ final case class ParentInfoForInlining[M](
 sealed trait GenericMethodInfo
 
 final case class MethodInfo(
+  selfArgName: String,
   calls: Vector[Call],
   body: EOObj[EOExprOnly],
   depth: BigInt,
