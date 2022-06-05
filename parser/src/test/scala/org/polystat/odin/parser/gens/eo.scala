@@ -130,6 +130,12 @@ object eo {
           .map(tail => NonEmptyList(head, tail))
       )
 
+  val otherMeta: Gen[String] = for {
+    head <- identifier
+    tail <- betweenStr(0, 3, identifier, wsp)
+    space <- if (tail.isEmpty) Gen.const("") else wsp
+  } yield "+" + head + space + tail
+
   val packageMeta: Gen[String] = for {
     name <- packageName
     wsp <- wsp
@@ -161,7 +167,7 @@ object eo {
       5,
       for {
         comments <- emptyLinesOrComments
-        meta <- Gen.oneOf(rtMeta, aliasMeta)
+        meta <- Gen.oneOf(rtMeta, aliasMeta, otherMeta)
         metaEol <- eol
       } yield (comments :: meta :: metaEol :: Nil).mkString
     )

@@ -273,13 +273,21 @@ object Inliner {
               indirectMethods = methods.map { case (name, info) =>
                 (
                   name,
-                  MethodInfoForAnalysis(body = info.body, depth = info.depth)
+                  MethodInfoForAnalysis(
+                    selfArgName = info.selfArgName,
+                    body = info.body,
+                    depth = info.depth
+                  )
                 )
               },
               allMethods = allMethods.map { case (name, info) =>
                 (
                   name,
-                  MethodInfoForAnalysis(body = info.body, depth = info.depth)
+                  MethodInfoForAnalysis(
+                    selfArgName = info.selfArgName,
+                    body = info.body,
+                    depth = info.depth
+                  )
                 )
               }
             ),

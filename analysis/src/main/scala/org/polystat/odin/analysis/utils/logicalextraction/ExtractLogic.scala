@@ -64,6 +64,7 @@ object ExtractLogic {
   }
 
   def extractInfo(
+    selfArgName: String,
     depth: List[String],
     expr: EOExprOnly,
     availableMethods: Set[EONamedBnd]
@@ -71,9 +72,12 @@ object ExtractLogic {
     Fix.un(expr) match {
       case EOObj(Vector(), None, bndAttrs) =>
         val infos = bndAttrs.traverse { case EOBndExpr(bndName, expr) =>
-          extractInfo(bndName.name.name :: depth, expr, availableMethods).map(
-            info => (bndName, info)
-          )
+          extractInfo(
+            selfArgName,
+            bndName.name.name :: depth,
+            expr,
+            availableMethods
+          ).map(info => (bndName, info))
         }
         infos.map(infos => {
           val localInfos = infos.filter {
@@ -124,20 +128,20 @@ object ExtractLogic {
           case EOCopy(
                  Fix(
                    EODot(
-                     Fix(EOSimpleAppWithLocator("self", locator)),
+                     Fix(EOSimpleAppWithLocator(srcName, locator)),
                      methodName
                    )
                  ),
                  args
-               ) =>
+               ) if (srcName == selfArgName) =>
             args.map(x => Fix.un(x.expr)) match {
               case NonEmptyVector(
-                     EOSimpleAppWithLocator("self", locator2),
+                     EOSimpleAppWithLocator(firstArgName, locator2),
                      moreArgs
-                   ) if locator == locator2 =>
+                   ) if locator == locator2 && firstArgName == selfArgName =>
                 moreArgs
                   .traverse(expr =>
-                    extractInfo(depth, Fix(expr), availableMethods)
+                    extractInfo(selfArgName, depth, Fix(expr), availableMethods)
                   )
                   .flatMap(infos =>
                     if (
@@ -173,7 +177,7 @@ object ExtractLogic {
           case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for { /*
                * FIXME: check locators */
               infoArgs <- args.traverse(arg =>
-                extractInfo(depth, arg.expr, availableMethods)
+                extractInfo(selfArgName, depth, arg.expr, availableMethods)
               )
               result <- (name, infoArgs) match {
                 case ("seq", NonEmptyVector(arg, Vector())) =>
@@ -213,9 +217,9 @@ object ExtractLogic {
               }
             } yield result
           case EOCopy(Fix(EODot(src, attr)), args) => for {
-              infoSrc <- extractInfo(depth, src, availableMethods)
+              infoSrc <- extractInfo(selfArgName, depth, src, availableMethods)
               infoArgs <- args.traverse(arg =>
-                extractInfo(depth, arg.expr, availableMethods)
+                extractInfo(selfArgName, depth, arg.expr, availableMethods)
               )
               result <- (attr, infoArgs.toVector.toList) match {
                 case ("add", infoArg :: Nil) =>

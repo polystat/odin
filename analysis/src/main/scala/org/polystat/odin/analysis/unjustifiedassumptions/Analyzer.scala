@@ -99,7 +99,12 @@ object Analyzer {
         // argument is self (need to check)
         val infos = body.bndAttrs.traverse {
           case EOBndExpr(bndName, expr) => {
-            extractInfo(bndName.name.name :: depth, expr, availableMethods)
+            extractInfo(
+              method.selfArgName,
+              bndName.name.name :: depth,
+              expr,
+              availableMethods
+            )
               .map(info => (bndName, info))
           }
         }

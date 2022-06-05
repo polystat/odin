@@ -58,6 +58,11 @@ object ast {
     artifact <- eo.packageNameSplit
   } yield EOAliasMeta(alias, artifact)
 
+  val otherMeta: Gen[EOOtherMeta] = for {
+    head <- eo.identifier
+    tail <- between(0, 3, eo.identifier)
+  } yield EOOtherMeta(head, tail)
+
   val metas: Gen[EOMetas] =
     for {
       pkgMeta <- Gen.option(eo.packageName)
@@ -67,6 +72,7 @@ object ast {
         Gen.oneOf(
           aliasMeta,
           rtMeta,
+          otherMeta,
         )
       ).map(_.toVector)
     } yield EOMetas(pkgMeta, otherMetas)

@@ -120,9 +120,18 @@ class ParserTests extends EOParserTestSuite {
       runParserTestsGen(Right(Metas.rtMeta), eo.rtMeta)
     }
 
+    "other metas" in {
+      runParserTestsGen(Right(Metas.otherMeta), eo.otherMeta)
+    }
+
     "all metas" in {
       runParserTestsGen(Left(Metas.metas), eo.metas)
     }
+
+    "handpicked examples" in {
+      shouldParse(Right(Metas.otherMeta), "+junit")
+    }
+
   }
 
   "abstraction params" should {
