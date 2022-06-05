@@ -63,11 +63,11 @@ object Abstract {
     binds: Vector[EOBnd[EOExprOnly]],
     initialDepth: BigInt
   )(f: PartialFunction[(EOExpr[EOExprOnly], BigInt), A]): A = {
-    def recurse(depth : BigInt)(bnd: EOBnd[EOExprOnly]): A = {
+    def recurse(depth: BigInt)(bnd: EOBnd[EOExprOnly]): A = {
       f.lift((Fix.un(bnd.expr), depth)) match {
         case Some(value) => value
         case None => Fix.un(bnd.expr) match {
-            case EOObj(_, _, bndAttrs) => bndAttrs.foldMap(recurse(depth+1))
+            case EOObj(_, _, bndAttrs) => bndAttrs.foldMap(recurse(depth + 1))
             case EOCopy(trg, args) =>
               recurse(depth)(EOAnonExpr(trg)).combine(
                 args.foldMap(recurse(depth))

@@ -72,7 +72,7 @@ class DetectStateAccessTests extends AnyWordSpec {
                |              self.state
                |""".stripMargin,
       expected = List(
-        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'a'"
+        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'test.a'"
       )
     ),
     TestCase(
@@ -94,7 +94,7 @@ class DetectStateAccessTests extends AnyWordSpec {
                |              x
                |""".stripMargin,
       expected = List(
-        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'a'"
+        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'test.a'"
       )
     ),
     TestCase(
@@ -110,7 +110,7 @@ class DetectStateAccessTests extends AnyWordSpec {
                |      self.state.add x > @
                |""".stripMargin,
       expected = List(
-        "Method 'n' of object 'test.c' directly accesses state 'state' of base class 'a'"
+        "Method 'n' of object 'test.c' directly accesses state 'state' of base class 'test.a'"
       )
     ),
     TestCase(
@@ -126,7 +126,7 @@ class DetectStateAccessTests extends AnyWordSpec {
                |          self.state.add x > @
                |""".stripMargin,
       expected = List(
-        "Method 'n' of object 'test.very_outer.outer.b' directly accesses state 'state' of base class 'a'"
+        "Method 'n' of object 'test.very_outer.outer.b' directly accesses state 'state' of base class 'test.very_outer.outer.a'"
       )
     ),
     TestCase(
@@ -142,7 +142,7 @@ class DetectStateAccessTests extends AnyWordSpec {
                |      self.m self (self.state) y > @
                |""".stripMargin,
       expected = List(
-        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'a'"
+        "Method 'n' of object 'test.b' directly accesses state 'state' of base class 'test.a'"
       )
     ),
     TestCase(
@@ -193,10 +193,10 @@ class DetectStateAccessTests extends AnyWordSpec {
                |      self.inner_state.inner_mem
                |""".stripMargin,
       expected = List(
-        "Method 'func' of object 'b' directly accesses state 'hidden_state' of base class 'base.inner_state.very_inner_state'",
-        "Method 'func' of object 'b' directly accesses state 'inner_cage' of base class 'base.inner_state'",
+        "Method 'func' of object 'b' directly accesses state 'inner_state.very_inner_state.hidden_state' of base class 'base'",
+        "Method 'func' of object 'b' directly accesses state 'inner_state.inner_cage' of base class 'base'",
         "Method 'func' of object 'b' directly accesses state 'plain_state' of base class 'base'",
-        "Method 'func' of object 'b' directly accesses state 'inner_mem' of base class 'base.inner_state'"
+        "Method 'func' of object 'b' directly accesses state 'inner_state.inner_mem' of base class 'base'"
       )
     ),
     TestCase(
@@ -213,7 +213,7 @@ class DetectStateAccessTests extends AnyWordSpec {
                |        self.state.write 10 > @
                |""".stripMargin,
       expected = List(
-        "Method 'method' of object 'superroot.root.child' directly accesses state 'state' of base class 'parent'",
+        "Method 'method' of object 'superroot.root.child' directly accesses state 'state' of base class 'superroot.root.parent'",
       )
     ),
     TestCase(
@@ -328,6 +328,61 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
+      label = "Access to state by simply returning it",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  parent > @
+               |  [self] > method
+               |    self.state > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+    TestCase(
+      label = "Access to state in simple weird local definitions",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  parent > @
+               |  [self] > method
+               |    seq > @
+               |      s689401025
+               |    [] > s689401025
+               |      self.state > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+    TestCase(
+      label = "Access to state in complex weird local definitions",
+      code = """
+               |[] > parent
+               |  memory > state
+               |[] > child
+               |  parent > @
+               |  [self] > method
+               |    seq > @
+               |      s689401025
+               |    [] > s689401025
+               |      b306980751 > @
+               |    [] > b306980751
+               |      s_r1826699684.add > @
+               |        s_r1769193365
+               |    [] > s_r1826699684
+               |      self.state > @
+               |    [] > s_r1769193365
+               |      5 > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",
+      )
+    ),
+    TestCase(
       label = "Access to inner state in a nested object",
       code = """
                |[] > test
@@ -345,7 +400,60 @@ class DetectStateAccessTests extends AnyWordSpec {
                |      self.inner_a.very_inner_a.state.add x > @
                |""".stripMargin,
       expected = List(
-        "Method 'n' of object 'test.d' directly accesses state 'state' of base class 'a.inner_a.very_inner_a'",
+        "Method 'n' of object 'test.d' directly accesses state 'inner_a.very_inner_a.state' of base class 'test.a'"
+      )
+    ),
+    TestCase(
+      label = "J2EO example of state access",
+      code =
+        """
+          |[] > class__A
+          |  [] > new
+          |    [] > self
+          |      "class__A" > className
+          |      [self] > init
+          |        seq > @
+          |          d2147046752
+          |        [] > d2147046752
+          |          self.state.write > @
+          |            i_s331418503
+          |        [] > i_s331418503
+          |          l2039810346 > @
+          |        [] > l2039810346
+          |          self.state.write 0 > @
+          |      memory > state
+          |    seq > @
+          |      self
+          |
+          |[] > class__B
+          |  class__A > super
+          |  class__A > @
+          |  [] > new
+          |    [] > self
+          |      class__A.new.self > super
+          |      class__A.new.self > @
+          |      "class__B" > className
+          |      [self] > init
+          |        seq > @
+          |          TRUE
+          |      # n :: int -> int
+          |      [self x] > n
+          |        seq > @
+          |          s689401025
+          |        [] > s689401025
+          |          b306980751 > @
+          |        [] > b306980751
+          |          s_r1826699684.add > @
+          |            s_r1769193365
+          |        [] > s_r1826699684
+          |          self.state > @
+          |        [] > s_r1769193365
+          |          x > @
+          |    seq > @
+          |      self
+          |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'class__B.new.self' directly accesses state 'state' of base class 'class__A.new.self'"
       )
     )
   )
