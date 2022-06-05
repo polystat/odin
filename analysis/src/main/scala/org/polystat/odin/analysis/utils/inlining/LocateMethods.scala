@@ -13,6 +13,7 @@ object LocateMethods {
 
   def parseParentName(
     bnd: EOBnd[EOExprOnly],
+    bnds:  Vector[EOBndExpr[Fix[EOExpr]]],
     depth: BigInt
   ): Option[ObjectNameWithLocator] = {
 
@@ -20,7 +21,10 @@ object LocateMethods {
       expr: EOExprOnly,
     ): Option[ObjectNameWithLocator] = {
       Fix.un(expr) match {
-
+        case EOSimpleAppWithLocator(name, locator) if locator == 0 =>
+          bnds.collectFirst{
+            case EOBndExpr(bndName, expr) if name == bndName.name.name => parseObjectName(expr)
+          }.flatten
         case EOSimpleAppWithLocator(name, locator) =>
           Some(
             ObjectNameWithLocator(locator, ObjectName(Nel.one(name)))
@@ -87,7 +91,7 @@ object LocateMethods {
                       )
                     )
                   ),
-                parseParentName(next, objDepth)
+                parseParentName(next, bnds, objDepth)
                   .map(p =>
                     acc.copy(
                       parentName = Some(p),
