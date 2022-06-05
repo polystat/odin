@@ -96,7 +96,7 @@ object ExtractLogic {
                        SimpleIdentifier(SSymbol("no-value")),
                        _
                      )
-                     // TODO: Somehow check what sort should be here
+                     // TODO: Somehow check what type should be here
                      => SNumeral(8008) // True()
                 case value => value
               }
@@ -121,16 +121,34 @@ object ExtractLogic {
       }
 
       if (stubPhi) {
-        Right(
-          LogicInfo(
-            List.empty,
-            localLets,
-            QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value"))),
-            localProperties
-          )
+        orderLets(
+          localLets,
+          SNumeral(8008)
         )
+          .flatMap(resultValue =>
+            Right(
+              localLets match {
+                case x :: xs => LogicInfo(
+                    List.empty,
+                    // TODO: IS THIS HOW IT SHOULD BE?????
+                    x :: xs, // List.empty,
+                    resultValue,
+                    Let(
+                      x,
+                      xs,
+                      localProperties
+                    )
+                  )
+                case Nil => LogicInfo(
+                    List.empty,
+                    List.empty,
+                    resultValue,
+                    localProperties
+                  )
+              }
+            )
+          )
       } else {
-
         phi match {
           case None =>
             Left(Nel.one("Some method has no phi attribute attached!"))
@@ -151,11 +169,7 @@ object ExtractLogic {
                         params,
                         // TODO: IS THIS HOW IT SHOULD BE?????
                         x :: xs, // List.empty,
-                        Let(
-                          x,
-                          xs,
-                          resultValue
-                        ),
+                        resultValue,
                         Let(
                           x,
                           xs,
@@ -390,11 +404,22 @@ object ExtractLogic {
                       )
                     )
                   )
-                case _ => Left(
-                    Nel.one(
-                      s"Unsupported ${infoArgs.length}-ary primitive .$attr"
+                case _ =>
+                  Right(
+                    LogicInfo(
+                      List.empty,
+                      List.empty,
+                      QualifiedIdentifier(
+                        SimpleIdentifier(SSymbol("no-value"))
+                      ),
+                      True()
                     )
                   )
+//                  Left(
+//                    Nel.one(
+//                      s"Unsupported ${infoArgs.length}-ary primitive .$attr"
+//                    )
+//                  )
               }
             } yield result
           case _ => Left(Nel.one(s"Some EOCopy is not supported yet: $app"))
@@ -405,7 +430,16 @@ object ExtractLogic {
         Right(
           LogicInfo(List.empty, List.empty, if (v) True() else False(), True())
         )
-      case _ => Left(Nel.one(s"Some case is not checked: $expr")) // FIXME
+      case _ =>
+        Right(
+          LogicInfo(
+            List.empty,
+            List.empty,
+            QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value"))),
+            True()
+          )
+        )
+//        Left(Nel.one(s"Some case is not checked: $expr")) // FIXME
     }
   }
 
@@ -472,44 +506,64 @@ object ExtractLogic {
     }
     val allDefs = defsBefore ++ defsAfter
     val callGraph = allDefs
-      .map(func => (func, SMTUtils.extractMethodDependencies(func.body)))
-      .flatMap { case (caller, vals) =>
-        vals.map(callee => (caller, allDefs.find(_.name.name == callee)))
-      }
-      .collect { case (name, Some(value)) => (name, value) }
-    val (properDefs, badDefs) = SMTUtils.tsort(callGraph)
-
-    val cleansedDefs = badDefs
-      .map { case (func, bads) =>
-        SMTUtils.removeProblematicCalls(func, bads.map(_.name))
-      }
-    val orderedDefs = properDefs
-      .toList
-      .reverse
-    val prog =
-      (cleansedDefs ++ orderedDefs).map(DefineFun) ++ List(Assert(impl))
-
-    val formula = prog.map(RecursivePrinter.toString).mkString
-    EitherT(
-      F.delay(
-        SimpleAPI.withProver(p => {
-          p.execSMTLIB(new StringReader(formula))
-          p.checkSat(true)
-          p.getStatus(true) match {
-            case ap.SimpleAPI.ProverStatus.Sat => Right(None)
-            case ap.SimpleAPI.ProverStatus.Unsat => Right(
-                Some(resultMsgGenerator(methodName))
-              )
-            case err => Left(Nel.one(s"SMT solver failed with error: $err"))
-          }
-        })
-      ).adaptError(t =>
-        new Exception(
-          s"SMT failed to parse the generated program with error:${t.getMessage}",
-          t
+      .map(func =>
+        (
+          func,
+          SMTUtils
+            .extractMethodDependencies(
+              func.body,
+              allDefs.map(_.name.name).zip(allDefs).toMap
+            )
         )
       )
+      .flatMap { case (caller, vals) =>
+        vals.map(callee => (caller, callee))
+      }
+      .distinct
+
+    val (orderedDefs, badDefs) = SMTUtils.tsort[FunDef](
+      callGraph,
+      { case (func, bads) =>
+        Right(SMTUtils.removeProblematicCalls(func, bads.map(_.name)))
+      }
     )
+
+    if (badDefs.nonEmpty)
+      EitherT(
+        F.delay(
+          Left(
+            Nel.one(
+              s"Could not process; The following methods are in a circular dependency : $badDefs"
+            )
+          )
+        )
+      )
+    else {
+      val prog = orderedDefs.map(DefineFun) ++ List(Assert(impl))
+
+      val formula = prog.map(RecursivePrinter.toString).mkString
+      println(formula)
+      EitherT(
+        F.delay(
+          SimpleAPI.withProver(p => {
+            p.execSMTLIB(new StringReader(formula))
+            p.checkSat(true)
+            p.getStatus(true) match {
+              case ap.SimpleAPI.ProverStatus.Sat => Right(None)
+              case ap.SimpleAPI.ProverStatus.Unsat => Right(
+                  Some(resultMsgGenerator(methodName))
+                )
+              case err => Left(Nel.one(s"SMT solver failed with error: $err"))
+            }
+          })
+        ).adaptError(t =>
+          new Exception(
+            s"SMT failed to parse the generated program with error:${t.getMessage}",
+            t
+          )
+        )
+      )
+    }
   }
 
 }

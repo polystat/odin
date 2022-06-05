@@ -101,7 +101,12 @@ object SMTUtils {
     List(valueDef, propertiesDef)
   }
 
-  def tsort[A](edges: Iterable[(A, A)]): (Iterable[A], Map[A, Set[A]]) = {
+  def tsort[A](
+    edges: Iterable[(A, A)],
+    handleBads: (A, Set[A]) => Either[(A, Set[A]), A] =
+      (a: A, s: Set[A]) => Left((a, s))
+  ): (List[A], Map[A, Set[A]]) = {
+
     @tailrec
     def tsort(
       toPreds: Map[A, Set[A]],
@@ -121,11 +126,27 @@ object SMTUtils {
         .getOrElse(e._1, Set())) + (e._2 -> (acc.getOrElse(e._2, Set()) + e._1))
     }
 
-    tsort(toPred, Seq())
+//    val toPred = edges
+//      .foldLeft(Map[A, Set[A]]()) { case (acc, (from, to)) =>
+//        val fromEdge = from -> acc.getOrElse(from, Set())
+//        val toEdge = to -> acc.getOrElse(to, Set() + from)
+//        acc + fromEdge + toEdge
+//      }
+
+    val (goodEdges, badEdges) = tsort(toPred, Seq())
+    val (notHandledBads, handledBads) = badEdges
+      .partitionMap { case (func, bads) =>
+        handleBads(func, bads)
+      }
+
+    (handledBads.toList ++ goodEdges.toList.reverse, notHandledBads.toMap)
   }
 
-  def extractMethodDependencies(term: Positioned): List[String] = {
-    def recurse(t: Positioned): List[String] = {
+  def extractMethodDependencies[A](
+    term: Positioned,
+    availableDeps: Map[String, A],
+  ): List[A] = {
+    def recurse(t: Positioned): List[A] = {
       t match {
         case VarBinding(_, term) => recurse(term)
         case Let(x, xs, term) =>
@@ -133,8 +154,12 @@ object SMTUtils {
         case Forall(_, _, term) => recurse(term)
         case Exists(_, _, term) => recurse(term)
         case FunctionApplication(fun, terms) =>
-          List(fun.id.symbol.name) ++ terms.flatMap(recurse)
-        case QualifiedIdentifier(Identifier(SSymbol(name), _), _) => List(name)
+          availableDeps.get(fun.id.symbol.name) match {
+            case Some(funDef) => List(funDef) ++ terms.flatMap(recurse)
+            case None => terms.flatMap(recurse).toList
+          }
+        case QualifiedIdentifier(Identifier(SSymbol(name), _), _) =>
+          availableDeps.get(name).toList
         case _ => List()
       }
     }
@@ -157,23 +182,28 @@ object SMTUtils {
       Right(realTerm)
     else {
       val letGraph = lets
-        .map(let => (let, extractMethodDependencies(let.term)))
-        .flatMap { case (binding, dependencies) =>
-          dependencies.map(depName =>
-            (binding, lets.find(_.name.name == depName))
+        .map(let =>
+          (
+            let,
+            extractMethodDependencies[VarBinding](
+              let.term,
+              lets.map(_.name.name).zip(lets).toMap
+            )
           )
+        )
+        .flatMap { case (binding, dependencies) =>
+          dependencies.map(dependency => (binding, dependency))
         }
-        .collect { case (binding, Some(dep)) => (binding, dep) }
       val (sortedLets, badLets) = tsort(letGraph)
 
       if (badLets.nonEmpty)
         Left(
           NonEmptyList.one(
-            s"The following local binding form a circular dependency: $sortedLets"
+            s"The following local bindings form a circular dependency: $sortedLets"
           )
         )
       else
-        Right(nestLets(sortedLets.toList.reverse))
+        Right(nestLets(sortedLets))
     }
   }
 
