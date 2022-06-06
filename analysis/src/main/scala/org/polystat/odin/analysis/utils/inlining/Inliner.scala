@@ -2,11 +2,7 @@ package org.polystat.odin.analysis.utils.inlining
 
 import cats.data.EitherNel
 import cats.data.{NonEmptyList => Nel}
-import cats.syntax.align._
-import cats.syntax.apply._
-import cats.syntax.either._
-import cats.syntax.functor._
-import cats.syntax.parallel._
+import cats.syntax.all._
 import higherkindness.droste.data.Fix
 import monocle.Iso
 import monocle.Lens
@@ -163,23 +159,26 @@ object Inliner {
 
           for {
             parentGetter <- pathToObject
-            _ <- parentGetter
+            // TODO: add the warning about missing parent back
+            parentInfo <- parentGetter
               .getOption(objs)
-              .toRight(
-                Nel.one(
-                  s"There is no such parent with name \"${info.toEOName}\"."
+              .map(_ => 
+                ParentInfo(
+                  linkToParent = parentGetter.asInstanceOf[
+                    Optional[
+                      Map[EONamedBnd, CompleteObjectTree],
+                      CompleteObjectTree
+                    ]
+                  ]
                 )
               )
-          } yield Some(
-            ParentInfo(
-              linkToParent = parentGetter.asInstanceOf[
-                Optional[
-                  Map[EONamedBnd, CompleteObjectTree],
-                  CompleteObjectTree
-                ]
-              ]
-            )
-          )
+              .asRight
+            // .toRight(
+            //   Nel.one(
+            //     s"There is no such parent with name \"${info.toEOName}\"."
+            //   )
+            // )
+          } yield parentInfo
         case None => Right(None)
       }
 
