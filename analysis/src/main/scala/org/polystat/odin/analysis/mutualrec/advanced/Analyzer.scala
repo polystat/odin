@@ -63,7 +63,10 @@ object Analyzer {
           case Some(parent) =>
             val parentOfParent = getParentTree(parent)
             (
-              resolveParentInfoOf(parent, decorationChain.appended(cur.info.fqn)),
+              resolveParentInfoOf(
+                parent,
+                decorationChain.appended(cur.info.fqn)
+              ),
               resolveCallgraph(parentOfParent)(parent)
             ).mapN((parentOfParent, cg) =>
               Some(

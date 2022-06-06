@@ -8,11 +8,11 @@ import monocle.Iso
 import monocle.Lens
 import monocle.Optional
 import monocle.macros.GenLens
+import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.utils.Abstract.modifyExpr
 import org.polystat.odin.analysis.utils.Optics._
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
-import org.polystat.odin.analysis.ObjectName
 
 import scala.annotation.tailrec
 
