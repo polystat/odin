@@ -1,3 +1,13 @@
+# v0.4.2
+This release made several changes to make odin recognize output from `j2eo`. 
+1. odin: Support this keyword
+2. odin: do not count constructor as method
+3. odin: debug defect detection on small classes translated by J2EO
+4. odin: Support attribute aliasing for decoration (support super)
+5. odin: Support objects with seq > @ (take last expresssion in seq)
+6. odin: Fix error "Some case is not checked: EOBoolData(true)"
+7. odin: import class_Object
+
 # v0.4.1
 This is a maintenance release. Notable changes:
 - Published for Scala 3! ([#60](https://github.com/polystat/odin/pull/60))
