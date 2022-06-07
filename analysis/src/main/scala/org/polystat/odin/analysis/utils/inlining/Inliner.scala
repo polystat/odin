@@ -2,16 +2,13 @@ package org.polystat.odin.analysis.utils.inlining
 
 import cats.data.EitherNel
 import cats.data.{NonEmptyList => Nel}
-import cats.syntax.align._
-import cats.syntax.apply._
-import cats.syntax.either._
-import cats.syntax.functor._
-import cats.syntax.parallel._
+import cats.syntax.all._
 import higherkindness.droste.data.Fix
 import monocle.Iso
 import monocle.Lens
 import monocle.Optional
 import monocle.macros.GenLens
+import org.polystat.odin.analysis.ObjectName
 import org.polystat.odin.analysis.utils.Abstract.modifyExpr
 import org.polystat.odin.analysis.utils.Optics._
 import org.polystat.odin.core.ast._
@@ -84,10 +81,12 @@ object Inliner {
       (bnds, tree) = parsed
       treeWithParents <- resolveParents(tree)
       inlinedObjs <- resolveParentsForInlining(treeWithParents)
-        .toVector
-        .parTraverse { case (name, tree) =>
-          rebuildObject(tree).map((name, _))
-        }
+        .flatMap(
+          _.toVector
+            .parTraverse { case (name, tree) =>
+              rebuildObject(tree).map((name, _))
+            }
+        )
         .map(_.toMap)
       inlinedBnds = bnds.map {
         case Left(bnd) => bnd
@@ -163,23 +162,26 @@ object Inliner {
 
           for {
             parentGetter <- pathToObject
-            _ <- parentGetter
+            // TODO: add the warning about missing parent back
+            parentInfo <- parentGetter
               .getOption(objs)
-              .toRight(
-                Nel.one(
-                  s"There is no such parent with name \"${info.toEOName}\"."
+              .map(_ =>
+                ParentInfo(
+                  linkToParent = parentGetter.asInstanceOf[
+                    Optional[
+                      Map[EONamedBnd, CompleteObjectTree],
+                      CompleteObjectTree
+                    ]
+                  ]
                 )
               )
-          } yield Some(
-            ParentInfo(
-              linkToParent = parentGetter.asInstanceOf[
-                Optional[
-                  Map[EONamedBnd, CompleteObjectTree],
-                  CompleteObjectTree
-                ]
-              ]
-            )
-          )
+              .asRight
+            // .toRight(
+            //   Nel.one(
+            //     s"There is no such parent with name \"${info.toEOName}\"."
+            //   )
+            // )
+          } yield parentInfo
         case None => Right(None)
       }
 
@@ -231,14 +233,26 @@ object Inliner {
 
   def accumulateMethods(
     fullTree: Map[EONamedBnd, CompleteObjectTree]
-  )(cur: CompleteObjectTree): Map[EONamedBnd, MethodInfo] = {
-    val parent = cur.info.parentInfo.flatMap(_.linkToParent.getOption(fullTree))
-    val parentMethods: Map[EONamedBnd, MethodInfo] = parent match {
-      case Some(parent) => accumulateMethods(fullTree)(parent)
-      case None => Map()
-    }
+  )(
+    cur: CompleteObjectTree,
+    decorationChain: List[ObjectName] = List()
+  ): EitherNel[String, Map[EONamedBnd, MethodInfo]] = {
+    val parent: Option[CompleteObjectTree] =
+      cur.info.parentInfo.flatMap(_.linkToParent.getOption(fullTree))
+    for {
+      _ <- if (decorationChain.contains(cur.info.fqn)) {
+        val prettyChain = decorationChain.map(_.show).mkString(" -> ")
+        s"There is a cycle in the decoration chain: $prettyChain".leftNel
+      } else Right(())
+      parentsOfParent <- parent match {
+        case Some(parent) => accumulateMethods(fullTree)(
+            parent,
+            decorationChain.appended(cur.info.fqn)
+          )
+        case None => Right(Map())
+      }
 
-    parentMethods.concat(cur.info.methods)
+    } yield parentsOfParent.concat(cur.info.methods).toMap
   }
 
   def resolveIndirectMethods(
@@ -250,16 +264,26 @@ object Inliner {
     ): EitherNel[String, ObjectTreeForAnalysis] = {
       val allMethods = accumulateMethods(objs)(cur)
       (
-        Right(allMethods.removedAll(cur.info.methods.keySet)),
+        allMethods.map(_.removedAll(cur.info.methods.keySet)),
         cur
           .children
           .toList
           .parTraverse { case (name, subTree) =>
             recurse(subTree).map((name, _))
           }
-          .map(_.toMap)
+          .map(_.toMap),
+        allMethods.map(_.map { case (name, info) =>
+          (
+            name,
+            MethodInfoForAnalysis(
+              selfArgName = info.selfArgName,
+              body = info.body,
+              depth = info.depth
+            )
+          )
+        })
       )
-        .mapN((methods, children) =>
+        .mapN((methods, children, allMethods) =>
           ObjectTree(
             ObjectInfoForAnalysis(
               name = cur.info.name,
@@ -280,16 +304,7 @@ object Inliner {
                   )
                 )
               },
-              allMethods = allMethods.map { case (name, info) =>
-                (
-                  name,
-                  MethodInfoForAnalysis(
-                    selfArgName = info.selfArgName,
-                    body = info.body,
-                    depth = info.depth
-                  )
-                )
-              }
+              allMethods = allMethods
             ),
             children
           )
@@ -307,25 +322,34 @@ object Inliner {
 
   def resolveParentsForInlining(
     objs: Map[EONamedBnd, CompleteObjectTree]
-  ): Map[EONamedBnd, ObjectTreeForInlining] = {
+  ): EitherNel[String, Map[EONamedBnd, ObjectTreeForInlining]] = {
     def recurse(
       currentLevel: Map[EONamedBnd, CompleteObjectTree]
-    ): Map[EONamedBnd, ObjectTreeForInlining] = {
-      currentLevel.fmap { subTree =>
-        ObjectTree(
-          info = subTree
-            .info
-            .copy(
-              parentInfo = subTree
-                .info
-                .parentInfo
-                .map(_ =>
-                  ParentInfoForInlining(accumulateMethods(objs)(subTree))
+    ): EitherNel[String, Map[EONamedBnd, ObjectTreeForInlining]] = {
+
+      currentLevel
+        .toList
+        .traverse { case (name, subTree) =>
+          recurse(subTree.children).flatMap { recursedChildren =>
+            accumulateMethods(objs)(subTree).map(accumulatedMethods =>
+              (
+                name,
+                ObjectTree(
+                  info = subTree
+                    .info
+                    .copy(
+                      parentInfo = subTree
+                        .info
+                        .parentInfo
+                        .map(_ => ParentInfoForInlining(accumulatedMethods))
+                    ),
+                  children = recursedChildren
                 )
-            ),
-          children = recurse(subTree.children)
-        )
-      }
+              )
+            )
+          }
+        }
+        .map(_.toMap)
     }
 
     recurse(objs)
