@@ -438,7 +438,148 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
-      label = "J2EO example of state access",
+      label = "Access to inner state in a tripple nested object",
+      code = """
+               |[] > nest
+               |  [] > prog
+               |    [] > test
+               |      [] > a
+               |        [] > inner_a
+               |          [] > very_inner_a
+               |            memory > state
+               |      [] > b
+               |        a > @
+               |      [] > c
+               |        b > @
+               |      [] > d
+               |        c > @
+               |        [self x] > n
+               |          self.inner_a.very_inner_a.state.add x > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'nest.prog.test.d' directly accesses state 'inner_a.very_inner_a.state' of base class 'nest.prog.test.a'"
+      )
+    ),
+    TestCase(
+      label = "Access to plain state in a double nested object",
+      code = """
+               |[] > prog
+               |  [] > test
+               |    [] > a
+               |      memory > state
+               |    [] > b
+               |      a > @
+               |    [] > c
+               |      b > @
+               |    [] > d
+               |      c > @
+               |      [self x] > n
+               |        self.state.add x > @
+               |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'prog.test.d' directly accesses state 'state' of base class 'prog.test.a'"
+      )
+    ),
+    TestCase(
+      label = "J2EO example with custom primitives",
+      code =
+        """
+          |# 2022-05-25T15:02:28.522793500
+          |# j2eo team
+          |+alias stdlib.lang.class__Object
+          |+alias stdlib.lang.class__System
+          |+alias stdlib.primitives.prim__int
+          |+alias stdlib.primitives.prim__float
+          |+alias org.eolang.gray.cage
+          |
+          |[] > class__A
+          |  class__Object > super
+          |  super > @
+          |  [] > new
+          |    [] > this
+          |      class__Object.new > super
+          |      super > @
+          |      "class__A" > className
+          |      [this] > init
+          |        seq > @
+          |          d1987169128
+          |        [] > d1987169128
+          |          this.state.write > @
+          |            i_s1239183618
+          |        [] > i_s1239183618
+          |          l1804379080 > @
+          |        [] > l1804379080
+          |          prim__int.constructor_2 > @
+          |            prim__int.new
+          |            0
+          |      prim__int.constructor_1 > state
+          |        prim__int.new
+          |      prim__float.constructor_1 > state2
+          |        prim__float.new
+          |    seq > @
+          |      this
+          |  # null :: null -> void
+          |  [this] > constructor
+          |    seq > @
+          |      initialization
+          |      s1757880885
+          |      this
+          |    [] > initialization
+          |      this.init > @
+          |        this
+          |    [] > s1757880885
+          |      super.constructor > @
+          |        this.super
+          |
+          |[] > class__B
+          |  class__A > super
+          |  super > @
+          |  [] > new
+          |    [] > this
+          |      class__A.new > super
+          |      super > @
+          |      "class__B" > className
+          |      [this] > init
+          |        seq > @
+          |          TRUE
+          |      # n :: int -> int
+          |      [this x] > n
+          |        seq > @
+          |          s278240974
+          |        [] > s278240974
+          |          b980138431 > @
+          |        [] > b980138431
+          |          s_r888655833.add > @
+          |            s_r1710265848
+          |        [] > s_r888655833
+          |          seq > @
+          |            this.state
+          |            this.state2
+          |        [] > s_r1710265848
+          |          x > @
+          |    seq > @
+          |      this
+          |  # null :: null -> void
+          |  [this] > constructor
+          |    seq > @
+          |      initialization
+          |      s1504642150
+          |      this
+          |    [] > initialization
+          |      this.init > @
+          |        this
+          |    [] > s1504642150
+          |      super.constructor > @
+          |        this.super
+          |
+          |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'class__B.new.this' directly accesses state 'state' of base class 'class__A.new.this'",
+        "Method 'n' of object 'class__B.new.this' directly accesses state 'state2' of base class 'class__A.new.this'"
+      )
+    ),
+    TestCase(
+      label = "J2EO example of state access (with inlined primitives)",
       code =
         """
           |[] > class__A
@@ -540,6 +681,18 @@ class DetectStateAccessTests extends AnyWordSpec {
                |  memory > local_state
                |  [self] > func
                |    self.local_state.write 10 > @
+               |""".stripMargin,
+      expected = List()
+    ),
+    TestCase(
+      label = "Access to state that is locally redefined",
+      code = """[] > a
+               |  memory > state
+               |[] > b
+               |  a > @
+               |  memory > state
+               |  [self] > func
+               |    self.state.write 10 > @
                |""".stripMargin,
       expected = List()
     )
