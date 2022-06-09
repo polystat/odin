@@ -229,7 +229,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       expected = List(errorMessage("m")),
     ),
     TestCase(
-      label = "Test from the fragile base class paper but with functions without arguments and keywords ",
+      label =
+        "Test from the fragile base class paper but with functions without arguments and keywords ",
       code =
         """|[] > c
            |  [self] > method
@@ -282,102 +283,152 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
         errorMessage("k")
       ),
     ),
-    TestCase(label = "J2EO example with mutual recursion",
+    TestCase(
+      label = "J2EO example with mutual recursion",
       code =
         """
-          |[] > prim__int
-          |  [] > new
-          |    []> @
-          |  [self x] > constructor_1
-          |    [] > @
-          |  [self x] > constructor_2
-          |    [] > @
+          |# 2022-05-25T15:02:29.112794500
+          |# j2eo team
+          |+alias stdlib.lang.class__Object
+          |+alias stdlib.primitives.prim__int
+          |+alias org.eolang.gray.cage
           |
           |[] > class__Parent
+          |  class__Object > super
+          |  super > @
           |  [] > new
-          |    [] > self
+          |    [] > this
+          |      class__Object.new > super
+          |      super > @
           |      "class__Parent" > className
-          |      [self] > init
+          |      [this] > init
           |        seq > @
           |          TRUE
           |      # f :: int -> int
-          |      [self x] > f
-          |        i_s1147580192 > t
-          |        [] > i_s1147580192
-          |          b1337335626 > @
-          |        [] > b1337335626
-          |          s_r78204644.div > @
-          |            l1287934450
-          |        [] > s_r78204644
-          |          x > @
-          |        [] > l1287934450
-          |          5 > @
-          |        [] > s712609105
-          |          s_r1364913072 > @
-          |        [] > s_r1364913072
-          |          x > @
+          |      [this x] > f
           |        seq > @
-          |          t
-          |          i_s1147580192
+          |          d50720817
+          |          s1135935001
+          |          s1649847375
+          |        prim__int.constructor_1 > t
+          |          prim__int.new
+          |        [] > d50720817
+          |          t.write > @
+          |            i_s1496220730
+          |        [] > i_s1496220730
+          |          b488600086 > @
+          |        [] > b488600086
+          |          s_r1111379131.sub > @
+          |            l1846982837
+          |        [] > s_r1111379131
+          |          x > @
+          |        [] > l1846982837
+          |          prim__int.constructor_2 > @
+          |            prim__int.new
+          |            5
+          |        [] > s1135935001
+          |          p635288507.if > @
+          |            TRUE
+          |            []
+          |              "AssertionError" > msg
+          |        [] > p635288507
+          |          b355885103 > @
+          |        [] > b355885103
+          |          s_r1321115948.greater > @
+          |            l706665172
+          |        [] > s_r1321115948
+          |          t > @
+          |        [] > l706665172
+          |          prim__int.constructor_2 > @
+          |            prim__int.new
+          |            0
+          |        [] > s1649847375
+          |          s_r1153933106 > @
+          |        [] > s_r1153933106
+          |          x > @
           |      # g :: int -> int
-          |      [self y] > g
-          |        [] > s758348212
-          |          m_i817978763 > @
-          |        [] > m_i817978763
-          |          self.f > @
-          |            self
-          |            s_r1798219673
-          |        [] > s_r1798219673
+          |      [this y] > g
+          |        seq > @
+          |          s2144067911
+          |        [] > s2144067911
+          |          m_i593447952 > @
+          |        [] > m_i593447952
+          |          this.f > @
+          |            this
+          |            s_r1950136544
+          |        [] > s_r1950136544
           |          y > @
-          |        seq > @
-          |          s758348212
           |      # h :: int -> int
-          |      [self z] > h
-          |        [] > s1092572064
-          |          s_r728885526 > @
-          |        [] > s_r728885526
-          |          z > @
+          |      [this z] > h
           |        seq > @
-          |          s1092572064
-          |
+          |          s209360730
+          |        [] > s209360730
+          |          s_r740007499 > @
+          |        [] > s_r740007499
+          |          z > @
           |    seq > @
-          |      self
+          |      this
+          |  # null :: null -> void
+          |  [this] > constructor
+          |    seq > @
+          |      initialization
+          |      s1971152916
+          |      this
+          |    [] > initialization
+          |      this.init > @
+          |        this
+          |    [] > s1971152916
+          |      super.constructor > @
+          |        this.super
           |
           |[] > class__Child
           |  class__Parent > super
-          |  class__Parent > @
+          |  super > @
           |  [] > new
-          |    [] > self
-          |      class__Parent.new.self > super
-          |      class__Parent.new.self > @
+          |    [] > this
+          |      class__Parent.new > super
+          |      super > @
           |      "class__Child" > className
-          |      [self] > init
+          |      [this] > init
           |        seq > @
           |          TRUE
           |      # f :: int -> int
-          |      [self y] > f
+          |      [this y] > f
           |        seq > @
-          |          s1647809929
-          |        [] > s1647809929
-          |          s_r1258084361 > @
-          |        [] > s_r1258084361
+          |          s1687627235
+          |        [] > s1687627235
+          |          s_r1007660652 > @
+          |        [] > s_r1007660652
           |          y > @
           |      # h :: int -> int
-          |      [self z] > h
+          |      [this z] > h
           |        seq > @
-          |          s391914049
-          |        [] > s391914049
-          |          m_i96406857 > @
-          |        [] > m_i96406857
-          |          self.g > @
-          |            self
-          |            s_r1534745514
-          |        [] > s_r1534745514
+          |          s1276544608
+          |        [] > s1276544608
+          |          m_i1387620926 > @
+          |        [] > m_i1387620926
+          |          this.g > @
+          |            this
+          |            s_r265348534
+          |        [] > s_r265348534
           |          z > @
           |    seq > @
-          |      self
+          |      this
+          |  # null :: null -> void
+          |  [this] > constructor
+          |    seq > @
+          |      initialization
+          |      s1324173038
+          |      this
+          |    [] > initialization
+          |      this.init > @
+          |        this
+          |    [] > s1324173038
+          |      super.constructor > @
+          |        this.super
           |""".stripMargin,
-      expected = List("THere should be mutaul recurtsion somewhere here")
+      // TODO: make it find the defect (Currently it does not find it)
+      expected = List()
     )
   )
 

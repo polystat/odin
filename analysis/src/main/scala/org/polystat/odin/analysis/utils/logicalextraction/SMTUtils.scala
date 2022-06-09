@@ -1,9 +1,11 @@
 package org.polystat.odin.analysis.utils.logicalextraction
 
-import cats.data.{EitherNel, NonEmptyList}
+import cats.data.EitherNel
+import cats.data.NonEmptyList
 import org.polystat.odin.core.ast.EONamedBnd
 import smtlib.common.Positioned
-import smtlib.theories.Core.{BoolSort, True}
+import smtlib.theories.Core.BoolSort
+import smtlib.theories.Core.True
 import smtlib.theories.Ints.IntSort
 import smtlib.trees.Commands.FunDef
 import smtlib.trees.Terms._
@@ -71,10 +73,16 @@ object SMTUtils {
     info: LogicInfo
   ): List[FunDef] = {
     val valueSort = info.value match {
-      case QualifiedIdentifier(SimpleIdentifier(SSymbol("true" | "false")),_)  => BoolSort()
+      case QualifiedIdentifier(
+             SimpleIdentifier(SSymbol("true" | "false")),
+             _
+           ) => BoolSort()
       case QualifiedIdentifier(_, Some(sort)) => sort
       case FunctionApplication(QualifiedIdentifier(_, Some(sort)), _) => sort
-      case FunctionApplication(QualifiedIdentifier(SimpleIdentifier(SSymbol("and")),_), _) => BoolSort()
+      case FunctionApplication(
+             QualifiedIdentifier(SimpleIdentifier(SSymbol("and")), _),
+             _
+           ) => BoolSort()
       case _ => IntSort()
     }
 
@@ -183,11 +191,9 @@ object SMTUtils {
       pair
     }
 
-    val graph = dependentEls
-      .flatMap { case (binding, dependencies) =>
-        dependencies.map(dependency => (binding, dependency))
-      }
-      .distinct
+    val graph = dependentEls.flatMap { case (binding, dependencies) =>
+      dependencies.map(dependency => (binding, dependency))
+    }.distinct
     val (sortedEls, badEls) = tsort(graph, handleBads)
 
     ((independentEls ++ sortedEls).distinct, badEls)

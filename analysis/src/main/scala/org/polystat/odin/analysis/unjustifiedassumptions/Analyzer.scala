@@ -1,17 +1,15 @@
 package org.polystat.odin.analysis.unjustifiedassumptions
 
-import cats.data.{EitherNel, EitherT, NonEmptyList => Nel}
+import cats.data.EitherNel
+import cats.data.EitherT
+import cats.data.{NonEmptyList => Nel}
 import cats.effect.Sync
 import cats.syntax.all._
 import org.polystat.odin.analysis.utils.inlining.Inliner.AnalysisInfo
-import org.polystat.odin.analysis.utils.inlining.{
-  MethodInfoForAnalysis,
-  ObjectTree
-}
-import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.{
-  checkImplication,
-  extractObjectLogic
-}
+import org.polystat.odin.analysis.utils.inlining.MethodInfoForAnalysis
+import org.polystat.odin.analysis.utils.inlining.ObjectTree
+import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.checkImplication
+import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.extractObjectLogic
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.LogicInfo
 import org.polystat.odin.core.ast._
 

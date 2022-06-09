@@ -9,12 +9,10 @@ import cats.effect.Sync
 import cats.syntax.monadError._
 import cats.syntax.traverse._
 import higherkindness.droste.data.Fix
-import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.{
-  mkPropertiesFunIdent,
-  mkValueFunIdent,
-  orderLets,
-  LogicInfo
-}
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.LogicInfo
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.mkPropertiesFunIdent
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.mkValueFunIdent
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.orderLets
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import smtlib.printer.RecursivePrinter
@@ -77,7 +75,12 @@ object ExtractLogic {
     stubPhi: Boolean = false
   ): EitherNel[String, LogicInfo] = {
     body.bndAttrs.traverse { case EOBndExpr(bndName, expr) =>
-      extractLogic(selfArgName, bndName.name.name :: depth, expr, availableMethods)
+      extractLogic(
+        selfArgName,
+        bndName.name.name :: depth,
+        expr,
+        availableMethods
+      )
         .map(info => (bndName, info))
     } flatMap (infos => {
       val phi = infos.toMap.get(EODecoration)
@@ -163,7 +166,10 @@ object ExtractLogic {
 
             for {
               value <- orderLets(localLets, resultInfo.value)
-              properties <- orderLets(localLets, And(resultInfo.properties, localProperties))
+              properties <- orderLets(
+                localLets,
+                And(resultInfo.properties, localProperties)
+              )
             } yield LogicInfo(
               params,
               localLets,
@@ -183,7 +189,13 @@ object ExtractLogic {
   ): EitherNel[String, LogicInfo] = {
     Fix.un(expr) match {
       case body @ EOObj(Vector(), None, _) =>
-        extractObjectLogic(selfArgName, body, availableMethods, depth, stubPhi = true)
+        extractObjectLogic(
+          selfArgName,
+          body,
+          availableMethods,
+          depth,
+          stubPhi = true
+        )
 
       case EOObj(_, _, _) =>
         Left(Nel.one("object with void attributes are not supported yet!")) /*
@@ -229,7 +241,12 @@ object ExtractLogic {
                    ) if locator == locator2 && firstArgName == selfArgName =>
                 moreArgs
                   .traverse(expr =>
-                    extractLogic(selfArgName, depth, Fix(expr), availableMethods)
+                    extractLogic(
+                      selfArgName,
+                      depth,
+                      Fix(expr),
+                      availableMethods
+                    )
                   )
                   .flatMap(arguments =>
                     if (
