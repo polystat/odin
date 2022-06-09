@@ -160,32 +160,15 @@ object ExtractLogic {
               .toList
               .map(name => SMTUtils.mkIntVar(name.name, depth))
 
-            orderLets(localLets, resultInfo.value)
-              .flatMap(resultValue => {
-
-                Right(
-                  localLets match {
-                    case x :: xs => LogicInfo(
-                        params,
-                        // TODO: IS THIS HOW IT SHOULD BE?????
-                        x :: xs, // List.empty,
-                        resultValue,
-                        Let(
-                          x,
-                          xs,
-                          And(resultInfo.properties, localProperties)
-                        )
-                      )
-                    case Nil => LogicInfo(
-                        params,
-                        List.empty,
-                        resultValue,
-                        And(resultInfo.properties, localProperties)
-                      )
-                  }
-                )
-              })
-
+            for {
+              value <- orderLets(localLets, resultInfo.value)
+              properties <- orderLets(localLets, And(resultInfo.properties, localProperties))
+            } yield LogicInfo(
+              params,
+              localLets,
+              value,
+              properties
+            )
         }
       }
     })
@@ -206,6 +189,18 @@ object ExtractLogic {
       case app: EOApp[_] => app match {
           case EOSimpleApp(name) =>
             Left(Nel.one(s"Encountered unqualified attribute $name"))
+          case EOSimpleAppWithLocator("memory" | "cage", locator)
+               if locator == depth.length =>
+            Right(
+              LogicInfo(
+                List.empty,
+                List.empty,
+                QualifiedIdentifier(
+                  SimpleIdentifier(SSymbol("no-value"))
+                ),
+                True()
+              )
+            )
           case EOSimpleAppWithLocator(name, locator) =>
             Right(
               SMTUtils
@@ -314,7 +309,7 @@ object ExtractLogic {
                     LogicInfo(
                       List.empty,
                       List.empty,
-                      arg.value,
+                      SNumeral(8008),
                       And(arg.properties, arg.value)
                     )
                   )

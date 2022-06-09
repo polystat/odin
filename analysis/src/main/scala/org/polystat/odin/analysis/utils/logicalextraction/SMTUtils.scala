@@ -3,24 +3,10 @@ package org.polystat.odin.analysis.utils.logicalextraction
 import cats.data.{EitherNel, NonEmptyList}
 import org.polystat.odin.core.ast.EONamedBnd
 import smtlib.common.Positioned
-import smtlib.theories.Core.BoolSort
-import smtlib.theories.Core.True
+import smtlib.theories.Core.{BoolSort, True}
 import smtlib.theories.Ints.IntSort
 import smtlib.trees.Commands.FunDef
-import smtlib.trees.Terms.{
-  Exists,
-  Forall,
-  FunctionApplication,
-  Identifier,
-  Let,
-  QualifiedIdentifier,
-  SNumeral,
-  SSymbol,
-  SimpleIdentifier,
-  SortedVar,
-  Term,
-  VarBinding
-}
+import smtlib.trees.Terms._
 
 import scala.annotation.tailrec
 
@@ -84,11 +70,19 @@ object SMTUtils {
     name: EONamedBnd,
     info: LogicInfo
   ): List[FunDef] = {
+    val valueSort = info.value match {
+      case QualifiedIdentifier(SimpleIdentifier(SSymbol("true" | "false")),_)  => BoolSort()
+      case QualifiedIdentifier(_, Some(sort)) => sort
+      case FunctionApplication(QualifiedIdentifier(_, Some(sort)), _) => sort
+      case FunctionApplication(QualifiedIdentifier(SimpleIdentifier(SSymbol("and")),_), _) => BoolSort()
+      case _ => IntSort()
+    }
+
     val valueDef =
       FunDef(
         SMTUtils.mkValueFunSSymbol(name.name.name, List(tag)),
         info.forall,
-        IntSort(),
+        valueSort,
         info.value
       )
     val propertiesDef =
