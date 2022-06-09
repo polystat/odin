@@ -3,12 +3,6 @@
 +alias stdlib.lang.class__Object
 +alias stdlib.primitives.prim__int
 
-[] > class__Object
-  [] > new
-    [] > this
-  [this] > constructor
-    this > @
-
 [] > class__MutualRec
   class__Object > super
   super > @

@@ -86,12 +86,18 @@ object SMTUtils {
       case _ => IntSort()
     }
 
+    val value = info.value match {
+      case QualifiedIdentifier(SimpleIdentifier(SSymbol("no-value")), _) =>
+        SNumeral(8008)
+      case other => other
+    }
+
     val valueDef =
       FunDef(
         SMTUtils.mkValueFunSSymbol(name.name.name, List(tag)),
         info.forall,
         valueSort,
-        info.value
+        value
       )
     val propertiesDef =
       FunDef(

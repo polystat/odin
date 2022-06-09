@@ -16,76 +16,116 @@ object DetectStateAccess {
   type ObjInfo = ObjectInfo[ParentInfo[MethodInfo, ObjectInfo], MethodInfo]
 
   case class State(
-    container: ObjInfo,
     statePath: List[String],
-    states: Vector[EONamedBnd]
+    state: EONamedBnd
   )
 
   case class StateChange(
     method: EONamedBnd,
+    statePath: List[String],
     state: EONamedBnd,
-    statePath: List[String]
   )
 
-  def collectNestedStates(mainParent: ObjInfo)(
-    subTree: Inliner.CompleteObjectTree,
-    depth: Int
-  ): Vector[State] = {
-    val currentLvlStateNames = subTree
+  def isJ2EOPrimitive(source: EOExprOnly): Boolean = {
+    val j2eoPrimitives = Seq(
+      "prim__boolean",
+      "prim__byte",
+      "prim__char",
+      "prim__double",
+      "prim__float",
+      "prim__int",
+      "prim__num",
+      "prim__short",
+      "prin__long",
+    )
+
+    Fix.un(source) match {
+      case EOSimpleAppWithLocator(name, _) if j2eoPrimitives.contains(name) =>
+        true
+      case _ => false
+    }
+  }
+
+  def collectLocalStates(
+    obj: Inliner.CompleteObjectTree,
+    existingStates: Map[ObjectName, Vector[State]] = Map.empty
+  )(implicit originalObjInfo: ObjInfo): Map[ObjectName, Vector[State]] = {
+    val statePath = obj
       .info
+      .fqn
+      .names
+      .toList
+      .drop(originalObjInfo.depth.toInt + 1)
+
+    def notAlreadyPresent(bndName: EONamedBnd): Boolean = !existingStates
+      .values
+      .toList
+      .flatten
+      .contains(
+        State(
+          statePath,
+          bndName
+        )
+      )
+
+    val parentInfo = obj.info
+    val currentLvlStates = parentInfo
       .bnds
       .collect {
         case BndItself(
                EOBndExpr(
                  bndName,
+                 // TODO: add a depth check here?
                  EOSimpleAppWithLocator("memory" | "cage", _)
                )
-             ) => bndName
-      }
+             ) if notAlreadyPresent(bndName) =>
+          State(
+            statePath,
+            bndName
+          )
 
-    Vector(
-      State(
-        mainParent,
-        subTree.info.fqn.names.toList.drop(depth),
-        currentLvlStateNames
+        case BndItself(
+               EOBndExpr(
+                 bndName,
+                 Fix(
+                   EOCopy(
+                     Fix(EODot(source, _)),
+                     _,
+                   )
+                 )
+               )
+             ) if notAlreadyPresent(bndName) && isJ2EOPrimitive(source) =>
+          State(
+            statePath,
+            bndName
+          )
+      }
+    val currentLvlMap = Map(originalObjInfo.fqn -> currentLvlStates)
+    val nestedStates = obj
+      .children
+      .flatMap(c =>
+        collectLocalStates(
+          c._2,
+          existingStates |+| currentLvlMap
+        )
       )
-    ) ++
-      subTree
-        .children
-        .flatMap(t => collectNestedStates(mainParent)(t._2, depth))
+
+    currentLvlMap |+| nestedStates
   }
 
   def accumulateParentState(tree: Map[EONamedBnd, Inliner.CompleteObjectTree])(
     childObject: ObjInfo,
-    existingStates: Vector[EONamedBnd] = Vector(),
+    existingStates: Map[ObjectName, Vector[State]],
     previousParents: Vector[ObjectName] = Vector(),
-  ): EitherNel[String, Vector[State]] = {
+  ): EitherNel[String, Map[ObjectName, Vector[State]]] = {
     childObject.parentInfo match {
       case Some(parentLink) =>
         val parentObj = parentLink.linkToParent.getOption(tree).get
         val parentInfo = parentObj.info
-        val currentLvlStateNames = parentInfo
-          .bnds
-          .collect {
-            case BndItself(
-                   EOBndExpr(
-                     bndName,
-                     EOSimpleAppWithLocator("memory" | "cage", _)
-                   )
-                 ) if !existingStates.contains(bndName) =>
-              bndName
-          }
-        val currentLvlState =
-          State(parentInfo, List(), currentLvlStateNames)
-        val nestedStates = parentObj
-          .children
-          .flatMap(c =>
-            collectNestedStates(parentInfo)(
-              c._2,
-              parentInfo.depth.toInt + 1
-            )
-          )
-          .toVector
+        val localStates = collectLocalStates(
+          parentObj,
+          existingStates
+        )(parentObj.info)
 
         if (previousParents.contains(parentInfo.fqn)) {
           val prettyChain =
@@ -97,11 +137,11 @@ object DetectStateAccess {
         } else
           accumulateParentState(tree)(
             parentInfo,
-            existingStates ++ currentLvlStateNames,
+            existingStates |+| localStates,
             previousParents.appended(parentInfo.fqn)
-          ).map(res => Vector(currentLvlState) ++ nestedStates ++ res)
+          ).map(res => localStates |+| res)
 
-      case None => Right(Vector())
+      case None => Right(Map.empty)
     }
   }
 
@@ -138,7 +178,7 @@ object DetectStateAccess {
       val stateName = EOAnyNameBnd(LazyName(state))
       val containerChain = buildDotChain(innerDot)
 
-      List(StateChange(method._1, stateName, containerChain))
+      List(StateChange(method._1, containerChain, stateName))
     }
 
     Abstract.foldAst[List[StateChange]](binds, 0) {
@@ -158,30 +198,36 @@ object DetectStateAccess {
   )(
     obj: (EONamedBnd, Inliner.CompleteObjectTree)
   ): EitherNel[String, List[String]] = {
+    val localStates = collectLocalStates(obj._2)(obj._2.info)
     val availableParentStates =
-      accumulateParentState(tree)(obj._2.info)
+      accumulateParentState(tree)(obj._2.info, localStates)
     val accessedStates =
       obj._2.info.methods.flatMap { case method @ (_, methodInfo) =>
         getAccessedStates(methodInfo.selfArgName)(method)
       }
     availableParentStates
-      .map(parentStates =>
+      .map(_.toList)
+      .map(baseStatePairs =>
         for {
-          State(baseClass, statePath, changedStates) <- parentStates
-          StateChange(targetMethod, state, accessedStatePath) <- accessedStates
+          baseClass -> states <- baseStatePairs
+          State(statePath, availableState) <- states
+          StateChange(targetMethod, accessedStatePath, changedState) <-
+            accessedStates
         } yield
-          if (changedStates.contains(state) && statePath == accessedStatePath) {
+          if (
+            availableState == changedState && statePath == accessedStatePath
+          ) {
             val objName = obj._2.info.fqn.names.toList.mkString(".")
-            val stateName = statePath.appended(state.name.name).mkString(".")
+            val stateName =
+              statePath.appended(availableState.name.name).mkString(".")
             val method = targetMethod.name.name
-            val container = baseClass.fqn.show
 
             List(
-              f"Method '$method' of object '$objName' directly accesses state '$stateName' of base class '$container'"
+              f"Method '$method' of object '$objName' directly accesses state '$stateName' of base class '${baseClass.show}'"
             )
           } else List()
       )
-      .map(_.toList.flatten)
+      .map(_.flatten)
   }
 
   def analyze[F[_]](

@@ -332,7 +332,8 @@ object ExtractLogic {
                       And(arg.properties, arg.value)
                     )
                   )
-                case _ => Left(
+                case _ =>
+                  Left(
                     Nel.one(
                       s"Unsupported ${infoArgs.length}-ary primitive $name"
                     )
@@ -416,6 +417,15 @@ object ExtractLogic {
                           And(Not(infoSrc.value), ifFalse.properties)
                         )
                       )
+                    )
+                  )
+                case ("mod", infoArg :: Nil) =>
+                  Right(
+                    LogicInfo(
+                      List.empty,
+                      List.empty,
+                      Mod(infoSrc.value, infoArg.value),
+                      And(infoSrc.properties, infoArg.properties)
                     )
                   )
                 case _ =>
