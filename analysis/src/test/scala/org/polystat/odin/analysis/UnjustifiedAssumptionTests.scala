@@ -23,6 +23,9 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 
+  def errorMessage(name: String): String =
+    s"Inlining calls in method $name is not safe: doing so may break the behaviour of subclasses!"
+
   val testCasesWithErrors: List[TestCase] = List(
     TestCase(
       label = "One not referentially transparent method",
@@ -46,7 +49,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    [self z] > h
           |      self.g self z > @
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
+      expected = List(errorMessage("g"))
     ),
     TestCase(
       label = "One not referentially transparent method 2",
@@ -68,7 +71,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      assert (5.less x)
           |      x.sub 1
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
+      expected = List(errorMessage("g"))
     ),
     TestCase(
       label =
@@ -90,7 +93,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      assert (5.less x)
           |      x.sub 1
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
+      expected = List(errorMessage("g"))
     ),
     TestCase(
       label = "One not referentially transparent method 4",
@@ -118,7 +121,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    [self z] > h
           |      self.g self z > @
           |""".stripMargin,
-      expected = List("Method g is not referentially transparent")
+      expected = List(errorMessage("g"))
     ),
     TestCase(
       label =
@@ -138,7 +141,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    [self v] > n
           |      self.m self v > @
           |""".stripMargin,
-      expected = List("Method m is not referentially transparent")
+      expected = List(errorMessage("m"))
     ),
     TestCase(
       label = "Two not referentially transparent method",
@@ -165,8 +168,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      self.g self z > @
           |""".stripMargin,
       expected = List(
-        "Method g is not referentially transparent",
-        "Method g2 is not referentially transparent"
+        errorMessage("g"),
+        errorMessage("g2"),
       )
     ),
     TestCase(
@@ -201,10 +204,232 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      slf.ggg slf z > @
           |""".stripMargin,
       expected = List(
-        "Method g is not referentially transparent",
-        "Method ggg is not referentially transparent"
+        errorMessage("g"),
+        errorMessage("ggg"),
       )
     ),
+    TestCase(
+      label = "Test from the fragile base class paper",
+      code =
+        """|[] > c
+           |  [self v] > l
+           |    assert (v.less 5) > @
+           |  [self v] > m
+           |    self.l self v > @
+           |  [self v] > n
+           |    v > @
+           |
+           |[] > m
+           |  c > @
+           |  [self v] > l
+           |    v > @
+           |  [self v] > n
+           |    self.m self v > @
+           |""".stripMargin,
+      expected = List(errorMessage("m")),
+    ),
+    TestCase(
+      label =
+        "Test from the fragile base class paper but with functions without arguments and keywords ",
+      code =
+        """|[] > c
+           |  [self] > method
+           |    memory > local_m
+           |    cage > local_m2
+           |    2 > @
+           |  [self v] > l
+           |    assert (v.less 5) > @
+           |  [self v] > m
+           |    self.l self v > @
+           |  [self v] > n
+           |    seq > @
+           |      self.method self
+           |      v
+           |
+           |[] > m
+           |  c > @
+           |  [self v] > l
+           |    v > @
+           |  [self v] > n
+           |    self.m self v > @
+           |""".stripMargin,
+      expected = List(errorMessage("m")),
+    ),
+    TestCase(
+      label =
+        "Unjustified assumption in two participants of the inheritance chain",
+      code =
+        """
+          |[] > base
+          |  [self v] > n
+          |    seq > @
+          |      assert (v.less 10)
+          |      2
+          |  [self v] > m
+          |    self.n self v > @
+          |
+          |[] > osnova
+          |  base > @
+          |  [self x] > k
+          |    self.n self x > @
+          |
+          |[] > derived
+          |  osnova > @
+          |  [self v] > n
+          |    33 > @
+          |""".stripMargin,
+      expected = List(
+        errorMessage("m"),
+        errorMessage("k")
+      ),
+    ),
+    TestCase(
+      label = "J2EO example with mutual recursion",
+      code =
+        """
+          |# 2022-05-25T15:02:29.112794500
+          |# j2eo team
+          |+alias stdlib.lang.class__Object
+          |+alias stdlib.primitives.prim__int
+          |+alias org.eolang.gray.cage
+          |
+          |[] > class__Parent
+          |  class__Object > super
+          |  super > @
+          |  [] > new
+          |    [] > this
+          |      class__Object.new > super
+          |      super > @
+          |      "class__Parent" > className
+          |      [this] > init
+          |        seq > @
+          |          TRUE
+          |      # f :: int -> int
+          |      [this x] > f
+          |        seq > @
+          |          d50720817
+          |          s1135935001
+          |          s1649847375
+          |        prim__int.constructor_1 > t
+          |          prim__int.new
+          |        [] > d50720817
+          |          t.write > @
+          |            i_s1496220730
+          |        [] > i_s1496220730
+          |          b488600086 > @
+          |        [] > b488600086
+          |          s_r1111379131.sub > @
+          |            l1846982837
+          |        [] > s_r1111379131
+          |          x > @
+          |        [] > l1846982837
+          |          prim__int.constructor_2 > @
+          |            prim__int.new
+          |            5
+          |        [] > s1135935001
+          |          p635288507.if > @
+          |            TRUE
+          |            []
+          |              "AssertionError" > msg
+          |        [] > p635288507
+          |          b355885103 > @
+          |        [] > b355885103
+          |          s_r1321115948.greater > @
+          |            l706665172
+          |        [] > s_r1321115948
+          |          t > @
+          |        [] > l706665172
+          |          prim__int.constructor_2 > @
+          |            prim__int.new
+          |            0
+          |        [] > s1649847375
+          |          s_r1153933106 > @
+          |        [] > s_r1153933106
+          |          x > @
+          |      # g :: int -> int
+          |      [this y] > g
+          |        seq > @
+          |          s2144067911
+          |        [] > s2144067911
+          |          m_i593447952 > @
+          |        [] > m_i593447952
+          |          this.f > @
+          |            this
+          |            s_r1950136544
+          |        [] > s_r1950136544
+          |          y > @
+          |      # h :: int -> int
+          |      [this z] > h
+          |        seq > @
+          |          s209360730
+          |        [] > s209360730
+          |          s_r740007499 > @
+          |        [] > s_r740007499
+          |          z > @
+          |    seq > @
+          |      this
+          |  # null :: null -> void
+          |  [this] > constructor
+          |    seq > @
+          |      initialization
+          |      s1971152916
+          |      this
+          |    [] > initialization
+          |      this.init > @
+          |        this
+          |    [] > s1971152916
+          |      super.constructor > @
+          |        this.super
+          |
+          |[] > class__Child
+          |  class__Parent > super
+          |  super > @
+          |  [] > new
+          |    [] > this
+          |      class__Parent.new > super
+          |      super > @
+          |      "class__Child" > className
+          |      [this] > init
+          |        seq > @
+          |          TRUE
+          |      # f :: int -> int
+          |      [this y] > f
+          |        seq > @
+          |          s1687627235
+          |        [] > s1687627235
+          |          s_r1007660652 > @
+          |        [] > s_r1007660652
+          |          y > @
+          |      # h :: int -> int
+          |      [this z] > h
+          |        seq > @
+          |          s1276544608
+          |        [] > s1276544608
+          |          m_i1387620926 > @
+          |        [] > m_i1387620926
+          |          this.g > @
+          |            this
+          |            s_r265348534
+          |        [] > s_r265348534
+          |          z > @
+          |    seq > @
+          |      this
+          |  # null :: null -> void
+          |  [this] > constructor
+          |    seq > @
+          |      initialization
+          |      s1324173038
+          |      this
+          |    [] > initialization
+          |      this.init > @
+          |        this
+          |    [] > s1324173038
+          |      super.constructor > @
+          |        this.super
+          |""".stripMargin,
+      // TODO: make it find the defect (Currently it does not find it)
+      expected = List()
+    )
   )
 
   val testCasesWithoutErrors: List[TestCase] = List(
@@ -255,7 +480,31 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      self.m self v > @
           |""".stripMargin,
       expected = List()
-    )
+    ),
+    TestCase(
+      label = "No precondition strengthening with a function without arguments",
+      code =
+        """
+          |[] > base
+          |  [self] > n
+          |    seq > @
+          |      assert (2.less 10)
+          |      2
+          |  [self v] > m
+          |    self.n self > @
+          |
+          |[] > osnova
+          |  base > @
+          |  [self x] > k
+          |    self.n self > @
+          |
+          |[] > derived
+          |  osnova > @
+          |  [self] > n
+          |    33 > @
+          |""".stripMargin,
+      expected = List()
+    ),
   )
 
   def runTests(tests: List[TestCase]): Unit =
