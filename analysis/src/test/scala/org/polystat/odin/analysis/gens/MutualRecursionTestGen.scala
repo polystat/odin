@@ -404,6 +404,7 @@ object Main extends IOApp {
           ((x: Object) => x.toCPP, "source.cpp"),
           ((x: Object) => x.toJava, "Test.java"),
           ((x: Object) => x.toEO, "test.eo"),
+          ((x: Object) => x.toPython, "test.py"),
         )
       ),
       "yml"
