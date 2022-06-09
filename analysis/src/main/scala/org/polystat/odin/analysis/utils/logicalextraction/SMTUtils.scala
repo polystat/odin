@@ -1,35 +1,28 @@
 package org.polystat.odin.analysis.utils.logicalextraction
 
+import cats.data.EitherNel
+import cats.data.NonEmptyList
 import org.polystat.odin.core.ast.EONamedBnd
+import smtlib.common.Positioned
 import smtlib.theories.Core.BoolSort
 import smtlib.theories.Core.True
 import smtlib.theories.Ints.IntSort
 import smtlib.trees.Commands.FunDef
-import smtlib.trees.Terms.Exists
-import smtlib.trees.Terms.Forall
-import smtlib.trees.Terms.FunctionApplication
-import smtlib.trees.Terms.Identifier
-import smtlib.trees.Terms.Let
-import smtlib.trees.Terms.QualifiedIdentifier
-import smtlib.trees.Terms.SNumeral
-import smtlib.trees.Terms.SSymbol
-import smtlib.trees.Terms.SimpleIdentifier
-import smtlib.trees.Terms.SortedVar
-import smtlib.trees.Terms.Term
+import smtlib.trees.Terms._
 
 import scala.annotation.tailrec
 
 object SMTUtils {
 
-  final case class Info(
+  final case class LogicInfo(
     forall: List[SortedVar],
-    exists: List[SortedVar],
+    bindings: List[VarBinding],
     value: Term,
-    properties: Term
+    properties: Term,
   )
 
-  def simpleAppToInfo(names: List[String], depth: List[String]): Info = {
-    Info(
+  def simpleAppToInfo(names: List[String], depth: List[String]): LogicInfo = {
+    LogicInfo(
       List.empty,
       List.empty,
       QualifiedIdentifier(SimpleIdentifier(nameToSSymbol(names, depth))),
@@ -74,12 +67,30 @@ object SMTUtils {
     SortedVar(SMTUtils.nameToSSymbol(List(name), depth), IntSort())
   }
 
-  def mkFunDefs(tag: String, name: EONamedBnd, info: Info): List[FunDef] = {
+  def mkFunDefs(
+    tag: String,
+    name: EONamedBnd,
+    info: LogicInfo
+  ): List[FunDef] = {
+    val valueSort = info.value match {
+      case QualifiedIdentifier(
+             SimpleIdentifier(SSymbol("true" | "false")),
+             _
+           ) => BoolSort()
+      case QualifiedIdentifier(_, Some(sort)) => sort
+      case FunctionApplication(QualifiedIdentifier(_, Some(sort)), _) => sort
+      case FunctionApplication(
+             QualifiedIdentifier(SimpleIdentifier(SSymbol("and")), _),
+             _
+           ) => BoolSort()
+      case _ => IntSort()
+    }
+
     val valueDef =
       FunDef(
         SMTUtils.mkValueFunSSymbol(name.name.name, List(tag)),
         info.forall,
-        IntSort(),
+        valueSort,
         info.value
       )
     val propertiesDef =
@@ -92,7 +103,11 @@ object SMTUtils {
     List(valueDef, propertiesDef)
   }
 
-  def tsort[A](edges: Iterable[(A, A)]): (Iterable[A], Map[A, Set[A]]) = {
+  def tsort[A](
+    edges: Iterable[(A, A)],
+    handleBads: (A, Set[A]) => Either[(A, Set[A]), A]
+  ): (List[A], Map[A, Set[A]]) = {
+
     @tailrec
     def tsort(
       toPreds: Map[A, Set[A]],
@@ -112,17 +127,40 @@ object SMTUtils {
         .getOrElse(e._1, Set())) + (e._2 -> (acc.getOrElse(e._2, Set()) + e._1))
     }
 
-    tsort(toPred, Seq())
+//    val toPred = edges
+//      .foldLeft(Map[A, Set[A]]()) { case (acc, (from, to)) =>
+//        val fromEdge = from -> acc.getOrElse(from, Set())
+//        val toEdge = to -> acc.getOrElse(to, Set() + from)
+//        acc + fromEdge + toEdge
+//      }
+
+    val (goodEdges, badEdges) = tsort(toPred, Seq())
+    val (notHandledBads, handledBads) = badEdges
+      .partitionMap { case (func, bads) =>
+        handleBads(func, bads)
+      }
+
+    (handledBads.toList ++ goodEdges.toList.reverse, notHandledBads.toMap)
   }
 
-  def extractMethodDependencies(term: Term): List[String] = {
-    def recurse(t: Term): List[String] = {
+  def extractMethodDependencies[A](
+    term: Positioned,
+    availableDeps: Map[String, A],
+  ): List[A] = {
+    def recurse(t: Positioned): List[A] = {
       t match {
-        case Let(_, _, term) => recurse(term)
+        case VarBinding(_, term) => recurse(term)
+        case Let(x, xs, term) =>
+          recurse(term) ++ xs.flatMap(recurse) ++ recurse(x)
         case Forall(_, _, term) => recurse(term)
         case Exists(_, _, term) => recurse(term)
         case FunctionApplication(fun, terms) =>
-          List(fun.id.symbol.name) ++ terms.flatMap(recurse)
+          availableDeps.get(fun.id.symbol.name) match {
+            case Some(funDef) => List(funDef) ++ terms.flatMap(recurse)
+            case None => terms.flatMap(recurse).toList
+          }
+        case QualifiedIdentifier(Identifier(SSymbol(name), _), _) =>
+          availableDeps.get(name).toList
         case _ => List()
       }
     }
@@ -130,29 +168,98 @@ object SMTUtils {
     recurse(term)
   }
 
+  def runTsort[A](
+    elements: List[A],
+    toTerm: A => Term,
+    toString: A => String,
+    handleBads: (A, Set[A]) => Either[(A, Set[A]), A] =
+      (a: A, s: Set[A]) => Left((a, s))
+  ): (List[A], Map[A, Set[A]]) = {
+    val elDepPairs = elements.map(el =>
+      (
+        el,
+        extractMethodDependencies[A](
+          toTerm(el),
+          elements.map(toString).zip(elements).toMap
+        )
+      )
+    )
+    val independentEls = elDepPairs.collect { case (a, List()) =>
+      a
+    }
+    val dependentEls = elDepPairs.collect { case pair @ (_, _ :: _) =>
+      pair
+    }
+
+    val graph = dependentEls.flatMap { case (binding, dependencies) =>
+      dependencies.map(dependency => (binding, dependency))
+    }.distinct
+    val (sortedEls, badEls) = tsort(graph, handleBads)
+
+    ((independentEls ++ sortedEls).distinct, badEls)
+  }
+
+  def orderLets(
+    lets: List[VarBinding],
+    realTerm: Term
+  ): EitherNel[String, Term] = {
+    def nestLets(binding: List[VarBinding]): Term = {
+      binding match {
+        case ::(current, next) => Let(current, List(), nestLets(next))
+        case Nil => realTerm
+      }
+    }
+
+    if (lets.isEmpty)
+      Right(realTerm)
+    else {
+      val (sortedLets, badLets) =
+        runTsort[VarBinding](lets, _.term, _.name.name)
+
+      if (badLets.nonEmpty)
+        Left(
+          NonEmptyList.one(
+            s"The following local bindings form a circular dependency: $sortedLets"
+          )
+        )
+      else
+        Right(nestLets(sortedLets))
+    }
+  }
+
   def removeProblematicCalls(fun: FunDef, badFuns: Set[SSymbol]): FunDef = {
     def recurse(t: Term): Term = {
       t match {
-        case let @ Let(_, _, term) => let.copy(term = recurse(term))
+
+        case let @ Let(x, xs, term) => let.copy(
+            binding = x.copy(term = recurse(x.term)),
+            bindings = xs.map(x => x.copy(term = recurse(x.term))),
+            term = recurse(term)
+          )
         case forAll @ Forall(_, _, term) => forAll.copy(term = recurse(term))
         case exists @ Exists(_, _, term) => exists.copy(term = recurse(term))
-        case call @ FunctionApplication(fun, terms) =>
-          if (badFuns.contains(fun.id.symbol))
-            True()
-          else {
+        case call @ FunctionApplication(calledFun, terms) =>
+          if (badFuns.contains(calledFun.id.symbol)) {
+            fun.returnSort match {
+              case BoolSort() => True()
+              case _ => SNumeral(8008)
+            }
+          } else {
             call.copy(terms = terms.map(recurse))
           }
         case other => other
       }
     }
 
-    val res = fun.copy(body = recurse(fun.body) match {
-      case QualifiedIdentifier(Identifier(SSymbol("true"), _), _) =>
-        SNumeral(8008)
-      case good => good
-    })
+    fun.copy(body = recurse(fun.body))
 
-    res
+    //    val res = fun.copy(body = recurse(fun.body) match {
+//      case QualifiedIdentifier(Identifier(SSymbol("true"), _), _) =>
+//        SNumeral(8008)
+//      case good => good
+//    })
+//
+//    res
   }
 
 }
