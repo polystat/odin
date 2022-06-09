@@ -47,28 +47,43 @@ object Analyzer {
     }
 
     def resolveParentInfoOf(
-      cur: Inliner.CompleteObjectTree
+      cur: Inliner.CompleteObjectTree,
+      decorationChain: List[ObjectName] = List()
     ): EitherNel[String, Option[ParentInfo]] = {
       val parentTree = getParentTree(cur)
 
-      parentTree match {
-        case Some(parent) =>
-          val parentOfParent = getParentTree(parent)
-          (
-            resolveParentInfoOf(parent),
-            resolveCallgraph(parentOfParent)(parent)
-          ).mapN((parentOfParent, cg) =>
-            Some(
-              ParentInfo(
-                name = parent.info.fqn,
-                callGraph =
-                  parentOfParent.map(_.callGraph.extendWith(cg)).getOrElse(cg),
-                parent = parentOfParent
+      for {
+        _ <- if (decorationChain.contains(cur.info.fqn)) {
+          val prettyChain =
+            decorationChain.appended(cur.info.fqn).map(_.show).mkString(" -> ")
+          s"There is a cycle in the decoration chain: $prettyChain".leftNel
+        } else Right(())
+
+        parentInfo <- parentTree match {
+          case Some(parent) =>
+            val parentOfParent = getParentTree(parent)
+            (
+              resolveParentInfoOf(
+                parent,
+                decorationChain.appended(cur.info.fqn)
+              ),
+              resolveCallgraph(parentOfParent)(parent)
+            ).mapN((parentOfParent, cg) =>
+              Some(
+                ParentInfo(
+                  name = parent.info.fqn,
+                  callGraph =
+                    parentOfParent
+                      .map(_.callGraph.extendWith(cg))
+                      .getOrElse(cg),
+                  parent = parentOfParent
+                )
               )
             )
-          )
-        case None => Right(None)
-      }
+          case None => Right(None)
+        }
+
+      } yield parentInfo
     }
 
     @tailrec

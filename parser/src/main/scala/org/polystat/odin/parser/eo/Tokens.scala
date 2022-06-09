@@ -21,7 +21,8 @@ object Tokens {
   val lowercase: P[Char] = P.charIn('a' to 'z')
 
   val identifier: P[String] = (
-    lowercase ~
+    // FIXME: first symbol should be lowercase
+    letter ~
       (letter | digit | P.charIn('-') | P.charIn('_')).rep0
   ).string
 

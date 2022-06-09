@@ -76,7 +76,7 @@ object ExtractLogic {
     stubPhi: Boolean = false
   ): EitherNel[String, LogicInfo] = {
     body.bndAttrs.traverse { case EOBndExpr(bndName, expr) =>
-      extractLogic(bndName.name.name :: depth, expr, availableMethods)
+      extractLogic(selfArgName, bndName.name.name :: depth, expr, availableMethods)
         .map(info => (bndName, info))
     } flatMap (infos => {
       val phi = infos.toMap.get(EODecoration)
@@ -175,6 +175,7 @@ object ExtractLogic {
   }
 
   def extractLogic(
+    selfArgName: String,
     depth: List[String],
     expr: EOExprOnly,
     availableMethods: Set[EONamedBnd]
@@ -214,20 +215,20 @@ object ExtractLogic {
           case EOCopy(
                  Fix(
                    EODot(
-                     Fix(EOSimpleAppWithLocator("self", locator)),
+                     Fix(EOSimpleAppWithLocator(srcName, locator)),
                      methodName
                    )
                  ),
                  args
-               ) =>
+               ) if (srcName == selfArgName) =>
             args.map(x => Fix.un(x.expr)) match {
               case NonEmptyVector(
-                     EOSimpleAppWithLocator("self", locator2),
+                     EOSimpleAppWithLocator(firstArgName, locator2),
                      moreArgs
-                   ) if locator == locator2 =>
+                   ) if locator == locator2 && firstArgName == selfArgName =>
                 moreArgs
                   .traverse(expr =>
-                    extractLogic(depth, Fix(expr), availableMethods)
+                    extractLogic(selfArgName, depth, Fix(expr), availableMethods)
                   )
                   .flatMap(arguments =>
                     if (
@@ -281,7 +282,7 @@ object ExtractLogic {
           case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for { /*
                * FIXME: check locators */
               infoArgs <- args.traverse(arg =>
-                extractLogic(depth, arg.expr, availableMethods)
+                extractLogic(selfArgName, depth, arg.expr, availableMethods)
               )
               result <- (name, infoArgs) match {
                 case ("seq", NonEmptyVector(arg, Vector())) =>

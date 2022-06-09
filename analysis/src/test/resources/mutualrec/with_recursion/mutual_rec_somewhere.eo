@@ -1,18 +1,16 @@
 [] > a
   memory > x
-  [self] > inc
-    self.x.write (self.x.add 1) > @
+  [this] > inc
+    this.x.write (this.x.add 1) > @
 
 [] > b
   a > @
-  [self] > f
-    self.g self > @
+  [this] > f
+    this.g this > @
   [self] > g
     self > @
 
 [] > c
   b > @
-  [self] > g
-    self.f self > @
-
-
+  [this] > g
+    this.f this > @

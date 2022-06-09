@@ -60,24 +60,25 @@ object Abstract {
   }
 
   def foldAst[A: Monoid](
-    binds: Vector[EOBnd[EOExprOnly]]
-  )(f: PartialFunction[EOExpr[EOExprOnly], A]): A = {
-    def recurse(bnd: EOBnd[EOExprOnly]): A = {
-      f.lift(Fix.un(bnd.expr)) match {
+    binds: Vector[EOBnd[EOExprOnly]],
+    initialDepth: BigInt
+  )(f: PartialFunction[(EOExpr[EOExprOnly], BigInt), A]): A = {
+    def recurse(depth: BigInt)(bnd: EOBnd[EOExprOnly]): A = {
+      f.lift((Fix.un(bnd.expr), depth)) match {
         case Some(value) => value
         case None => Fix.un(bnd.expr) match {
-            case EOObj(_, _, bndAttrs) => bndAttrs.foldMap(recurse)
+            case EOObj(_, _, bndAttrs) => bndAttrs.foldMap(recurse(depth + 1))
             case EOCopy(trg, args) =>
-              recurse(EOAnonExpr(trg)).combine(
-                args.foldMap(recurse)
+              recurse(depth)(EOAnonExpr(trg)).combine(
+                args.foldMap(recurse(depth))
               )
-            case EODot(trg, _) => recurse(EOAnonExpr(trg))
-            case EOArray(elems) => elems.foldMap(recurse)
+            case EODot(trg, _) => recurse(depth)(EOAnonExpr(trg))
+            case EOArray(elems) => elems.foldMap(recurse(depth))
             case _ => Monoid[A].empty
           }
       }
     }
-    binds.foldMap(recurse)
+    binds.foldMap(recurse(initialDepth))
   }
 
 }

@@ -1,7 +1,7 @@
 package org.polystat.odin.analysis.utils.inlining
 
 import cats.data.EitherNel
-import cats.data.{NonEmptyList => Nel}
+import cats.syntax.all._
 import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.utils.Abstract.modifyExprWithState
 import org.polystat.odin.analysis.utils.Optics._
@@ -40,17 +40,25 @@ object LocatorContext {
     ctx: Context,
     name: String,
     currentDepth: BigInt
-  ): EitherNel[String, EOExprOnly] =
-    ctx
-      .get(name)
-      .map(depth =>
-        Fix[EOExpr](EOSimpleAppWithLocator(name, currentDepth - depth))
-      )
-      .toRight(
-        Nel.one(
-          s"Could not set locator for non-existent object with name \"$name\""
-        )
-      )
+  ): EitherNel[String, EOExprOnly] = {
+    val depth = ctx.getOrElse(name, BigInt(0))
+    // .asInstanceOf[BigInt]
+
+    Fix[EOExpr](EOSimpleAppWithLocator(name, currentDepth - depth)).asRight
+
+  }
+  // ctx
+  //   .getOrElse(name, 0)
+  //   .map(depth =>
+  //     Fix[EOExpr](EOSimpleAppWithLocator(name, currentDepth - depth))
+  //   )
+  //   .asRight
+
+  // .toRight(
+  //   Nel.one(
+  //     s"Could not set locator for non-existent object with name \"$name\""
+  //   )
+  // )
 
   def rebuildContext(
     ctx: Context,

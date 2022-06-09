@@ -19,7 +19,9 @@ object LocateCalls {
       override def combine(x: Boolean, y: Boolean): Boolean = x && y
     }
 
-    foldAst[Boolean](binds) { case EOSimpleAppWithLocator("@", _) => false }
+    foldAst[Boolean](binds, 0) { case (EOSimpleAppWithLocator("@", _), _) =>
+      false
+    }
   }
 
   def hasPhiAttribute(bnds: Vector[EOBnd[EOExprOnly]]): Boolean =
@@ -28,14 +30,11 @@ object LocateCalls {
       case _ => false
     }
 
-  def hasSelfAsFirstParam(params: Vector[LazyName]): Boolean =
-    params.headOption.exists(_.name == "self")
-
   def parseMethod(
     methodBnd: EOBndExpr[EOExprOnly],
     bndDepth: BigInt
   ): Option[MethodInfo] = {
-    def findCalls(body: EOObj[EOExprOnly]): Vector[Call] = {
+    def findCalls(selfArg: String, body: EOObj[EOExprOnly]): Vector[Call] = {
       def findCallsRec(
         subExpr: Fix[EOExpr],
         pathToCallSite: PathToCallSite,
@@ -45,12 +44,14 @@ object LocateCalls {
         Fix.un(subExpr) match {
           // the call was found
           case EOCopy(
-                 Fix(EODot(Fix(EOSimpleAppWithLocator("self", locator)), name)),
+                 Fix(
+                   EODot(Fix(EOSimpleAppWithLocator(srcName, locator)), name)
+                 ),
                  args
-               ) if locator == depth =>
+               ) if locator == depth && srcName == selfArg =>
             val firstArgIsValid: Boolean = args.head match {
-              case EOAnonExpr(EOSimpleAppWithLocator("self", locator))
-                   if locator == depth => true
+              case EOAnonExpr(EOSimpleAppWithLocator(firstArg, locator))
+                   if locator == depth && firstArg == selfArg => true
               case _ => false
             }
             if (firstArgIsValid)
@@ -138,11 +139,19 @@ object LocateCalls {
     }
 
     Fix.un(methodBnd.expr) match {
-      case obj @ EOObj(params, _, bndAttrs)
-           if hasSelfAsFirstParam(params) &&
-           hasPhiAttribute(bndAttrs) &&
-           hasNoReferencesToPhi(bndAttrs) =>
-        Some(MethodInfo(findCalls(obj), obj, bndDepth))
+      case obj @ EOObj(selfArg +: _, _, bndAttrs)
+           if hasPhiAttribute(bndAttrs) &&
+           hasNoReferencesToPhi(bndAttrs) &&
+           // TODO: properly handle constructors
+           methodBnd.bndName.name.name != "constructor" =>
+        Some(
+          MethodInfo(
+            selfArgName = selfArg.name,
+            calls = findCalls(selfArg.name, obj),
+            body = obj,
+            depth = bndDepth
+          )
+        )
       case _ => None
     }
   }

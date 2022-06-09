@@ -92,6 +92,7 @@ object ToEO {
         override def toEO(node: EOMeta): Inline = node match {
           case a: EOAliasMeta => a.toEO
           case rt: EORTMeta => rt.toEO
+          case other: EOOtherMeta => other.toEO
         }
 
       }
@@ -114,6 +115,15 @@ object ToEO {
 
         override def toEO(node: EORTMeta): Inline =
           Inline(s"${Constants.SYMBS.META_PREFIX}rt ${node.rtName} ${node.src}")
+
+      }
+
+    implicit val otherMetaToEO: ToEO[EOOtherMeta, Inline] =
+      new ToEO[EOOtherMeta, Inline] {
+
+        override def toEO(node: EOOtherMeta): Inline = Inline(
+          s"+${node.head} ${node.tail.mkString(" ")}"
+        )
 
       }
 
