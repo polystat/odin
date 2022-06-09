@@ -4,12 +4,6 @@
 +alias stdlib.primitives.prim__int
 +alias org.eolang.gray.cage
 
-[] > class__Object
-  [] > new
-    [] > this
-  [this] > constructor
-    this > @
-
 [] > class__Base
   class__Object > super
   super > @

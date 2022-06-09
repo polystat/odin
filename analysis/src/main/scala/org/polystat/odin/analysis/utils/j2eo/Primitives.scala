@@ -3,90 +3,90 @@ package org.polystat.odin.analysis.utils.j2eo
 object Primitives {
 
   val all: Seq[String] = Seq(
-    """
-      |# inc_pre, dec_pre, inc_post, dec_post, add, sub, mul, div are not precise operators
-      |+package stdlib.primitives
-      |+alias stdlib.primitives.prim__num
-      |
-      |[] > prim__boolean
-      |  prim__num > super
-      |  super > @
-      |
-      |  [] > new
-      |    [] > this
-      |      memory > v
-      |      prim__num.new > super
-      |      super > @
-      |      "prim__boolean" > prim_name
-      |
-      |      [] > as-string
-      |        seq > @
-      |          if.
-      |            ^.v
-      |            "true"
-      |            "false"
-      |
-      |      [right] > write
-      |        seq > @
-      |          ^.v.write
-      |            right.v
-      |          prim__boolean.constructor_3
-      |            prim__boolean.new
-      |            ^
-      |
-      |      [right] > and
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.and
-      |              right.v
-      |
-      |      [right] > or
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.or
-      |              right.v
-      |
-      |      [] > not
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.not
-      |
-      |      [t_s f_s] > if
-      |        seq > @
-      |          if.
-      |            ^.v
-      |            t_s
-      |            f_s
-      |
-      |      [f] > while
-      |        seq > @
-      |          while.
-      |            ^.v
-      |            f
-      |
-      |    seq > @
-      |      this
-      |
-      |  [this] > constructor_1
-      |    seq > @
-      |      super.constructor_1
-      |        this
-      |
-      |  [this target] > constructor_2
-      |    seq > @
-      |      super.constructor_2
-      |        this
-      |        target
-      |
-      |  [this another_num] > constructor_3
-      |    seq > @
-      |      super.constructor_3
-      |        this
-      |        another_num
-      |""".stripMargin,
+//    """
+//      |# inc_pre, dec_pre, inc_post, dec_post, add, sub, mul, div are not precise operators
+//      |+package stdlib.primitives
+//      |+alias stdlib.primitives.prim__num
+//      |
+//      |[] > prim__boolean
+//      |  prim__num > super
+//      |  super > @
+//      |
+//      |  [] > new
+//      |    [] > this
+//      |      memory > v
+//      |      prim__num.new > super
+//      |      super > @
+//      |      "prim__boolean" > prim_name
+//      |
+//      |      [] > as-string
+//      |        seq > @
+//      |          if.
+//      |            ^.v
+//      |            "true"
+//      |            "false"
+//      |
+//      |      [right] > write
+//      |        seq > @
+//      |          ^.v.write
+//      |            right.v
+//      |          prim__boolean.constructor_3
+//      |            prim__boolean.new
+//      |            ^
+//      |
+//      |      [right] > and
+//      |        seq > @
+//      |          prim__boolean.constructor_2
+//      |            prim__boolean.new
+//      |            ^.v.and
+//      |              right.v
+//      |
+//      |      [right] > or
+//      |        seq > @
+//      |          prim__boolean.constructor_2
+//      |            prim__boolean.new
+//      |            ^.v.or
+//      |              right.v
+//      |
+//      |      [] > not
+//      |        seq > @
+//      |          prim__boolean.constructor_2
+//      |            prim__boolean.new
+//      |            ^.v.not
+//      |
+//      |      [t_s f_s] > if
+//      |        seq > @
+//      |          if.
+//      |            ^.v
+//      |            t_s
+//      |            f_s
+//      |
+//      |      [f] > while
+//      |        seq > @
+//      |          while.
+//      |            ^.v
+//      |            f
+//      |
+//      |    seq > @
+//      |      this
+//      |
+//      |  [this] > constructor_1
+//      |    seq > @
+//      |      super.constructor_1
+//      |        this
+//      |
+//      |  [this target] > constructor_2
+//      |    seq > @
+//      |      super.constructor_2
+//      |        this
+//      |        target
+//      |
+//      |  [this another_num] > constructor_3
+//      |    seq > @
+//      |      super.constructor_3
+//      |        this
+//      |        another_num
+//      |""".stripMargin,
     """
       |# inc_pre, dec_pre, inc_post, dec_post, add, sub, mul, div are not precise operators
       |+package stdlib.primitives
@@ -672,7 +672,7 @@ object Primitives {
       |      prim__int.constructor_2
       |        prim__int.new
       |        mod.
-      |          right.integer_part
+      |          this.integer_part
       |            right
       |          max_int
       |
@@ -701,115 +701,7 @@ object Primitives {
       |  [] > new
       |    []> this
       |      memory > v
-      |      "prim__num" > prim_name
-      |      "prim" > @
-      |
-      |      [] > as-string
-      |        seq > @
-      |          ^.v.as-string
-      |
-      |      [this] > integer_part
-      |        seq > @
-      |          if.
-      |            not.
-      |              this.prim_name.eq "prim__boolean"
-      |            if.
-      |              and.
-      |                not.
-      |                  this.prim_name.eq "prim__float"
-      |                not.
-      |                  this.prim_name.eq "prim__double"
-      |              this.v
-      |              this.v.as-int
-      |            if.
-      |              this.v
-      |              1
-      |              0
-      |
-      |      [this] > float_part
-      |        seq > @
-      |          if.
-      |            not.
-      |              this.prim_name.eq "prim__boolean"
-      |            if.
-      |              and.
-      |                not.
-      |                  this.prim_name.eq "prim__float"
-      |                not.
-      |                  this.prim_name.eq "prim__double"
-      |              this.v.as-float
-      |              this.v
-      |            if.
-      |              this.v
-      |              1.0
-      |              0.0
-      |
-      |      [this value] > init
-      |        seq > @
-      |          this.v.write
-      |            value
-      |
-      |      [right] > eq
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.eq
-      |              right.v
-      |
-      |      [right] > greater
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.greater
-      |              right.v
-      |
-      |      [right] > less
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.less
-      |              right.v
-      |
-      |      [right] > geq
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.geq
-      |              right.v
-      |
-      |      [right] > leq
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.leq
-      |              right.v
-      |
-      |      [right] > neq
-      |        seq > @
-      |          prim__boolean.constructor_2
-      |            prim__boolean.new
-      |            ^.v.neq
-      |              right.v
-      |
       |    seq > @
-      |      this
-      |
-      |  [this] > constructor_1
-      |    seq > @
-      |      this
-      |
-      |  [this target] > constructor_2
-      |    seq > @
-      |      this.init
-      |        this
-      |        target
-      |      this
-      |
-      |  [this another_num] > constructor_3
-      |    seq > @
-      |      this.init
-      |        this
-      |        another_num.v
       |      this
       |""".stripMargin,
     """
