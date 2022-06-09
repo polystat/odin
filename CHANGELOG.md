@@ -1,3 +1,13 @@
+# v0.4.3
+This release introduces additional compatibility fixes for `j2eo`:
+- Additional checks for cycles in inheritance chains
+- j2eo primitives are added to every program (temporary fix)
+- Refactoring of several analyzers
+- Direct state access analyzer now considers J2EO primitives as state containers
+- Logic extraction now utilizes `Let` instead of `Exists`
+- Enhanced topological sorting of terms
+- Fixed several SMT solver problems
+
 # v0.4.2
 This release made several changes to make odin recognize output from `j2eo`. 
 1. odin: Support this keyword
