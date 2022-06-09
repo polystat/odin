@@ -70,6 +70,7 @@ object ExtractLogic {
   }
 
   def extractObjectLogic(
+    selfArgName: String,
     body: EOObj[EOExprOnly],
     availableMethods: Set[EONamedBnd],
     depth: List[String],
@@ -182,7 +183,7 @@ object ExtractLogic {
   ): EitherNel[String, LogicInfo] = {
     Fix.un(expr) match {
       case body @ EOObj(Vector(), None, _) =>
-        extractObjectLogic(body, availableMethods, depth, stubPhi = true)
+        extractObjectLogic(selfArgName, body, availableMethods, depth, stubPhi = true)
 
       case EOObj(_, _, _) =>
         Left(Nel.one("object with void attributes are not supported yet!")) /*
@@ -322,9 +323,9 @@ object ExtractLogic {
               }
             } yield result
           case EOCopy(Fix(EODot(src, attr)), args) => for {
-              infoSrc <- extractLogic(depth, src, availableMethods)
+              infoSrc <- extractLogic(selfArgName, depth, src, availableMethods)
               infoArgs <- args.traverse(arg =>
-                extractLogic(depth, arg.expr, availableMethods)
+                extractLogic(selfArgName, depth, arg.expr, availableMethods)
               )
               result <- (attr, infoArgs.toVector.toList) match {
                 case ("add", infoArg :: Nil) =>

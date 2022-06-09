@@ -58,6 +58,7 @@ object Analyzer {
 
       parentMethod <- EitherT.fromEither[F](
         extractMethodLogic(
+          method.parentVersion.selfArgName,
           parentTag,
           method.parentVersion,
           methodName,
@@ -66,6 +67,7 @@ object Analyzer {
       )
       childMethod <- EitherT.fromEither[F](
         extractMethodLogic(
+          method.childVersion.selfArgName,
           childTag,
           method.childVersion,
           methodName,

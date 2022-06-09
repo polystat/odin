@@ -4,8 +4,14 @@ import cats.data.{EitherNel, EitherT, NonEmptyList => Nel}
 import cats.effect.Sync
 import cats.syntax.all._
 import org.polystat.odin.analysis.utils.inlining.Inliner.AnalysisInfo
-import org.polystat.odin.analysis.utils.inlining.{MethodInfoForAnalysis, ObjectTree}
-import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.{checkImplication, extractObjectLogic}
+import org.polystat.odin.analysis.utils.inlining.{
+  MethodInfoForAnalysis,
+  ObjectTree
+}
+import org.polystat.odin.analysis.utils.logicalextraction.ExtractLogic.{
+  checkImplication,
+  extractObjectLogic
+}
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.LogicInfo
 import org.polystat.odin.core.ast._
 
@@ -48,6 +54,7 @@ object Analyzer {
         res1 <-
           EitherT.fromEither[F](
             extractMethodLogic(
+              before.selfArgName,
               "before",
               before,
               methodName,
@@ -55,7 +62,13 @@ object Analyzer {
             )
           )
         res2 <- EitherT.fromEither[F](
-          extractMethodLogic("after", after, methodName, methodsAfter.keySet)
+          extractMethodLogic(
+            after.selfArgName,
+            "after",
+            after,
+            methodName,
+            methodsAfter.keySet
+          )
         )
         res <-
           checkImplication[F](
@@ -82,12 +95,19 @@ object Analyzer {
         case (acc, (key, value)) =>
           for {
             acc <- acc
-            newVal <- extractMethodLogic(tag, value, key.name.name, methodNames)
+            newVal <- extractMethodLogic(
+              value.selfArgName,
+              tag,
+              value,
+              key.name.name,
+              methodNames
+            )
           } yield acc.updated(key, newVal)
       }
   }
 
   def extractMethodLogic(
+    selfArgName: String,
     tag: String,
     method: MethodInfoForAnalysis,
     name: String,
@@ -99,7 +119,7 @@ object Analyzer {
       phiExpr
     } match {
       case Some(_) =>
-          extractObjectLogic(body, availableMethods, List(tag))
+        extractObjectLogic(selfArgName, body, availableMethods, List(tag))
       case None =>
         Left(Nel.one(s"Method $name does not have attached @ attribute"))
     }
