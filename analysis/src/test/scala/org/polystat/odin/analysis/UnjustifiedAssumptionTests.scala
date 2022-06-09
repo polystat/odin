@@ -234,7 +234,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
         """|[] > c
            |  [self] > method
            |    memory > local_m
-           |    cage > local_m
+           |    cage > local_m2
            |    2 > @
            |  [self v] > l
            |    assert (v.less 5) > @
@@ -282,7 +282,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
         errorMessage("k")
       ),
     ),
-    TestCase(label = "J2EO example with mutual recursionh",
+    TestCase(label = "J2EO example with mutual recursion",
       code =
         """
           |[] > prim__int
