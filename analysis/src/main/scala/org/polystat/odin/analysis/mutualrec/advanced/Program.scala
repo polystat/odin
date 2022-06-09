@@ -184,23 +184,20 @@ object Program {
                |$spaces    ${calls
                 .map(call => s"self.${call.name}()")
                 .mkString(s"\n  $spaces")}
-                |""".stripMargin
-//            s"""${spaces}def ${name.name}():\n${calls
-//                .map(call => s"self.${call.name}()")
-//                .mkString(s"\n  $spaces")}
-//                """.stripMargin
+               |""".stripMargin
         }
       }
 
       def helper(obj: Object, depth: Int): String = {
 
         val spaces = "  " * (depth + 1)
-        val class_def = s"""class ${obj.name.name.toUpperCase()}${obj
-            .parent
-            .fold("")(ext =>
-              s"(${ext.name.names.map(_.toUpperCase).toList.mkString(".")})"
-            )}:
-            |$spaces  pass
+        val class_def =
+          s"""class ${obj.name.name.toUpperCase()}${obj
+              .parent
+              .fold("")(ext =>
+                s"(${ext.name.names.map(_.toUpperCase).toList.mkString(".")})"
+              )}:
+             |$spaces  pass
             """.stripMargin
         val class_methods =
           "  " + obj
@@ -238,6 +235,14 @@ object Program {
 
   implicit final class ProgramOps(objs: Program) {
 
+    def replaceObj(targetName: ObjectName, processObj: Object => Object): Program = {
+      objs.map {
+        case obj@Object(objName, _, _, _) if objName == targetName => processObj(obj)
+        case obj@Object(_, Some(ParentInfo(name, _, _)), _, _) if name == targetName => processObj(obj)
+        case other => other
+      }
+    }
+
     def containsObjectWithName(s: String): Boolean = {
       objs.exists(obj => obj.name.name == s)
     }
@@ -263,8 +268,10 @@ object Program {
         )
     }
 
-    def toEO: String = objs.map(_.toEO).mkString("\n")
     def toCPP: String = objs.map(_.toCPP).mkString("\n")
+    def toEO: String = objs.map(_.toEO).mkString("\n")
+    def toJava: String = objs.map(_.toJava).mkString("\n")
+    def toPython: String = objs.map(_.toPython).mkString("\n")
 
   }
 

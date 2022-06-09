@@ -340,8 +340,21 @@ object MutualRecursionTestGen extends IOApp {
   def textFromProgram(displays: List[(Object => String, String)])(
     prog: Program,
   ): String = {
-    val cycles = prog
-      .flatMap(_.callGraph.findCycles.map(cc => cc.show))
+    def dummifyObj(prevObject: Object): Object =
+      Object(prevObject.name, None, List.empty, Map.empty)
+
+    val cyclesStruct = prog
+      .flatMap(_.callGraph.findCycles)
+
+    val badObjs = cyclesStruct
+      .map(_.last.whereDefined)
+
+    val fixedProg = badObjs.foldLeft(prog) { case (prog, badName) =>
+      prog.replaceObj(badName, dummifyObj)
+    }
+
+    val cycles = cyclesStruct
+      .map(cc => cc.show)
       .mkString("\n")
       .split("\n")
       .mkString("\n  ")
@@ -349,6 +362,21 @@ object MutualRecursionTestGen extends IOApp {
     val bads = displays
       .map { case (converter, marker) =>
         val programCode = prog
+          .map(converter)
+          .mkString("\n")
+          .split("\n")
+          .mkString("\n    ")
+        s"""
+           |  $marker: |
+           |    $programCode
+           |
+           |""".stripMargin
+      }
+      .mkString("\n")
+
+    val goods = displays
+      .map { case (converter, marker) =>
+        val programCode = fixedProg
           .map(converter)
           .mkString("\n")
           .split("\n")
@@ -375,6 +403,9 @@ object MutualRecursionTestGen extends IOApp {
        |
        |bad:
        |   $bads
+       |   
+       |good:
+       |   $goods
        |""".stripMargin
 
   }
@@ -388,10 +419,13 @@ object Main extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
 
     val gen = Gen
-      .choose(1, 20)
+      .choose(13, 150)
       .flatMap(n =>
-        genProgram(n, 5, 90, 2, 5).retryUntil(p =>
-          p.findMultiObjectCycles.exists(_.length > 5)
+        genProgram(n, 1, 99, 20, 60).retryUntil(p => {
+          val cycles = p.findMultiObjectCycles.map(_.length)
+          println(cycles.max)
+          cycles.exists(_ > 13)
+        }
         )
       )
 
