@@ -142,6 +142,7 @@ object LocateCalls {
       case obj @ EOObj(selfArg +: _, _, bndAttrs)
            if hasPhiAttribute(bndAttrs) &&
            hasNoReferencesToPhi(bndAttrs) &&
+           (selfArg.name == "this" || selfArg.name == "self") &&
            // TODO: properly handle constructors
            methodBnd.bndName.name.name != "constructor" =>
         Some(
