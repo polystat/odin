@@ -320,8 +320,8 @@ class DetectStateAccessTests extends AnyWordSpec {
                |  memory > state
                |[] > child
                |  parent > @
-               |  [slf] > method
-               |    3.sub ((slf.state.add 10).add 10) > @
+               |  [self] > method
+               |    3.sub ((self.state.add 10).add 10) > @
                |""".stripMargin,
       expected = List(
         "Method 'method' of object 'child' directly accesses state 'state' of base class 'parent'",

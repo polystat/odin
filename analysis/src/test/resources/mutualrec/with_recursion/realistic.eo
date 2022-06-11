@@ -11,7 +11,7 @@
     c.new > @
 [] > c
   [] > new
-    [slf y x] > g
-      slf.f slf x y > @
+    [self y x] > g
+      self.f self x y > @
     [this x y] > f
       this > @
