@@ -172,10 +172,10 @@ object EOOdinAnalyzer {
   ): F[OdinAnalysisResult] = for {
     programAst <- parser.parse(eoRepr)
     astWithPredef = addPredef(programAst)
-    mutualRecursionErrors <-
+    analysisError <-
       analyzer
         .analyze(astWithPredef)
 //        .handleErrorWith(_ => Stream.empty)
-  } yield mutualRecursionErrors
+  } yield analysisError
 
 }
