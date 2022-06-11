@@ -156,8 +156,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |        x
           |    [this y] > g
           |      this.f this y > @
-          |    [hahaha_this_is_self y] > g2
-          |      hahaha_this_is_self.f hahaha_this_is_self y > @
+          |    [self y] > g2
+          |      self.f self y > @
           |    [self z] > h
           |      z > @
           |  [] > child

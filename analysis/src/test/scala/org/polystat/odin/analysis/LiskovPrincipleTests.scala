@@ -91,14 +91,14 @@ class LiskovPrincipleTests extends AnyWordSpec {
         """
           |[] > test
           |  [] > parent
-          |    [this_self_is_not_used x] > f
+          |    [self x] > f
           |      x > @
           |    [this x] > g
           |      this.f this x > @
           |
           |  [] > child
           |    test.parent > @
-          |    [slf y] > f
+          |    [self y] > f
           |      10.div y > @
           |""".stripMargin,
       expected = List(

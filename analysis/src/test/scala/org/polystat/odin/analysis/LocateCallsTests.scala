@@ -75,8 +75,6 @@ class LocateCallsTests extends AnyWordSpec {
   private val testCases: List[TestCase] = List(
     "this",
     "self",
-    "asd",
-    "anything"
   ).map(selfArg =>
     TestCase(
       label = s"method with $selfArg",
