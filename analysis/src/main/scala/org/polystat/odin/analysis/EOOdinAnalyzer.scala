@@ -1,7 +1,8 @@
 package org.polystat.odin.analysis
 
 import cats._
-import cats.data.{EitherNel, NonEmptyList}
+import cats.data.EitherNel
+import cats.data.NonEmptyList
 import cats.effect.Sync
 import cats.syntax.all._
 import org.polystat.odin.analysis.EOOdinAnalyzer._
@@ -11,7 +12,8 @@ import org.polystat.odin.analysis.stateaccess.DetectStateAccess
 import org.polystat.odin.analysis.utils.ImportProcessing.prependImports
 import org.polystat.odin.analysis.utils.inlining.Inliner
 import org.polystat.odin.analysis.utils.j2eo
-import org.polystat.odin.core.ast.{EOBndExpr, EOProg}
+import org.polystat.odin.core.ast.EOBndExpr
+import org.polystat.odin.core.ast.EOProg
 import org.polystat.odin.core.ast.astparams.EOExprOnly
 import org.polystat.odin.parser.EoParser
 import org.polystat.odin.parser.eo.Parser
