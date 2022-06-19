@@ -573,7 +573,30 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    x > @
           |""".stripMargin,
       expected = List()
-    ),TestCase(
+    ),
+    TestCase(
+      label = "J2EO 'prim__float'",
+      code =
+        """
+          |[] > base
+          |  [self x] > f
+          |    prim__float.constructor_2 > t
+          |      prim__float.new
+          |      1
+          |    x.add (t.sub 1) > @
+          |  [self x] > g
+          |    seq > @
+          |      assert ((self.f self x).less 8018)
+          |      22
+          |
+          |[] > derived
+          |  base > @
+          |  [self x] > f
+          |    x > @
+          |""".stripMargin,
+      expected = List()
+    ),
+    TestCase(
       label = "J2EO 'prim__int.constructor_3' ",
       code =
         """

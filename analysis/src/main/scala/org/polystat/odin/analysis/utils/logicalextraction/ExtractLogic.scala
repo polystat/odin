@@ -299,7 +299,15 @@ object ExtractLogic {
             }
           // J2EO  TODO: DEPTH CHECK
 //          case EOCopy(Fix(EODot(EOSimpleAppWithLocator("prim__int", _), "constructor_1")), args) => ???
-          case EOCopy(Fix(EODot(EOSimpleAppWithLocator("prim__int", _), "constructor_2" | "constructor_3")), args) =>
+          case EOCopy(
+                 Fix(
+                   EODot(
+                     EOSimpleAppWithLocator(name, _),
+                     "constructor_2" | "constructor_3"
+                   )
+                 ),
+                 args
+               ) if name.startsWith("prim__") =>
             extractLogic(selfArgName, depth, args.last.expr, availableMethods)
 
           case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for { /*
@@ -458,6 +466,10 @@ object ExtractLogic {
       case EOBoolData(v) =>
         Right(
           LogicInfo(List.empty, List.empty, if (v) True() else False(), True())
+        )
+      case EOFloatData(f) =>
+        Right(
+          LogicInfo(List.empty, List.empty, SDecimal(f), True())
         )
       case _ =>
         Right(
