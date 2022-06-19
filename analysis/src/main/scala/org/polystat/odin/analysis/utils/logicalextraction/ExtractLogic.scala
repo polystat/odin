@@ -297,6 +297,11 @@ object ExtractLogic {
                   )
               case _ => Left(Nel.one(s"Unsupported EOCopy with self: $app"))
             }
+          // J2EO  TODO: DEPTH CHECK
+//          case EOCopy(Fix(EODot(EOSimpleAppWithLocator("prim__int", _), "constructor_1")), args) => ???
+          case EOCopy(Fix(EODot(EOSimpleAppWithLocator("prim__int", _), "constructor_2" | "constructor_3")), args) =>
+            extractLogic(selfArgName, depth, args.last.expr, availableMethods)
+
           case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for { /*
                * FIXME: check locators */
               infoArgs <- args.traverse(arg =>

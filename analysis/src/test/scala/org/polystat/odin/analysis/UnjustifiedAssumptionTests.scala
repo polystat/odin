@@ -128,26 +128,19 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      prim__int.new
           |    prim__int.constructor_2 > temp
           |      prim__int.new
-          |      5
-          |    [] > local
-          |      prim > x
-          |      [] > very_local
-          |        1 > y
-          |    x.div local.very_local.y > sas
+          |      x
           |    seq > @
           |      t.write temp
-          |      assert ((self.f self (sas.add 1)).less local.x)
-          |      22
+          |      assert ((self.f self t).less 10)
+          |      t
           |  [self x] > f
-          |    seq > @
-          |      assert (x.less 9)
-          |      x.add 1
+          |    x.add 1 > @
+          |
           |[] > derived
           |  base > @
           |  [self x] > f
-          |    seq > @
-          |      assert (5.less x)
-          |      x.sub 1
+          |    x.sub 1 > @
+          |
           |""".stripMargin,
       expected = List(errorMessage("g"))
     ),
@@ -568,6 +561,30 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    prim__int.constructor_2 > t
           |      prim__int.new
           |      1
+          |    x.add (t.sub 1) > @
+          |  [self x] > g
+          |    seq > @
+          |      assert ((self.f self x).less 8018)
+          |      22
+          |
+          |[] > derived
+          |  base > @
+          |  [self x] > f
+          |    x > @
+          |""".stripMargin,
+      expected = List()
+    ),TestCase(
+      label = "J2EO 'prim__int.constructor_3' ",
+      code =
+        """
+          |[] > base
+          |  [self x] > f
+          |    prim__int.constructor_2 > dummy_int
+          |      prim__int.new
+          |      1
+          |    prim__int.constructor_3 > t
+          |      prim__int.new
+          |      dummy_int
           |    x.add (t.sub 1) > @
           |  [self x] > g
           |    seq > @
