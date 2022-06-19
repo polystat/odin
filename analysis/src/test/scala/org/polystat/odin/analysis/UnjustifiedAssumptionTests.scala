@@ -57,13 +57,58 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
         """
           |[] > base
           |  [self x] > f
+          |    x.add 1 > @
+          |  [self x] > g
           |    seq > @
-          |      assert (x.less 9)
-          |      x.add 1
+          |      assert ((self.f self x).less 10)
+          |      22
+          |
+          |[] > derived
+          |  base > @
+          |  [self x] > f
+          |    x > @
+          |""".stripMargin,
+      expected = List(errorMessage("g"))
+    ),
+    TestCase(
+      label =
+        "Another not referentially transparent method 2",
+      code =
+        """[] > base
           |  [self x] > g
           |    seq > @
           |      assert ((self.f self (x.add 1)).less 10)
           |      22
+          |  [self x] > f
+          |    seq > @
+          |      assert (x.less 9)
+          |      x.add 1
+          |[] > derived
+          |  base > @
+          |  [self x] > f
+          |    seq > @
+          |      assert (5.less x)
+          |      x.sub 1
+          |""".stripMargin,
+      expected = List(errorMessage("g"))
+    ),    TestCase(
+      label =
+        "Bad method that uses nested variables",
+      code =
+        """[] > base
+          |  [self x] > g
+          |    [] > local
+          |      10 > x
+          |      [] > very_local
+          |        1 > y
+          |    x.div local.very_local.y > sas
+          |    seq > @
+          |      assert ((self.f self (sas.add 1)).less local.x)
+          |      22
+          |  [self x] > f
+          |    seq > @
+          |      assert (x.less 9)
+          |      x.add 1
           |[] > derived
           |  base > @
           |  [self x] > f
@@ -75,12 +120,23 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
     ),
     TestCase(
       label =
-        "One not referentially transparent method 2 with shuffled method order",
+        "J2EO 'prim__int' and .write",
       code =
         """[] > base
           |  [self x] > g
+          |    prim__int.constructor_1 > t
+          |      prim__int.new
+          |    prim__int.constructor_2 > temp
+          |      prim__int.new
+          |      5
+          |    [] > local
+          |      prim > x
+          |      [] > very_local
+          |        1 > y
+          |    x.div local.very_local.y > sas
           |    seq > @
-          |      assert ((self.f self (x.add 1)).less 10)
+          |      t.write temp
+          |      assert ((self.f self (sas.add 1)).less local.x)
           |      22
           |  [self x] > f
           |    seq > @
@@ -427,8 +483,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      super.constructor > @
           |        this.super
           |""".stripMargin,
-      // TODO: make it find the defect (Currently it does not find it)
-      expected = List()
+      expected = List("Some defect")
     )
   )
 
@@ -502,6 +557,27 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |  osnova > @
           |  [self] > n
           |    33 > @
+          |""".stripMargin,
+      expected = List()
+    ),TestCase(
+      label = "J2EO 'prim__int'",
+      code =
+        """
+          |[] > base
+          |  [self x] > f
+          |    prim__int.constructor_2 > t
+          |      prim__int.new
+          |      1
+          |    x.add (t.sub 1) > @
+          |  [self x] > g
+          |    seq > @
+          |      assert ((self.f self x).less 8018)
+          |      22
+          |
+          |[] > derived
+          |  base > @
+          |  [self x] > f
+          |    x > @
           |""".stripMargin,
       expected = List()
     ),
