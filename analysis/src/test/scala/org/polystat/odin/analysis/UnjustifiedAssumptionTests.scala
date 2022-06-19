@@ -19,7 +19,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
     )
     .flatMap {
       case Ok(_) => IO.pure(List.empty)
-      case DefectsDetected(_, message) => IO.pure(message.toList)
+      case DefectsDetected(_, message) => IO.pure(message.distinct.toList)
       case AnalyzerFailure(_, e) => IO.raiseError(e)
     }
 
@@ -91,7 +91,8 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      x.sub 1
           |""".stripMargin,
       expected = List(errorMessage("g"))
-    ),    TestCase(
+    ),
+    TestCase(
       label =
         "Bad method that uses nested variables",
       code =
@@ -476,8 +477,152 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |      super.constructor > @
           |        this.super
           |""".stripMargin,
-      expected = List("Some defect")
+      expected = List(
+        errorMessage("g"),
+      )
     )
+    ,
+    TestCase(
+      label = "J2EO example with mutual recursion without .write",
+      code =
+        """
+          |# 2022-05-25T15:02:29.112794500
+          |# j2eo team
+          |+alias stdlib.lang.class__Object
+          |+alias stdlib.primitives.prim__int
+          |+alias org.eolang.gray.cage
+          |
+          |[] > class__Parent
+          |  class__Object > super
+          |  super > @
+          |  [] > new
+          |    [] > this
+          |      class__Object.new > super
+          |      super > @
+          |      "class__Parent" > className
+          |      [this] > init
+          |        seq > @
+          |          TRUE
+          |      # f :: int -> int
+          |      [this x] > f
+          |        seq > @
+          |          d50720817
+          |          s1135935001
+          |          s1649847375
+          |        [] > t
+          |          s_r1111379131.sub > @
+          |            l1846982837
+          |        [] > s_r1111379131
+          |          x > @
+          |        [] > l1846982837
+          |          prim__int.constructor_2 > @
+          |            prim__int.new
+          |            5
+          |        [] > s1135935001
+          |          p635288507.if > @
+          |            TRUE
+          |            []
+          |              "AssertionError" > msg
+          |        [] > p635288507
+          |          b355885103 > @
+          |        [] > b355885103
+          |          s_r1321115948.greater > @
+          |            l706665172
+          |        [] > s_r1321115948
+          |          t > @
+          |        [] > l706665172
+          |          prim__int.constructor_2 > @
+          |            prim__int.new
+          |            0
+          |        [] > s1649847375
+          |          s_r1153933106 > @
+          |        [] > s_r1153933106
+          |          x > @
+          |      # g :: int -> int
+          |      [this y] > g
+          |        seq > @
+          |          s2144067911
+          |        [] > s2144067911
+          |          m_i593447952 > @
+          |        [] > m_i593447952
+          |          this.f > @
+          |            this
+          |            s_r1950136544
+          |        [] > s_r1950136544
+          |          y > @
+          |      # h :: int -> int
+          |      [this z] > h
+          |        seq > @
+          |          s209360730
+          |        [] > s209360730
+          |          s_r740007499 > @
+          |        [] > s_r740007499
+          |          z > @
+          |    seq > @
+          |      this
+          |  # null :: null -> void
+          |  [this] > constructor
+          |    seq > @
+          |      initialization
+          |      s1971152916
+          |      this
+          |    [] > initialization
+          |      this.init > @
+          |        this
+          |    [] > s1971152916
+          |      super.constructor > @
+          |        this.super
+          |
+          |[] > class__Child
+          |  class__Parent > super
+          |  super > @
+          |  [] > new
+          |    [] > this
+          |      class__Parent.new > super
+          |      super > @
+          |      "class__Child" > className
+          |      [this] > init
+          |        seq > @
+          |          TRUE
+          |      # f :: int -> int
+          |      [this y] > f
+          |        seq > @
+          |          s1687627235
+          |        [] > s1687627235
+          |          s_r1007660652 > @
+          |        [] > s_r1007660652
+          |          y > @
+          |      # h :: int -> int
+          |      [this z] > h
+          |        seq > @
+          |          s1276544608
+          |        [] > s1276544608
+          |          m_i1387620926 > @
+          |        [] > m_i1387620926
+          |          this.g > @
+          |            this
+          |            s_r265348534
+          |        [] > s_r265348534
+          |          z > @
+          |    seq > @
+          |      this
+          |  # null :: null -> void
+          |  [this] > constructor
+          |    seq > @
+          |      initialization
+          |      s1324173038
+          |      this
+          |    [] > initialization
+          |      this.init > @
+          |        this
+          |    [] > s1324173038
+          |      super.constructor > @
+          |        this.super
+          |""".stripMargin,
+      expected = List(
+        errorMessage("g"),
+      )
+    ),
   )
 
   val testCasesWithoutErrors: List[TestCase] = List(
@@ -552,7 +697,31 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
           |    33 > @
           |""".stripMargin,
       expected = List()
-    ),TestCase(
+    ),
+    TestCase(
+      label = "J2EO dataization",
+      code =
+        """
+          |[] > base
+          |  [self x] > f
+          |    [] > t
+          |      prim__int.constructor_2 > @
+          |        prim__int.new
+          |        1
+          |    x.add (t.sub 1) > @
+          |  [self x] > g
+          |    seq > @
+          |      assert ((self.f self x).less 8018)
+          |      22
+          |
+          |[] > derived
+          |  base > @
+          |  [self x] > f
+          |    x > @
+          |""".stripMargin,
+      expected = List()
+    ),
+    TestCase(
       label = "J2EO 'prim__int'",
       code =
         """

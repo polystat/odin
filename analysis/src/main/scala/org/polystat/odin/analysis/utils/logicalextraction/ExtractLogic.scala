@@ -124,7 +124,7 @@ object ExtractLogic {
         case Nil => True()
       }
 
-      if (stubPhi) {
+      if (stubPhi && phi.isEmpty) {
         orderLets(
           localLets,
           SNumeral(8008)
@@ -158,11 +158,16 @@ object ExtractLogic {
             Left(Nel.one("Some method has no phi attribute attached!"))
           case Some(resultInfo) =>
             // FIXME: we are assuming first argument is self (need to check)
-            val params = body
-              .freeAttrs
-              .tail
-              .toList
-              .map(name => SMTUtils.mkIntVar(name.name, depth))
+
+            val params = {
+              if (body.freeAttrs.nonEmpty)
+                body
+                  .freeAttrs
+                  .tail
+                  .toList
+                  .map(name => SMTUtils.mkIntVar(name.name, depth))
+              else List()
+            }
 
             for {
               value <- orderLets(localLets, resultInfo.value)
@@ -353,6 +358,39 @@ object ExtractLogic {
                   )
               }
             } yield result
+
+          case EOCopy(
+                 Fix(EODot(src, "if")),
+                 NonEmptyVector(
+                   _,
+                   Vector(
+                     EOAnonExpr(
+                       EOObj(
+                         Vector(),
+                         _,
+                         Vector(
+                           EOBndExpr(
+                             EOAnyNameBnd(LazyName("msg")),
+                             EOStrData("AssertionError")
+                           )
+                         )
+                       )
+                     )
+                   )
+                 )
+               ) =>
+            extractLogic(selfArgName, depth, src, availableMethods).flatMap(
+              res =>
+                Right(
+                  LogicInfo(
+                    List.empty,
+                    List.empty,
+                    SNumeral(8008),
+                    And(res.properties, res.value)
+                  )
+                )
+            )
+
           case EOCopy(Fix(EODot(src, attr)), args) => for {
               infoSrc <- extractLogic(selfArgName, depth, src, availableMethods)
               infoArgs <- args.traverse(arg =>
@@ -595,7 +633,7 @@ object ExtractLogic {
       val prog = orderedDefs.map(DefineFun) ++ List(Assert(impl))
 
       val formula = prog.map(RecursivePrinter.toString).mkString
-//      println(formula)
+      println(formula)
       EitherT(
         F.delay(
           SimpleAPI.withProver(p => {
