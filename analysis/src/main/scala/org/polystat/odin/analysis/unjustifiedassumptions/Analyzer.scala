@@ -23,7 +23,7 @@ object Analyzer {
       for {
         currentRes <- checkMethods(before, after)
         recurseRes <- Analyzer.analyzeObjectTree(tree.children)
-      } yield currentRes ++ recurseRes
+      } yield (currentRes ++ recurseRes).distinct
     }
   }
 

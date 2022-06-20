@@ -610,7 +610,7 @@ object ExtractLogic {
         )
       case EOFloatData(f) =>
         Right(
-          LogicInfo(List.empty, List.empty, SDecimal(f), True())
+          LogicInfo(List.empty, List.empty, SDecimal(BigDecimal(f.toDouble)), True())
         )
       case _ =>
         Right(
