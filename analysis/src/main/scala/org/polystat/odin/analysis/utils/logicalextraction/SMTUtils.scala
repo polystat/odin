@@ -19,6 +19,7 @@ object SMTUtils {
     bindings: List[VarBinding],
     value: Term,
     properties: Term,
+    exists: Vector[SSymbol] = Vector()
   )
 
   def simpleAppToInfo(names: List[String], depth: List[String]): LogicInfo = {
@@ -92,61 +93,29 @@ object SMTUtils {
       case other => other
     }
 
+//    println(s"${tag}-${name.name.name} =>  ${info.exists}")
+    // TODO: Int body cannot be Exists???? :(
+    def existify(term: Term) = info.exists.toList match {
+      case _ => term
+//      case x :: xs =>
+//        Exists(SortedVar(x, IntSort()), xs.map(SortedVar(_, IntSort())), term)
+    }
+
     val valueDef =
       FunDef(
         SMTUtils.mkValueFunSSymbol(name.name.name, List(tag)),
         info.forall,
         valueSort,
-        value
+        existify(value)
       )
     val propertiesDef =
       FunDef(
         SMTUtils.mkPropertiesFunSSymbol(name.name.name, List(tag)),
         info.forall,
         BoolSort(),
-        info.properties
+        existify(info.properties)
       )
     List(valueDef, propertiesDef)
-  }
-
-  def tsort[A](
-    edges: Iterable[(A, A)],
-    handleBads: (A, Set[A]) => Either[(A, Set[A]), A]
-  ): (List[A], Map[A, Set[A]]) = {
-
-    @tailrec
-    def tsort(
-      toPreds: Map[A, Set[A]],
-      done: Iterable[A]
-    ): (Iterable[A], Map[A, Set[A]]) = {
-      val (noPreds, hasPreds) = toPreds.partition { _._2.isEmpty }
-      if (noPreds.isEmpty) {
-        (done, hasPreds)
-      } else {
-        val found = noPreds.keys
-        tsort(hasPreds.view.mapValues { _ -- found }.toMap, done ++ found)
-      }
-    }
-
-    val toPred = edges.foldLeft(Map[A, Set[A]]()) { (acc, e) =>
-      acc + (e._1 -> acc
-        .getOrElse(e._1, Set())) + (e._2 -> (acc.getOrElse(e._2, Set()) + e._1))
-    }
-
-//    val toPred = edges
-//      .foldLeft(Map[A, Set[A]]()) { case (acc, (from, to)) =>
-//        val fromEdge = from -> acc.getOrElse(from, Set())
-//        val toEdge = to -> acc.getOrElse(to, Set() + from)
-//        acc + fromEdge + toEdge
-//      }
-
-    val (goodEdges, badEdges) = tsort(toPred, Seq())
-    val (notHandledBads, handledBads) = badEdges
-      .partitionMap { case (func, bads) =>
-        handleBads(func, bads)
-      }
-
-    (handledBads.toList ++ goodEdges.toList.reverse, notHandledBads.toMap)
   }
 
   def extractMethodDependencies[A](
@@ -181,21 +150,93 @@ object SMTUtils {
     handleBads: (A, Set[A]) => Either[(A, Set[A]), A] =
       (a: A, s: Set[A]) => Left((a, s))
   ): (List[A], Map[A, Set[A]]) = {
-    val elDepPairs = elements.map(el =>
-      (
-        el,
-        extractMethodDependencies[A](
-          toTerm(el),
-          elements.map(toString).zip(elements).toMap
+
+    def getElDependencies(elements: List[A]): (List[A], List[(A, List[A])]) = {
+      val elDepPairs = elements.map(el =>
+        (
+          el,
+          extractMethodDependencies[A](
+            toTerm(el),
+            elements.map(toString).zip(elements).toMap
+          )
         )
       )
-    )
-    val independentEls = elDepPairs.collect { case (a, List()) =>
-      a
+      val independentEls = elDepPairs.collect { case (a, List()) =>
+        a
+      }
+      val dependentEls = elDepPairs.collect { case pair @ (_, _ :: _) =>
+        pair
+      }
+      (independentEls, dependentEls)
     }
-    val dependentEls = elDepPairs.collect { case pair @ (_, _ :: _) =>
-      pair
+
+    @tailrec
+    def tsort(
+      edges: Iterable[(A, A)],
+      handleBads: (A, Set[A]) => Either[(A, Set[A]), A],
+      independentTerms: List[A] = List()
+    ): (List[A], Map[A, Set[A]]) = {
+
+      @tailrec
+      def tsortHelper(
+        toPreds: Map[A, Set[A]],
+        done: Iterable[A]
+      ): (Iterable[A], Map[A, Set[A]]) = {
+        val (noPreds, hasPreds) = toPreds.partition { _._2.isEmpty }
+        if (noPreds.isEmpty) {
+          (done, hasPreds)
+        } else {
+          val found = noPreds.keys
+          tsortHelper(
+            hasPreds.view.mapValues { _ -- found }.toMap,
+            done ++ found
+          )
+        }
+      }
+
+      val toPred = edges.foldLeft(Map[A, Set[A]]()) { (acc, e) =>
+        acc + (e._1 -> acc
+          .getOrElse(e._1, Set())) + (e._2 -> (acc.getOrElse(
+          e._2,
+          Set()
+        ) + e._1))
+      }
+
+      //    val toPred = edges
+      //      .foldLeft(Map[A, Set[A]]()) { case (acc, (from, to)) =>
+      //        val fromEdge = from -> acc.getOrElse(from, Set())
+      //        val toEdge = to -> acc.getOrElse(to, Set() + from)
+      //        acc + fromEdge + toEdge
+      //      }
+
+      val (goodEdges, badEdges) = tsortHelper(toPred, Seq())
+      if (badEdges.isEmpty)
+        (independentTerms ++ goodEdges.toList.reverse, badEdges)
+      else {
+        val (notHandledBads, handledBads) = badEdges
+          .partitionMap { case (func, bads) =>
+            handleBads(func, bads)
+          }
+
+        if (notHandledBads.nonEmpty)
+          (
+            independentTerms ++ handledBads.toList ++ goodEdges.toList.reverse,
+            notHandledBads.toMap
+          )
+        else {
+          val (indepTerms, depTerms) =
+            getElDependencies((handledBads ++ goodEdges).toList)
+          val graph = for {
+            (from, tos) <- depTerms
+            to <- tos
+          } yield (from, to)
+
+          tsort(graph, handleBads, indepTerms)
+        }
+      }
     }
+
+    val (independentEls, dependentEls) = getElDependencies(elements)
 
     val graph = dependentEls.flatMap { case (binding, dependencies) =>
       dependencies.map(dependency => (binding, dependency))

@@ -12,6 +12,7 @@ import higherkindness.droste.data.Fix
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.LogicInfo
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.mkPropertiesFunIdent
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.mkValueFunIdent
+import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.nameToSSymbol
 import org.polystat.odin.analysis.utils.logicalextraction.SMTUtils.orderLets
 import org.polystat.odin.core.ast._
 import org.polystat.odin.core.ast.astparams.EOExprOnly
@@ -74,15 +75,41 @@ object ExtractLogic {
     depth: List[String],
     stubPhi: Boolean = false
   ): EitherNel[String, LogicInfo] = {
-    body.bndAttrs.traverse { case EOBndExpr(bndName, expr) =>
-      extractLogic(
-        selfArgName,
-        bndName.name.name :: depth,
-        expr,
-        availableMethods
-      )
-        .map(info => (bndName, info))
-    } flatMap (infos => {
+    // TODO: check that depth is correct????
+    val exists = body
+      .bndAttrs
+      .collect {
+        case EOBndExpr(
+               EOAnyNameBnd(LazyName(name)),
+               EOCopy(
+                 EODot(EOSimpleAppWithLocator(valName, _), "constructor_1"),
+                 _
+               )
+             ) if valName.startsWith("prim__") =>
+          nameToSSymbol(List(name), depth)
+      }
+
+    body
+      .bndAttrs
+      .filter {
+        case EOBndExpr(
+               _,
+               EOCopy(
+                 EODot(EOSimpleAppWithLocator(name, _), "constructor_1"),
+                 _
+               )
+             ) if name.startsWith("prim__") => false
+        case _ => true
+      }
+      .traverse { case EOBndExpr(bndName, expr) =>
+        extractLogic(
+          selfArgName,
+          bndName.name.name :: depth,
+          expr,
+          availableMethods
+        )
+          .map(info => (bndName, info))
+      } flatMap (infos => {
       val phi = infos.toMap.get(EODecoration)
 
       val localInfos = infos.filter {
@@ -91,7 +118,7 @@ object ExtractLogic {
       }
 
       val localLets =
-        localInfos.toList.flatMap {
+        phi.map(_.bindings).getOrElse(List()) ++ localInfos.toList.flatMap {
           case (EOAnyNameBnd(LazyName(letName)), letTerm) =>
             VarBinding(
               SMTUtils.nameToSSymbol(List(letName), depth),
@@ -124,7 +151,7 @@ object ExtractLogic {
         case Nil => True()
       }
 
-      if (stubPhi) {
+      if (stubPhi && phi.isEmpty) {
         orderLets(
           localLets,
           SNumeral(8008)
@@ -141,13 +168,15 @@ object ExtractLogic {
                       x,
                       xs,
                       localProperties
-                    )
+                    ),
+                    exists
                   )
                 case Nil => LogicInfo(
                     List.empty,
                     List.empty,
                     resultValue,
-                    localProperties
+                    localProperties,
+                    exists
                   )
               }
             )
@@ -158,11 +187,16 @@ object ExtractLogic {
             Left(Nel.one("Some method has no phi attribute attached!"))
           case Some(resultInfo) =>
             // FIXME: we are assuming first argument is self (need to check)
-            val params = body
-              .freeAttrs
-              .tail
-              .toList
-              .map(name => SMTUtils.mkIntVar(name.name, depth))
+
+            val params = {
+              if (body.freeAttrs.nonEmpty)
+                body
+                  .freeAttrs
+                  .tail
+                  .toList
+                  .map(name => SMTUtils.mkIntVar(name.name, depth))
+              else List()
+            }
 
             for {
               value <- orderLets(localLets, resultInfo.value)
@@ -174,7 +208,8 @@ object ExtractLogic {
               params,
               localLets,
               value,
-              properties
+              properties,
+              exists
             )
         }
       }
@@ -297,6 +332,18 @@ object ExtractLogic {
                   )
               case _ => Left(Nel.one(s"Unsupported EOCopy with self: $app"))
             }
+          // J2EO  TODO: DEPTH CHECK
+          case EOCopy(
+                 Fix(
+                   EODot(
+                     EOSimpleAppWithLocator(name, _),
+                     "constructor_2" | "constructor_3"
+                   )
+                 ),
+                 args
+               ) if name.startsWith("prim__") =>
+            extractLogic(selfArgName, depth, args.last.expr, availableMethods)
+
           case EOCopy(Fix(EOSimpleAppWithLocator(name, _)), args) => for { /*
                * FIXME: check locators */
               infoArgs <- args.traverse(arg =>
@@ -316,7 +363,7 @@ object ExtractLogic {
                   Right(
                     LogicInfo(
                       List.empty,
-                      args.last.bindings,
+                      args.toVector.flatMap(_.bindings).toList,
                       args.last.value,
                       And(args.toVector.map(x => x.properties))
                     )
@@ -340,6 +387,113 @@ object ExtractLogic {
                   )
               }
             } yield result
+
+          // J2EO version of `assert`
+          case EOCopy(
+                 Fix(EODot(src, "if")),
+                 NonEmptyVector(
+                   _,
+                   Vector(
+                     EOAnonExpr(
+                       EOObj(
+                         Vector(),
+                         _,
+                         Vector(
+                           EOBndExpr(
+                             EOAnyNameBnd(LazyName("msg")),
+                             EOStrData("AssertionError")
+                           )
+                         )
+                       )
+                     )
+                   )
+                 )
+               ) =>
+            extractLogic(selfArgName, depth, src, availableMethods).flatMap(
+              res =>
+                Right(
+                  LogicInfo(
+                    List.empty,
+                    List.empty,
+                    SNumeral(8008),
+                    And(res.properties, res.value)
+                  )
+                )
+            )
+
+          case EOCopy(
+                 Fix(EODot(Fix(EOSimpleAppWithLocator(name, srcLoc)), "write")),
+                 NonEmptyVector(
+                   dest,
+                   Vector()
+                 )
+               ) =>
+            val srcIdnt = QualifiedIdentifier(
+              SimpleIdentifier(
+                // TODO: fix +1 locator thing
+                nameToSSymbol(List(name), depth.drop(srcLoc.toInt + 1))
+              )
+            )
+            dest match {
+              case EOAnonExpr(
+                     EOSimpleAppWithLocator(valName, valLoc)
+                   ) =>
+                val resVal = QualifiedIdentifier(
+                  SimpleIdentifier(
+                    // TODO: fix +1 locator thing
+                    nameToSSymbol(List(valName), depth.drop(valLoc.toInt + 1))
+                  )
+                )
+
+                Right(
+                  LogicInfo(
+                    List.empty,
+                    List(VarBinding(srcIdnt.id.symbol, resVal)),
+                    resVal,
+                    Equals(
+                      srcIdnt,
+                      resVal
+                    )
+                  )
+                )
+
+              case EOAnonExpr(expr) =>
+                extractLogic(selfArgName, depth, expr, availableMethods)
+                  .map(resVal =>
+                    Right(
+                      LogicInfo(
+                        List.empty,
+                        List(VarBinding(srcIdnt.id.symbol, resVal.value)),
+                        resVal.value,
+                        resVal.properties
+                      )
+                    )
+                  )
+                  .getOrElse(
+                    Right(
+                      LogicInfo(
+                        List.empty,
+                        List.empty,
+                        QualifiedIdentifier(
+                          SimpleIdentifier(SSymbol("no-value"))
+                        ),
+                        True()
+                      )
+                    )
+                  )
+              case _ =>
+                Right(
+                  LogicInfo(
+                    List.empty,
+                    List.empty,
+                    QualifiedIdentifier(
+                      SimpleIdentifier(SSymbol("no-value"))
+                    ),
+                    True()
+                  )
+                )
+            }
+
           case EOCopy(Fix(EODot(src, attr)), args) => for {
               infoSrc <- extractLogic(selfArgName, depth, src, availableMethods)
               infoArgs <- args.traverse(arg =>
@@ -453,6 +607,15 @@ object ExtractLogic {
       case EOBoolData(v) =>
         Right(
           LogicInfo(List.empty, List.empty, if (v) True() else False(), True())
+        )
+      case EOFloatData(f) =>
+        Right(
+          LogicInfo(
+            List.empty,
+            List.empty,
+            SDecimal(BigDecimal(f.toDouble)),
+            True()
+          )
         )
       case _ =>
         Right(
