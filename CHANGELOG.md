@@ -1,3 +1,7 @@
+# v0.4.4
+This release introduces additional compatibility fixes for `j2eo`:
+- Logic extraction for `unjustified assumption` and `liskov principle` analyzers now recognizes J2EO primitives
+
 # v0.4.3
 This release introduces additional compatibility fixes for `j2eo`:
 - Additional checks for cycles in inheritance chains
