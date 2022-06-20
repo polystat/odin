@@ -286,7 +286,9 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
            |  [self] > method
            |    memory > local_m
            |    cage > local_m2
-           |    2 > @
+           |    seq > @
+           |      local_m.write 2
+           |      local_m
            |  [self v] > l
            |    assert (v.less 5) > @
            |  [self v] > m
@@ -480,8 +482,7 @@ class UnjustifiedAssumptionTests extends AnyWordSpec {
       expected = List(
         errorMessage("g"),
       )
-    )
-    ,
+    ),
     TestCase(
       label = "J2EO example with mutual recursion without .write",
       code =
