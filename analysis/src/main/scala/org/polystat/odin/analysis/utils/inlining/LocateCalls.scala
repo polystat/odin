@@ -3,7 +3,9 @@ package org.polystat.odin.analysis.utils.inlining
 import cats.Monoid
 import higherkindness.droste.data.Fix
 import monocle.Iso
+import org.polystat.odin.analysis.utils.Abstract
 import org.polystat.odin.analysis.utils.Abstract.foldAst
+import org.polystat.odin.analysis.utils.Optics
 import org.polystat.odin.analysis.utils.Optics._
 import org.polystat.odin.analysis.utils.inlining
 import org.polystat.odin.core.ast._
@@ -29,6 +31,44 @@ object LocateCalls {
       case EOBndExpr(EODecoration, _) => true
       case _ => false
     }
+
+  def inlineThisObject(
+    selfArgName: String
+  )(body: EOObj[EOExprOnly]): EOObj[EOExprOnly] = {
+    // TODO:
+    // 1. find object where @ = this
+    // 2. replace all occurences of this object with this,
+    val one = BigInt(1)
+    val thisObj = body.bndAttrs.collectFirst {
+      case EOBndExpr(
+             EOAnyNameBnd(LazyName(name)),
+             EOObj(
+               Vector(),
+               None,
+               Vector(
+                 EOBndExpr(
+                   EODecoration,
+                   EOSimpleAppWithLocator(`selfArgName`, `one`)
+                 )
+               )
+             )
+           ) => name
+    }
+
+    thisObj match {
+      case Some(thisObjectName) => Optics
+          .prisms
+          .fixToEOObj
+          .getOption(Abstract.modifyExpr(_ => {
+            case Fix(EOSimpleAppWithLocator(`thisObjectName`, locator)) =>
+              Fix[EOExpr](EOSimpleAppWithLocator(selfArgName, locator))
+            case other => other
+          })(Fix(body)))
+          .get
+
+      case None => body
+    }
+  }
 
   def parseMethod(
     methodBnd: EOBndExpr[EOExprOnly],
@@ -145,11 +185,12 @@ object LocateCalls {
            (selfArg.name == "this" || selfArg.name == "self") &&
            // TODO: properly handle constructors
            methodBnd.bndName.name.name != "constructor" =>
+        val objWithInlinedThis = inlineThisObject(selfArg.name)(obj)
         Some(
           MethodInfo(
             selfArgName = selfArg.name,
-            calls = findCalls(selfArg.name, obj),
-            body = obj,
+            calls = findCalls(selfArg.name, objWithInlinedThis),
+            body = objWithInlinedThis,
             depth = bndDepth
           )
         )
