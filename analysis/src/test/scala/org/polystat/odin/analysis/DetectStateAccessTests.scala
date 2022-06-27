@@ -630,6 +630,95 @@ class DetectStateAccessTests extends AnyWordSpec {
       expected = List(
         "Method 'n' of object 'class__B.new.self' directly accesses state 'state' of base class 'class__A.new.self'"
       )
+    ),
+    TestCase(
+      label = "test from J2EO where inlining `this` is necessary",
+      code = """|# 2022-06-27T12:04:11.354489400
+                |# j2eo team
+                |+alias stdlib.lang.class__Object
+                |+alias stdlib.primitives.prim__int
+                |
+                |[] > class__A
+                |  class__Object > super
+                |  super > @
+                |  [] > new
+                |    [] > this
+                |      class__Object.new > super
+                |      super > @
+                |      "class__A" > className
+                |      [this] > init
+                |        seq > @
+                |          d1708570683
+                |        [] > d1708570683
+                |          this.state.write > @
+                |            i_s580718781
+                |        [] > i_s580718781
+                |          l815674463 > @
+                |        [] > l815674463
+                |          prim__int.constructor_2 > @
+                |            prim__int.new
+                |            0
+                |      prim__int.constructor_1 > state
+                |        prim__int.new
+                |    seq > @
+                |      this
+                |  # null :: null -> void
+                |  [this] > constructor
+                |    seq > @
+                |      initialization
+                |      s22671767
+                |      this
+                |    [] > initialization
+                |      this.init > @
+                |        this
+                |    [] > s22671767
+                |      super.constructor > @
+                |        this.super
+                |
+                |[] > class__B
+                |  class__A > super
+                |  super > @
+                |  [] > new
+                |    [] > this
+                |      class__A.new > super
+                |      super > @
+                |      "class__B" > className
+                |      [this] > init
+                |        seq > @
+                |          TRUE
+                |      # n :: int -> int
+                |      [this x] > n
+                |        seq > @
+                |          s1237550792
+                |        [] > s1237550792
+                |          b517052730 > @
+                |        [] > b517052730
+                |          f_a1506809545.add > @
+                |            s_r1019384604
+                |        [] > f_a1506809545
+                |          t550668305.state > @
+                |        [] > t550668305
+                |          this > @
+                |        [] > s_r1019384604
+                |          x > @
+                |    seq > @
+                |      this
+                |  # null :: null -> void
+                |  [this] > constructor
+                |    seq > @
+                |      initialization
+                |      s988800485
+                |      this
+                |    [] > initialization
+                |      this.init > @
+                |        this
+                |    [] > s988800485
+                |      super.constructor > @
+                |this.super
+                |""".stripMargin,
+      expected = List(
+        "Method 'n' of object 'class__B.new.this' directly accesses state 'state' of base class 'class__A.new.this'",
+      )
     )
   )
 
