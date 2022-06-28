@@ -1,6 +1,9 @@
 [![Maven Release](https://badgen.net/maven/v/metadata-url/https/repo1.maven.org/maven2/org/polystat/odin/odin_2.13/maven-metadata.xml)](https://oss.sonatype.org/content/repositories/releases/org/polystat/odin/odin_2.13/ )
 [![CI](https://github.com/polystat/odin/actions/workflows/ci.yml/badge.svg)](https://github.com/polystat/odin/actions/workflows/ci.yml)
 
+[![Hits-of-Code](https://hitsofcode.com/github/polystat/odin)](https://hitsofcode.com/view/github/polystat/odin)
+![Lines of code](https://img.shields.io/tokei/lines/github/polystat/odin)
+
 Odin (object dependency inspector) — a static analyzer for [EO programming language](https://github.com/cqfn/eo).
 
 Odin is used in [polystat](https://github.com/polystat/polystat)
