@@ -1,3 +1,6 @@
+# v0.4.5
+This release improves the detection of Direct State Access defect. 
+
 # v0.4.4
 This release introduces additional compatibility fixes for `j2eo`:
 - Logic extraction for `unjustified assumption` and `liskov principle` analyzers now recognizes J2EO primitives
