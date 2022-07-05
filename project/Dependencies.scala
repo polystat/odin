@@ -3,20 +3,20 @@ import sbt._
 object Dependencies {
 
   object V {
-    val cats = "2.7.0"
-    val catsEffect = "3.3.12"
-    val catsParse = "0.3.7"
-    val scalaTest = "3.2.9"
+    val cats = "2.8.0"
+    val catsEffect = "3.3.13"
+    val catsParse = "0.3.8"
+    val scalaTest = "3.2.12"
     val scalaCheck = "3.2.9.0"
     val monocle = "3.1.0"
-    val droste = "0.9.0-M3"
+    val droste = "0.9.0"
     val pprint = "0.7.3"
-    val fs2 = "3.2.7"
-    val fs2io = "3.2.7"
+    val fs2 = "3.2.9"
+    val fs2io = "3.2.9"
     val eoParser = "0.22.2"
     val catsEffectScalatest = "1.4.0"
     val smtlib = "0.2.1-42-gc68dbaa"
-    val princess = "2021-11-15"
+    val princess = "2022-07-01"
     val xml = "2.1.0"
   }
 
