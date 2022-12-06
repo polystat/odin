@@ -9,6 +9,7 @@ import org.polystat.odin.analysis.EOOdinAnalyzer._
 import org.polystat.odin.analysis.liskov.Analyzer
 import org.polystat.odin.analysis.mutualrec.advanced.Analyzer.analyzeAst
 import org.polystat.odin.analysis.stateaccess.DetectStateAccess
+import org.polystat.odin.analysis.utils.ImportProcessing.prependImports
 import org.polystat.odin.analysis.utils.inlining.Inliner
 import org.polystat.odin.analysis.utils.j2eo
 import org.polystat.odin.core.ast.EOBndExpr
@@ -172,10 +173,27 @@ object EOOdinAnalyzer {
   ): F[OdinAnalysisResult] = for {
     programAst <- parser.parse(eoRepr)
     astWithPredef = addPredef(programAst)
-    mutualRecursionErrors <-
+    analysisError <-
       analyzer
         .analyze(astWithPredef)
 //        .handleErrorWith(_ => Stream.empty)
-  } yield mutualRecursionErrors
+  } yield analysisError
+
+  def analyzeSourceCodeDir[EORepr, F[_]](
+    analyzer: ASTAnalyzer[F]
+  )(
+    fileToEoRepr: Map[String, EORepr]
+  )(implicit
+    m: MonadError[F, Throwable],
+    parser: EoParser[EORepr, F, EOProg[EOExprOnly]],
+  ): F[Map[String, OdinAnalysisResult]] = for {
+
+    programAsts <- fileToEoRepr.values.toList.traverse(parser.parse)
+    fileToAst = fileToEoRepr.keys.zip(programAsts).toMap
+    fileToAstImported <- prependImports[F](fileToAst)
+    analyzedAsts <- fileToAstImported.values.toList.traverse(analyzer.analyze)
+    analysisResults = fileToAstImported.keys.zip(analyzedAsts).toMap
+
+  } yield analysisResults
 
 }
