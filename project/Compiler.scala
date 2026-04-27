@@ -129,7 +129,7 @@ object Compiler {
         case Some((3, _)) => Seq.empty
         case _ => Seq(
             "com.olegpy" %% "better-monadic-for" % "0.3.1",
-            "org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full,
+            "org.typelevel" % "kind-projector" % "0.13.4" cross CrossVersion.full,
             scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb,
           ).map(compilerPlugin)
       }
