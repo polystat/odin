@@ -36,7 +36,7 @@ object Dependencies {
   )
 
   val xml = Seq(
-    "org.scala-lang.modules" %% "scala-xml" % "2.1.0"
+    "org.scala-lang.modules" %% "scala-xml" % "2.4.0"
   )
 
   val monocle = Seq(
