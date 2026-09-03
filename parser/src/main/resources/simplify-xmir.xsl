@@ -1,80 +1,84 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" id="simplify-xmir">
-    <xsl:template match="o[@base and starts-with(@base, '.')]">
-        <copy>
-            <xsl:if test="@name">
-                <xsl:attribute name="bound-to">
-                    <xsl:value-of select="@name" />
-                </xsl:attribute>
-            </xsl:if>
-            <xsl:apply-templates select="@const" />
-            <of>
-                <attribute name="{substring-after(@base, '.')}">
-                    <of>
-                        <xsl:apply-templates select="*[position() = 1]" />
-                    </of>
-                </attribute>
-            </of>
-            <with>
-                <xsl:apply-templates select="*[position() > 1]" />
-            </with>
-        </copy>
-    </xsl:template>
-    <xsl:template match="o[@base and not(starts-with(@base, '.'))]">
-        <copy>
-            <xsl:if test="@name">
-                <xsl:attribute name="bound-to">
-                    <xsl:value-of select="@name" />
-                </xsl:attribute>
-            </xsl:if>
-            <xsl:apply-templates select="@const" />
-            <of>
-                <simple-app name="{@base}" />
-            </of>
-            <with>
-                <xsl:apply-templates select="*" />
-            </with>
-        </copy>
-    </xsl:template>
-    <xsl:template match="o[not(@base)]" priority="1">
-        <abstraction>
-            <xsl:if test="@name">
-                <xsl:attribute name="bound-to">
-                    <xsl:value-of select="@name" />
-                </xsl:attribute>
-            </xsl:if>
-            <xsl:apply-templates select="@const" />
-            <xsl:apply-templates select="*" />
-        </abstraction>
-    </xsl:template>
-    <xsl:template match="o[not(@base) and @name and @line = parent::o/@line]" priority="2">
-        <free name="{@name}">
-            <xsl:apply-templates select="@vararg" />
-        </free>
-    </xsl:template>
-    <xsl:template match="o[@data = 'array']" priority="4">
-        <array>
-            <xsl:if test="@name">
-                <xsl:attribute name="bound-to">
-                    <xsl:value-of select="@name"></xsl:value-of>
-                </xsl:attribute>
-            </xsl:if>
-            <xsl:apply-templates select="*" />
-        </array>
-    </xsl:template>
-    <xsl:template match="o[@data]" priority="3">
-        <data type="{@data}" value="{text()}">
-            <xsl:if test="@name">
-                <xsl:attribute name="bound-to">
-                    <xsl:value-of select="@name" />
-                </xsl:attribute>
-            </xsl:if>
-            <xsl:apply-templates select="@const" />
-        </data>
-    </xsl:template>
-    <xsl:template match="node()|@*">
-        <xsl:copy>
-            <xsl:apply-templates select="node()|@*" />
-        </xsl:copy>
-    </xsl:template>
+<!--
+* SPDX-FileCopyrightText: Copyright (c) 2021-2022 Polystat.org
+* SPDX-License-Identifier: MIT
+-->
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="2.0" id="simplify-xmir">
+  <xsl:template match="o[@base and starts-with(@base, '.')]">
+    <copy>
+      <xsl:if test="@name">
+        <xsl:attribute name="bound-to">
+          <xsl:value-of select="@name"/>
+        </xsl:attribute>
+      </xsl:if>
+      <xsl:apply-templates select="@const"/>
+      <of>
+        <attribute name="{substring-after(@base, '.')}">
+          <of>
+            <xsl:apply-templates select="*[position() = 1]"/>
+          </of>
+        </attribute>
+      </of>
+      <with>
+        <xsl:apply-templates select="*[position() &gt; 1]"/>
+      </with>
+    </copy>
+  </xsl:template>
+  <xsl:template match="o[@base and not(starts-with(@base, '.'))]">
+    <copy>
+      <xsl:if test="@name">
+        <xsl:attribute name="bound-to">
+          <xsl:value-of select="@name"/>
+        </xsl:attribute>
+      </xsl:if>
+      <xsl:apply-templates select="@const"/>
+      <of>
+        <simple-app name="{@base}"/>
+      </of>
+      <with>
+        <xsl:apply-templates select="*"/>
+      </with>
+    </copy>
+  </xsl:template>
+  <xsl:template match="o[not(@base)]" priority="1">
+    <abstraction>
+      <xsl:if test="@name">
+        <xsl:attribute name="bound-to">
+          <xsl:value-of select="@name"/>
+        </xsl:attribute>
+      </xsl:if>
+      <xsl:apply-templates select="@const"/>
+      <xsl:apply-templates select="*"/>
+    </abstraction>
+  </xsl:template>
+  <xsl:template match="o[not(@base) and @name and @line = parent::o/@line]" priority="2">
+    <free name="{@name}">
+      <xsl:apply-templates select="@vararg"/>
+    </free>
+  </xsl:template>
+  <xsl:template match="o[@data = 'array']" priority="4">
+    <array>
+      <xsl:if test="@name">
+        <xsl:attribute name="bound-to">
+          <xsl:value-of select="@name"/>
+        </xsl:attribute>
+      </xsl:if>
+      <xsl:apply-templates select="*"/>
+    </array>
+  </xsl:template>
+  <xsl:template match="o[@data]" priority="3">
+    <data type="{@data}" value="{text()}">
+      <xsl:if test="@name">
+        <xsl:attribute name="bound-to">
+          <xsl:value-of select="@name"/>
+        </xsl:attribute>
+      </xsl:if>
+      <xsl:apply-templates select="@const"/>
+    </data>
+  </xsl:template>
+  <xsl:template match="node()|@*">
+    <xsl:copy>
+      <xsl:apply-templates select="node()|@*"/>
+    </xsl:copy>
+  </xsl:template>
 </xsl:stylesheet>

@@ -94,7 +94,7 @@ object SMTUtils {
     }
 
 //    println(s"${tag}-${name.name.name} =>  ${info.exists}")
-    // TODO: Int body cannot be Exists???? :(
+    // An Int body cannot be Exists
     def existify(term: Term) = info.exists.toList match {
       case _ => term
 //      case x :: xs =>

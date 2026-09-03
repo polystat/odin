@@ -31,7 +31,7 @@ class MutualrecTests extends AnyWordSpec with Checkers {
       .withMinSuccessfulTests(1000)
       .withWorkers(4)
 
-  // TODO: rewrite using Odin Source code analyzer
+  // This wants a rewrite through the Odin source code analyzer
   def odinErrors(
     code: String
   ): Either[String, List[CallChain]] = {

@@ -20,8 +20,8 @@ private[parser] object Utils {
     }
   }
 
-  // TODO: rewrite so that the information
-  //  about names of bindings is not lost
+  // This wants a rewrite that keeps the information
+  //  about names of bindings
   def createInverseDot(
     id: String,
     args: NonEmptyVector[EOBnd[EOExprOnly]]

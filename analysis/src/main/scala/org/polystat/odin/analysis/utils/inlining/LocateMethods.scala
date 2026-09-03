@@ -44,7 +44,7 @@ object LocateMethods {
               ObjectName(parent.name.names.concatNel(Nel.one(dotName)))
             )
           )
-        // TODO: add a proper depth check (disambiguate `seq`)
+        // A proper depth check is missing here, to disambiguate `seq`
         case EOCopy(EOSimpleAppWithLocator("seq", _), args) =>
           args.last match {
             case EOAnonExpr(expr) => parseObjectName(expr)

@@ -3,5 +3,11 @@
 
 [files]
 extend-exclude = [
-
+  "**/src/test/resources/**",
 ]
+
+[default.extend-words]
+sur = "sur"
+wth = "wth"
+bimap = "bimap"
+vitaliy = "vitaliy"

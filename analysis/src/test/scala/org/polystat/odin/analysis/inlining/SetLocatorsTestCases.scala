@@ -156,7 +156,7 @@ object SetLocatorsTestCases {
                    |    self > @
                    |  [self] > z
                    |    self.u self > @
-                   |  
+                   |
                    |[] > km
                    |  ^.u > @
                    |  [self] > j
@@ -169,13 +169,13 @@ object SetLocatorsTestCases {
                    |    self > @
                    |  [] > jr
                    |
-                   |    
+                   |
                    |  [] > ie
                    |    [self] > z
                    |      self > @
                    |    [self] > d
                    |      self.z self > @
-                   |    
+                   |
                    |  [] > w
                    |    [self] > x
                    |      self > @

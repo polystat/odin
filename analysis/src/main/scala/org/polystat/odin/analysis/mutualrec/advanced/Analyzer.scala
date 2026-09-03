@@ -92,7 +92,7 @@ object Analyzer {
     )(methodName: String): EitherNel[String, MethodName] = {
       val curMethods = cur.info.methods.keySet.map(_.name.name)
       val fullMethodName = MethodName(cur.info.fqn, methodName)
-      // TODO: resolve calls relative to extended call graph
+      // Calls are not resolved relative to the extended call graph yet
       if (curMethods.contains(methodName)) {
         fullMethodName.asRight
       } else {

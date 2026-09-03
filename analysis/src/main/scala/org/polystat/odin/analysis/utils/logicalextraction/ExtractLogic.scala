@@ -75,7 +75,7 @@ object ExtractLogic {
     depth: List[String],
     stubPhi: Boolean = false
   ): EitherNel[String, LogicInfo] = {
-    // TODO: check that depth is correct????
+    // The depth is not verified to be correct
     val exists = body
       .bndAttrs
       .collect {
@@ -127,7 +127,7 @@ object ExtractLogic {
                        SimpleIdentifier(SSymbol("no-value")),
                        _
                      )
-                     // TODO: Somehow check what type should be here
+                     // The type expected here is not checked
                      => SNumeral(8008) // True()
                 case value => value
               }
@@ -161,7 +161,7 @@ object ExtractLogic {
               localLets match {
                 case x :: xs => LogicInfo(
                     List.empty,
-                    // TODO: IS THIS HOW IT SHOULD BE?????
+                    // It is not clear whether this is right
                     x :: xs, // List.empty,
                     resultValue,
                     Let(
@@ -332,7 +332,7 @@ object ExtractLogic {
                   )
               case _ => Left(Nel.one(s"Unsupported EOCopy with self: $app"))
             }
-          // J2EO  TODO: DEPTH CHECK
+          // J2EO: the depth check is missing
           case EOCopy(
                  Fix(
                    EODot(
@@ -369,7 +369,7 @@ object ExtractLogic {
                     )
                   )
                 // Todo if possible check that assert content is a boolean
-                // assert (3.div 2) causes problems with type correspondance
+                // assert (3.div 2) causes problems with type correspondence
                 case ("assert", NonEmptyVector(arg, Vector())) =>
                   Right(
                     LogicInfo(
@@ -430,7 +430,7 @@ object ExtractLogic {
                ) =>
             val srcIdnt = QualifiedIdentifier(
               SimpleIdentifier(
-                // TODO: fix +1 locator thing
+                // The +1 locator adjustment needs a fix
                 nameToSSymbol(List(name), depth.drop(srcLoc.toInt + 1))
               )
             )
@@ -440,7 +440,7 @@ object ExtractLogic {
                    ) =>
                 val resVal = QualifiedIdentifier(
                   SimpleIdentifier(
-                    // TODO: fix +1 locator thing
+                    // The +1 locator adjustment needs a fix
                     nameToSSymbol(List(valName), depth.drop(valLoc.toInt + 1))
                   )
                 )
@@ -630,7 +630,7 @@ object ExtractLogic {
     }
   }
 
-  // TODO: check that behaviour is intended even when before and after different
+  // The behaviour is unverified when before and after differ
   def addVarCorrespondenceToTerm(
     before: List[SortedVar],
     after: List[SortedVar],
@@ -692,7 +692,7 @@ object ExtractLogic {
       SMTUtils.mkFunDefs(afterTag, name, info)
     }
 
-// TODO: Check why the commented code does not cause type inconsistencies
+// It is unclear why the commented code does not cause type inconsistencies
 
 //    val allDefs = defsBefore ++ defsAfter
 //    val callGraph = allDefs

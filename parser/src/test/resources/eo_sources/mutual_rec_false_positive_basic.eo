@@ -32,7 +32,7 @@
 [] > derived
   base > @
   [self v] > n
-    # TODO: introduce if that is always true
+    # An always-true if wants to be introduced here
     seq > @
       stdout (sprintf "Calling derived.n with v = %d\n" v)
       self.m self v

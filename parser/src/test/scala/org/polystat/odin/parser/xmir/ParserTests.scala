@@ -153,7 +153,7 @@ class ParserTests extends AsyncWordSpec with AsyncIOSpec {
         // because the single-line abstraction syntax
         // is supported incorrectly by the XMIR parser
         // https://github.com/cqfn/eo/issues/612
-        // TODO: remove .init when it is supported correctly
+        // The .init call goes away once it is supported correctly
         .init
         .map(tc => (tc.label, tc.code))
     )

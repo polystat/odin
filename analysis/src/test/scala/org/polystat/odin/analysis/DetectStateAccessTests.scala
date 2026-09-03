@@ -438,7 +438,7 @@ class DetectStateAccessTests extends AnyWordSpec {
       )
     ),
     TestCase(
-      label = "Access to inner state in a tripple nested object",
+      label = "Access to inner state in a triple nested object",
       code = """
                |[] > nest
                |  [] > prog

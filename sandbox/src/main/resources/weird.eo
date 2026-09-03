@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: Copyright (c) 2021-2022 Polystat.org
+# SPDX-License-Identifier: MIT
 
 # Method `a.g` is mutually recursive with method `b.i` through the following possible code path:
 # a.g -> b.f -> a.h -> b.i -> a.g
@@ -14,4 +16,3 @@
     self.h self > @
   [self] > i
     self.g self > @
-

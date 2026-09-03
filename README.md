@@ -761,7 +761,7 @@ here.
 
 [(Back to TOC)](#table-of-contents)
 
-The fourth defect type suported by odin.
+The fourth defect type supported by odin.
 
 ##### Original Problem Statement
 
@@ -789,7 +789,7 @@ end
 ```
 
 We will have the following: the modification `M`, if applied to class `C` might
-cause unnecessary confusion. The initial implemntation maintains an implicit
+cause unnecessary confusion. The initial implementation maintains an implicit
 invariant `x=y` by using `x := y` at the last action of every method.
 
 However, the redefinition of `n` in `M` causes the invariant to be broken in
@@ -804,7 +804,7 @@ Thus, the best way to avoid such confusion is by only allowing changes to the
 variables defined in the base class to be made via the corresponding methods of
 the base class.
 
-##### EO Equivalnet of the Statement
+##### EO Equivalent of the Statement
 
 In EO, base class state can be modelled with the use of
 `memory` functionality for variables and `cage` functionality for objects.
@@ -1005,7 +1005,7 @@ dy.pow 2
 #### 2. Multi-file EO programs are only partially supported
 
 While, the imports are recognised by the analyzer in the form of `+alias
-optional-alias imoprt` statements, the actual code behind them is not used
+optional-alias import` statements, the actual code behind them is not used
 during analysis. More than that, the only instance when imports are considered
 is during the setting-locators stage of the third defect analysis. Even then,
 the information is not used in any meaningful way.
@@ -1040,8 +1040,8 @@ The sandbox can be run via:
 sbt sandbox/run
 ```
 
-File containing the `run` entrypoint can be found
-[here](sandbox/src/main/scala/org/polystat/odin/sandbox/Sandbox.scala).
+The `run` entrypoint lives in
+[Sandbox.scala](sandbox/src/main/scala/org/polystat/odin/sandbox/Sandbox.scala).
 
 ### Tests
 

@@ -82,8 +82,8 @@ object InliningTests {
                  |  [self z] > method
                  |    self.g self z > x
                  |    x > @
-                 |    
-                 |  
+                 |
+                 |
                  |  [] > bebra
                  |    ^.zhepa > @
                  |    [self] > aboba
@@ -97,16 +97,16 @@ object InliningTests {
                  |  [] > opa
                  |    [self] > even-more-indirect
                  |      3 > @
-                 |    
-                 |  
+                 |
+                 |
                  |
                  |[] > derived
                  |  obj > @
                  |  [self y] > g
-                 |    3.div (y.add 1) > @  
+                 |    3.div (y.add 1) > @
                  |  [] > kukozh
                  |    ^.^.obj.bebra > @
-                 |    
+                 |
                  |[] > am
                  |  derived > @
                  |""".stripMargin

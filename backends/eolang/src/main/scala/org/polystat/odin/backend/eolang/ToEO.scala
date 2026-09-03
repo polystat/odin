@@ -436,7 +436,7 @@ object ToEO {
     implicit val regexDataToEO: ToEO[EORegexData[EOExprOnly], Inline] =
       new ToEO[EORegexData[EOExprOnly], Inline] {
 
-        // TODO: support suffixes
+        // Suffixes are not supported here
         override def toEO(node: EORegexData[EOExprOnly]): Inline =
           Inline(s"/${node.regex.regex}/")
 

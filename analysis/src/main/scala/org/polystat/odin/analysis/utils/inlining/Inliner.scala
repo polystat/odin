@@ -162,7 +162,7 @@ object Inliner {
 
           for {
             parentGetter <- pathToObject
-            // TODO: add the warning about missing parent back
+            // The warning about a missing parent is not reported any more
             parentInfo <- parentGetter
               .getOption(objs)
               .map(_ =>

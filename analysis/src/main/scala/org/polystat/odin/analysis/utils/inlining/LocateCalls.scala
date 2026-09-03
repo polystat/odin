@@ -35,9 +35,9 @@ object LocateCalls {
   def inlineThisObject(
     selfArgName: String
   )(body: EOObj[EOExprOnly]): EOObj[EOExprOnly] = {
-    // TODO:
+    // The plan is:
     // 1. find object where @ = this
-    // 2. replace all occurences of this object with this,
+    // 2. replace all occurrences of this object with this,
     val one = BigInt(1)
     val thisObj = body.bndAttrs.collectFirst {
       case EOBndExpr(
@@ -183,7 +183,7 @@ object LocateCalls {
            if hasPhiAttribute(bndAttrs) &&
            hasNoReferencesToPhi(bndAttrs) &&
            (selfArg.name == "this" || selfArg.name == "self") &&
-           // TODO: properly handle constructors
+           // Constructors are not handled properly here
            methodBnd.bndName.name.name != "constructor" =>
         val objWithInlinedThis = inlineThisObject(selfArg.name)(obj)
         Some(

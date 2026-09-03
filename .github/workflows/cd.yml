@@ -1,6 +1,10 @@
+# SPDX-FileCopyrightText: Copyright (c) 2021-2022 Polystat.org
+# SPDX-License-Identifier: MIT
+# yamllint disable rule:line-length
+---
 name: cd
 
-on:
+'on':
   workflow_dispatch:
     inputs:
       release_version:
@@ -14,11 +18,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GIT_TOKEN }}
       - name: Setup JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '11'

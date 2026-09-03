@@ -96,7 +96,7 @@ object LocateCallsTests {
     inlinedMethod.foreach(_.foreach(obj => println(obj.toEOPretty)))
 
     println(
-      """Method bodies after adding 
+      """Method bodies after adding
         |an attribute 'lol' with value "hello there"
         |to each call site.
         |""".stripMargin

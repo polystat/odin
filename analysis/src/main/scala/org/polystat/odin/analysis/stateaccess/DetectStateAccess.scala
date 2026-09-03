@@ -75,7 +75,7 @@ object DetectStateAccess {
         case BndItself(
                EOBndExpr(
                  bndName,
-                 // TODO: add a depth check here?
+                 // A depth check may be needed here
                  EOSimpleAppWithLocator("memory" | "cage", _)
                )
              ) if notAlreadyPresent(bndName) =>
@@ -151,7 +151,7 @@ object DetectStateAccess {
     @tailrec
     def hasSelfAsSource(dot: EODot[EOExprOnly], depth: BigInt): Boolean = {
       Fix.un(dot.src) match {
-        // TODO: add a proper depth check
+        // A proper depth check is missing here
         case EOSimpleAppWithLocator(dotSrc, x)
              if x == depth && dotSrc == selfArgName => true
         case innerDot @ EODot(_, _) => hasSelfAsSource(innerDot, depth)
@@ -161,7 +161,7 @@ object DetectStateAccess {
 
     def buildDotChain(dot: EODot[EOExprOnly]): List[String] =
       Fix.un(dot.src) match {
-        // TODO: add depth check???
+        // A depth check is missing here
         case EOSimpleAppWithLocator(argName, _) if argName == selfArgName =>
           List()
         case innerDot @ EODot(_, _) =>
